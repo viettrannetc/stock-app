@@ -28,10 +28,10 @@ namespace DotNetCoreSqlDb.Controllers
         // GET: Stock/Details/5
         public async Task<IActionResult> Pattern(string pattern)
         {
-            //https://stackoverflow.com/questions/8454974/c-sharp-net-equivalent-to-php-time
+            
             switch (pattern)
             {
-                case "aLien - Pattern 1":
+                case "aL - Pattern 1":
                     //DK 1: Lowest today < Lowest in the last XXX day && Lowest today < 2nd Lowest in the last XXX day
                     //DK 2: C > L * 0.02
                     //DK3 = C <= O * 0.03;
@@ -60,7 +60,7 @@ namespace DotNetCoreSqlDb.Controllers
                 return NotFound();
             }
 
-            var todo = await _context.StockSymbol.FirstOrDefaultAsync(m => m.Description == pattern);
+            var todo = await _context.StockSymbol.FirstOrDefaultAsync(m => m._sc_ == pattern);
             if (todo == null)
             {
                 return NotFound();

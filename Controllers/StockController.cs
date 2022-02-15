@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using DotNetCoreSqlDb.Models;
+using DotNetCoreSqlDb.Common;
 
 namespace DotNetCoreSqlDb.Controllers
 {
@@ -19,9 +20,9 @@ namespace DotNetCoreSqlDb.Controllers
         }
 
         // GET: Stock
-        public async Task<IActionResult> Index()
+        public async Task<List<StockSymbol>> Index()
         {
-            return View(await _context.StockSymbol.ToListAsync());
+            return await _context.StockSymbol.ToListAsync();
         }
 
         // GET: Stock/Details/5
@@ -32,7 +33,7 @@ namespace DotNetCoreSqlDb.Controllers
                 return NotFound();
             }
 
-            var todo = await _context.StockSymbol.FirstOrDefaultAsync(m => m.Description == stockCode);
+            var todo = await _context.StockSymbol.FirstOrDefaultAsync(m => m._sc_ == stockCode);
             if (todo == null)
             {
                 return NotFound();
@@ -40,112 +41,35 @@ namespace DotNetCoreSqlDb.Controllers
 
             return View(todo);
         }
+
+
+
+        /// <summary>
+		/// Example: "https://api.vietstock.vn/ta/history?symbol=VIC&resolution=D&from=1609459200&to=1644796800";
+		/// </summary>
+		/// <params>{0}: symbol code</params>
+		/// <params>{1}: resolution = D</params>
+		/// <params>{2}: from: int from php code</params>
+		/// <params>{3}: to: int from php code</params>
+		public const string VietStock_GetAllSymbols = "https://api.vietstock.vn/finance/sectorInfo_v2?sectorID=0&catID=0&capitalID=0&languageID=1";
 
         // GET: Todos/Create
-        public IActionResult Create()
-        {
-            return View();
-        }
-
-        // POST: Todos/Create
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("ID,Description,CreatedDate")] Todo todo)
+        public async Task<bool> Create()
         {
-            if (ModelState.IsValid)
-            {
-                _context.Add(todo);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(todo);
-        }
+            var restService = new RestServiceHelper();
+            var allSharePointsObjects = await restService.Get<List<StockSymbol>>(VietStock_GetAllSymbols);
 
-        // GET: Todos/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            var existingOnes = await _context.StockSymbol.ToListAsync();
+            _context.StockSymbol.RemoveRange(existingOnes);
 
-            var todo = await _context.Todo.FindAsync(id);
-            if (todo == null)
-            {
-                return NotFound();
-            }
-            return View(todo);
-        }
+            await _context.StockSymbol.AddRangeAsync(allSharePointsObjects);
 
-        // POST: Todos/Edit/5
-        // To protect from overposting attacks, please enable the specific properties you want to bind to, for 
-        // more details see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("ID,Description,CreatedDate")] Todo todo)
-        {
-            if (id != todo.ID)
-            {
-                return NotFound();
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    _context.Update(todo);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!TodoExists(todo.ID))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
-            }
-            return View(todo);
-        }
-
-        // GET: Todos/Delete/5
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var todo = await _context.Todo
-                .FirstOrDefaultAsync(m => m.ID == id);
-            if (todo == null)
-            {
-                return NotFound();
-            }
-
-            return View(todo);
-        }
-
-        // POST: Todos/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var todo = await _context.Todo.FindAsync(id);
-            _context.Todo.Remove(todo);
             await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+
+            return true;
         }
 
-        private bool TodoExists(int id)
-        {
-            return _context.Todo.Any(e => e.ID == id);
-        }
+        
     }
 }
