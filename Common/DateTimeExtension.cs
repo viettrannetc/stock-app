@@ -21,5 +21,10 @@ namespace DotNetCoreSqlDb.Common
             var result = new DateTime(1970, 1, 1).AddSeconds(phpDateTimeNumber);
             return result;
         }
+
+        public static bool IsWeekend(this DateTime today)
+        {
+            return (today.DayOfWeek == DayOfWeek.Saturday) || (today.DayOfWeek == DayOfWeek.Sunday);
+        }
     }
 }

@@ -27,7 +27,7 @@ namespace DotNetCoreSqlDb.Controllers
         }
 
         // GET: https://localhost:44359/StockSymbolHistory/Details?code=A32
-        [HttpGet]        
+        [HttpGet]
         public async Task<List<StockSymbolHistory>> Details(string code)
         {
             if (string.IsNullOrWhiteSpace(code))
@@ -60,68 +60,129 @@ namespace DotNetCoreSqlDb.Controllers
         //      from: 01-01-1970  (12 AM as default)
         //      to: 15-02-2022    (12 AM as default)
         [HttpPost]
-        public async Task<bool> Create()
+        public async Task<string> Create()
         {
             var restService = new RestServiceHelper();
 
             //[Bind("code,from,to")] VietStockSymbolHistoryResquestModel requestModel
 
-            var allSymbols = await _context.StockSymbol.ToListAsync();
+            var allSymbols = await _context.StockSymbol.OrderByDescending(s => s._sc_).ToListAsync();
+
+            //Parallel.ForEach(allSymbols, async item => {
+            //    var requestModel = new VietStockSymbolHistoryResquestModel();
+            //    requestModel.code = item._sc_;
+            //    requestModel.from = new DateTime(1970, 1, 1);
+            //    requestModel.to = new DateTime(2022, 2, 15);
+
+            //    var url = string.Format(VietStock_GetDetailsBySymbolCode,
+            //                    requestModel.code,
+            //                    "D",
+            //                    requestModel.from.ConvertToPhpInt(),
+            //                    requestModel.to.ConvertToPhpInt()
+            //                    );
+            //    var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
+
+            //    var numberOfT = allSharePointsObjects.t.Count();
+            //    var numberOfO = allSharePointsObjects.t.Count();
+            //    var numberOfC = allSharePointsObjects.t.Count();
+            //    var numberOfH = allSharePointsObjects.t.Count();
+            //    var numberOfL = allSharePointsObjects.t.Count();
+            //    var numberOfV = allSharePointsObjects.t.Count();
+
+            //    //if (numberOfT != numberOfO || numberOfT != numberOfC || numberOfT != numberOfH || numberOfT != numberOfL || numberOfT != numberOfV)
+            //    //{
+
+            //    //}
+
+            //    var result = new List<StockSymbolHistory>();
+
+            //    for (int i = 0; i < numberOfT; i++)
+            //    {
+            //        var history = new StockSymbolHistory();
+            //        history.T = allSharePointsObjects.t[i];
+            //        history.Date = allSharePointsObjects.t[i].PhpIntConvertToDateTime();
+            //        history.O = allSharePointsObjects.o[i];
+            //        history.C = allSharePointsObjects.c[i];
+            //        history.H = allSharePointsObjects.h[i];
+            //        history.L = allSharePointsObjects.l[i];
+            //        history.V = allSharePointsObjects.v[i];
+            //        history.StockSymbol = requestModel.code;
+
+            //        //var isExisting = _context.StockSymbolHistory.Any(e => e.StockSymbol == history.StockSymbol && e.T == history.T);
+            //        //if (!isExisting)
+            //        result.Add(history);
+            //    }
+
+            //    if (result.Any())
+            //    {
+            //        await _context.StockSymbolHistory.AddRangeAsync(result);
+            //        await _context.SaveChangesAsync();
+            //    }
+            //});
+
+
 
             foreach (var item in allSymbols)
             {
-                var requestModel = new VietStockSymbolHistoryResquestModel();
-                requestModel.code = item._sc_;
-                requestModel.from = new DateTime(1970, 1, 1);
-                requestModel.to = new DateTime(2022, 2, 15);
-
-                var url = string.Format(VietStock_GetDetailsBySymbolCode,
-                                requestModel.code,
-                                "D",
-                                requestModel.from.ConvertToPhpInt(),
-                                requestModel.to.ConvertToPhpInt()
-                                );
-                var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
-
-                var numberOfT = allSharePointsObjects.t.Count();
-                var numberOfO = allSharePointsObjects.t.Count();
-                var numberOfC = allSharePointsObjects.t.Count();
-                var numberOfH = allSharePointsObjects.t.Count();
-                var numberOfL = allSharePointsObjects.t.Count();
-                var numberOfV = allSharePointsObjects.t.Count();
-
-                if (numberOfT != numberOfO || numberOfT != numberOfC || numberOfT != numberOfH || numberOfT != numberOfL || numberOfT != numberOfV)
+                try
                 {
-                    return false;
-                }
+                    var requestModel = new VietStockSymbolHistoryResquestModel();
+                    requestModel.code = item._sc_;
+                    requestModel.from = new DateTime(1970, 1, 1);
+                    requestModel.to = new DateTime(2022, 2, 15);
 
-                var result = new List<StockSymbolHistory>();
+                    var url = string.Format(VietStock_GetDetailsBySymbolCode,
+                                    requestModel.code,
+                                    "D",
+                                    requestModel.from.ConvertToPhpInt(),
+                                    requestModel.to.ConvertToPhpInt()
+                                    );
+                    var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
 
-                for (int i = 0; i < numberOfT; i++)
-                {
-                    var history = new StockSymbolHistory();
-                    history.T = allSharePointsObjects.t[i];
-                    history.Date = allSharePointsObjects.t[i].PhpIntConvertToDateTime();
-                    history.O = allSharePointsObjects.o[i];
-                    history.C = allSharePointsObjects.c[i];
-                    history.H = allSharePointsObjects.h[i];
-                    history.L = allSharePointsObjects.l[i];
-                    history.V = allSharePointsObjects.v[i];
-                    history.StockSymbol = requestModel.code;
+                    var numberOfT = allSharePointsObjects.t.Count();
+                    var numberOfO = allSharePointsObjects.t.Count();
+                    var numberOfC = allSharePointsObjects.t.Count();
+                    var numberOfH = allSharePointsObjects.t.Count();
+                    var numberOfL = allSharePointsObjects.t.Count();
+                    var numberOfV = allSharePointsObjects.t.Count();
 
-                    var isExisting = _context.StockSymbolHistory.Any(e => e.StockSymbol == history.StockSymbol && e.T == history.T);
-                    if (!isExisting)
+                    if (numberOfT != numberOfO || numberOfT != numberOfC || numberOfT != numberOfH || numberOfT != numberOfL || numberOfT != numberOfV)
+                    {
+                        return "false";
+                    }
+
+                    var result = new List<StockSymbolHistory>();
+
+                    for (int i = 0; i < numberOfT; i++)
+                    {
+                        var history = new StockSymbolHistory();
+                        history.T = allSharePointsObjects.t[i];
+                        history.Date = allSharePointsObjects.t[i].PhpIntConvertToDateTime();
+                        history.O = allSharePointsObjects.o[i];
+                        history.C = allSharePointsObjects.c[i];
+                        history.H = allSharePointsObjects.h[i];
+                        history.L = allSharePointsObjects.l[i];
+                        history.V = allSharePointsObjects.v[i];
+                        history.StockSymbol = requestModel.code;
+
+                        //var isExisting = _context.StockSymbolHistory.Any(e => e.StockSymbol == history.StockSymbol && e.T == history.T);
+                        //if (!isExisting)
                         result.Add(history);
-                }
+                    }
 
-                if (result.Any())
+                    if (result.Any())
+                    {
+                        await _context.StockSymbolHistory.AddRangeAsync(result);
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch (Exception ex)
                 {
-                    await _context.StockSymbolHistory.AddRangeAsync(result);
-                    await _context.SaveChangesAsync();
+                    return item._sc_;
                 }
             }
 
-            return true;
+            return "true";
         }
     }
 }
