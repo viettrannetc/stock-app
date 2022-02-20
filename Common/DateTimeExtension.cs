@@ -1,4 +1,7 @@
 ﻿using System;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
+
 
 namespace DotNetCoreSqlDb.Common
 {
@@ -25,6 +28,23 @@ namespace DotNetCoreSqlDb.Common
         public static bool IsWeekend(this DateTime today)
         {
             return (today.DayOfWeek == DayOfWeek.Saturday) || (today.DayOfWeek == DayOfWeek.Sunday);
+        }
+
+        public static DateTime WithoutHours(this DateTime today)
+        {
+            return new DateTime(today.Year, today.Month, today.Day, 0, 0, 0);
+        }
+
+        public static T DeepClone<T>(this T obj)
+        {
+            using (var ms = new MemoryStream())
+            {
+                var formatter = new BinaryFormatter();
+                formatter.Serialize(ms, obj);
+                ms.Position = 0;
+
+                return (T)formatter.Deserialize(ms);
+            }
         }
     }
 }

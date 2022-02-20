@@ -12,6 +12,8 @@ namespace DotNetCoreSqlDb.Common
 {
 	public class Utilities
 	{
+		
+
 		// Token: 0x0600003C RID: 60 RVA: 0x00002628 File Offset: 0x00000828
 		public static byte[] CryptData(byte[] buffer, string password)
 		{

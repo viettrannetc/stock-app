@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DotNetCoreSqlDb.Models
 {
+    [Serializable]
     public class StockSymbolHistory
     {
         public int ID { get; set; }

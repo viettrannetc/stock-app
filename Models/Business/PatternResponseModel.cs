@@ -21,6 +21,7 @@ namespace DotNetCoreSqlDb.Models.Business
             Details = new List<PatternDetailsResponseModel>();
         }
         public string StockCode { get; set; }
+        public decimal SuccessRate { get; set; }
         public List<PatternDetailsResponseModel> Details { get; set; }
     }
 
