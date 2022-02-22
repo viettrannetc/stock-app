@@ -65,7 +65,7 @@ namespace DotNetCoreSqlDb.Controllers
             var restService = new RestServiceHelper();
 
             var allSymbols = await _context.StockSymbol
-                .Where(ss => ss._sc_ != "TCI")
+                //.Where(ss => ss._sc_ != "TCI")
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
 
