@@ -17,10 +17,12 @@ namespace DotNetCoreSqlDb.Models.Business
         public PatternResponseModel()
         {
             Symbols = new List<PatternBySymbolResponseModel>();
+            SymbolCodes = new List<string>();
         }
         public string PatternName { get; set; }
         public decimal SuccessRate { get; set; }
         public List<PatternBySymbolResponseModel> Symbols { get; set; }
+        public List<string> SymbolCodes { get; set; }
     }
 
     public class PatternBySymbolResponseModel
