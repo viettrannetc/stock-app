@@ -3,6 +3,15 @@ using System.Collections.Generic;
 
 namespace DotNetCoreSqlDb.Models.Business
 {
+    public class PatternWeekResearchModel : StockSymbolHistory
+    {
+        public PatternWeekResearchModel()
+        {
+        }
+
+        public int Week { get; set; }
+    }
+
     public class PatternResponseModel
     {
         public PatternResponseModel()
@@ -12,8 +21,8 @@ namespace DotNetCoreSqlDb.Models.Business
         public string PatternName { get; set; }
         public decimal SuccessRate { get; set; }
         public List<PatternBySymbolResponseModel> Symbols { get; set; }
-
     }
+
     public class PatternBySymbolResponseModel
     {
         public PatternBySymbolResponseModel()
