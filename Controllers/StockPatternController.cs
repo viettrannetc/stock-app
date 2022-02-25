@@ -434,6 +434,8 @@ namespace DotNetCoreSqlDb.Controllers
             });
 
             result.Symbols = result.Symbols.OrderBy(s => s.StockCode).ToList();
+            result.SymbolCodes = result.Symbols.Select(s => s.StockCode).ToList();
+
             return result;
         }
 
