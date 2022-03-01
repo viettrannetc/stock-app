@@ -5,8 +5,6 @@ VisualStudioVersion = 17.0.32126.317
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNetCoreSqlDb", "DotNetCoreSqlDb.csproj", "{BA812546-28B5-4003-82C6-61CA723F38EE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Schedule", "Schedule\Schedule.csproj", "{5ABF7B9F-CE38-4983-A57E-D4D4CA8A73B5}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -17,10 +15,6 @@ Global
 		{BA812546-28B5-4003-82C6-61CA723F38EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BA812546-28B5-4003-82C6-61CA723F38EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BA812546-28B5-4003-82C6-61CA723F38EE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5ABF7B9F-CE38-4983-A57E-D4D4CA8A73B5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5ABF7B9F-CE38-4983-A57E-D4D4CA8A73B5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5ABF7B9F-CE38-4983-A57E-D4D4CA8A73B5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5ABF7B9F-CE38-4983-A57E-D4D4CA8A73B5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

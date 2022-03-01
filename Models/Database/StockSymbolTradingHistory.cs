@@ -18,15 +18,15 @@ namespace DotNetCoreSqlDb.Models
         /// <summary>
         /// Vol for each transaction
         /// </summary>
-        public decimal Match_qtty { get; set; }
+        public decimal MatchQtty { get; set; }
         /// <summary>
         /// Total vol from begining of the day until this transaction - it's a sum of all Match_qtty of previous transactions in the day
         /// </summary>
-        public decimal Total_vol { get; set; }
+        public decimal TotalVol { get; set; }
         /// <summary>
         /// sd is sell, bu is buy, unknown
         /// </summary>
-        public string Side { get; set; }
+        public bool IsBuy { get; set; }
         public string StockSymbol { get; set; }
         /// <summary>
         /// combination between date & TIME
