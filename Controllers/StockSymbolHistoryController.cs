@@ -74,6 +74,7 @@ namespace DotNetCoreSqlDb.Controllers
             huyNiemYet.Add("KSK");
             huyNiemYet.Add("TRT");
             huyNiemYet.Add("ABR");
+            huyNiemYet.Add("FUCTVGF2");
 
             var allSymbols = await _context.StockSymbol
                 .OrderByDescending(s => s._sc_)

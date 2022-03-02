@@ -9,6 +9,8 @@ using DotNetCoreSqlDb.Models;
 using DotNetCoreSqlDb.Models.Business;
 using DotNetCoreSqlDb.Common;
 using System.Collections.Concurrent;
+using DotNetCoreSqlDb.Models.Business.Report;
+using DotNetCoreSqlDb.Models.Business.Report.Implementation;
 
 namespace DotNetCoreSqlDb.Controllers
 {
@@ -28,11 +30,9 @@ namespace DotNetCoreSqlDb.Controllers
         }
 
         // GET: Stock/Pattern/5
-        public async Task<PatternResponseModel> Pattern(string pattern, string code, DateTime startFrom, int soPhienGd, int trungbinhGd)
+        public async Task<ReportModel> Pattern(string code, DateTime startFrom, int soPhienGd, int trungbinhGd)
         {
-            var result = new PatternResponseModel();// List<PatternDetailsResponseModel>();
-
-            pattern = "aL - Pattern 2";
+            var result = new ReportModel();
 
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
 
@@ -54,7 +54,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
-            var historiesInPeriodOfTimeNonDB = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
                     .Where(ss =>
                         stockCodes.Contains(ss.StockSymbol)
                         && ss.Date >= startFrom
@@ -62,7 +62,10 @@ namespace DotNetCoreSqlDb.Controllers
                     .OrderByDescending(ss => ss.Date)
                     .ToListAsync();
 
-            var bag = new ConcurrentBag<object>();
+            var dates = await _context.StockSymbolHistory.OrderByDescending(s => s.Date)
+                .Where(s => stockCodes.Contains(s.StockSymbol) && s.Date > startFrom.AddDays((30 * 8) * -1))
+                .ToListAsync();
+
             Parallel.ForEach(symbols, symbol =>
             {
                 try
@@ -70,100 +73,52 @@ namespace DotNetCoreSqlDb.Controllers
                     var patternOnsymbol = new PatternBySymbolResponseModel();
                     patternOnsymbol.StockCode = symbol._sc_;
 
-                    var historiesInPeriodOfTime = historiesInPeriodOfTimeNonDB
+                    var historiesByStockCode = historiesInPeriodOfTimeByStockCode
                         .Where(ss => ss.StockSymbol == symbol._sc_)
                         .ToList();
 
-                    var histories = historiesInPeriodOfTime
+                    var orderedHistory = historiesByStockCode
                         .OrderBy(s => s.Date)
                         .ToList();
 
-                    var avarageOfLastXXPhien = histories.Take(soPhienGd).Sum(h => h.V) / soPhienGd;
-                    if (avarageOfLastXXPhien < trungbinhGd) return;
-
-                    for (var i = 0; i < histories.Count; i++)
+                    for (int i = 0; i < orderedHistory.Count; i++)
                     {
-                        var history = histories[i];
-                        var currentDateToCheck = history.Date;
-                        var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(soPhienGd).ToList();
+                        var history = orderedHistory[i];
+                        if (history.Date < startFrom) continue;
 
-                        //TODO: lowest & 2nd lowest can be reused to improve performance
-                        var lowest = previousDaysFromCurrentDay.OrderBy(h => h.C).FirstOrDefault();
-                        if (lowest == null) continue;
+                        var avarageOfLastXXPhien = history.MA(orderedHistory, -soPhienGd);
+                        if (avarageOfLastXXPhien < trungbinhGd) continue;
 
-                        var secondLowest = LookingForSecondLowest(histories, lowest, history);
-                        if (secondLowest == null) continue;
+                        //var historiesUntilCheckingDate = orderedHistory.Where(h => h.Date < history.Date).ToList();
 
-                        var previousDaysForHigestFromLowest = histories.Where(h => h.Date < lowest.Date).OrderByDescending(h => h.Date).Take(soPhienGd).ToList();
-                        var highest = previousDaysFromCurrentDay.OrderByDescending(h => h.C).FirstOrDefault();
-                        if (highest == null) continue;
+                        var formular1TimTrendGiam = new ReportFormular1TimTrendGiam().Calculation(symbol._sc_, history.Date, dates, null);
+                        var formular2TimDay2 = new ReportFormular2TimDay2().Calculation(symbol._sc_, history.Date, orderedHistory, null);
+                        var formular3KLGDTangDotBien = new ReportFormular3TangDotBien().Calculation(symbol._sc_, history.Date, null, null);
+                        var formular4GiaXuongDay = new ReportFormular4GiaXuongDay().Calculation(symbol._sc_, history.Date, orderedHistory, null);
 
+                        ReportStockModel stockModel = new ReportStockModel();
+                        stockModel.Date = history.Date;
+                        stockModel.StockCode = symbol._sc_;
 
-                        var dk1 = highest.C * 0.85M >= lowest.C;
-                        var dk2 = history.C >= secondLowest.C * 1.02M;
+                        stockModel.Formulars
+                            .Plus(formular1TimTrendGiam)
+                            .Plus(formular2TimDay2)
+                            .Plus(formular3KLGDTangDotBien)
+                            .Plus(formular4GiaXuongDay);
 
+                        result.Stocks.Add(stockModel);
 
-                        //var periodInLowestAndSecondLowest = historiesInPeriodOfTime.Where(h => h.Date > lowest.Date && h.Date < secondLowest.Date).ToList();
-                        //var dk3 = periodInLowestAndSecondLowest.Any(s => s.C > secondLowest.C);
-
-
-                        if (dk1 && dk2) //basically we should start buying
-                        {
-                            var reality = "false";
-                            var historyTomorrow = histories
-                                .Where(h => h.Date > history.Date)
-                                .OrderBy(h => h.Date)
-                                .FirstOrDefault();
-
-                            if (historyTomorrow == null) continue;
-
-                            if (historyTomorrow != null && historyTomorrow.C >= history.C)
-                                reality = "true";
-
-
-                            patternOnsymbol.Details.Add(new PatternDetailsResponseModel
-                            {
-                                ConditionMatchAt = currentDateToCheck,
-                                MoreInformation = new
-                                {
-                                    TodayOpening = history.O,
-                                    TodayClosing = history.C,
-                                    TodayLowest = history.L,
-                                    TodayTrading = history.V,
-                                    Previous1stLowest = lowest.L,
-                                    Previous1stLowestDate = lowest.Date,
-                                    Previous2ndLowest = secondLowest.L,
-                                    Previous2ndLowestDate = secondLowest.Date,
-                                    AverageNumberOfTradingInPrevious20Times = 0,
-                                    ShouldBuy = true,
-                                    RealityExpectation = reality,
-                                    Tomorrow = historyTomorrow?.Date,
-                                    TomorrowClosing = historyTomorrow?.C
-                                }
-                            });
-                        }
-                    }
-                    if (patternOnsymbol.Details.Any())
-                    {
-                        if (patternOnsymbol.SuccessRate > 0)
-                            result.TimDay2.Items.Add(patternOnsymbol);
                     }
                 }
-                catch (Exception ex)
-                {
+                catch (Exception ex) { }
 
-                    throw;
-                }
             });
-
-
-            result.TimDay2.Items = result.TimDay2.Items.OrderByDescending(s => s.SuccessRate).ToList();
 
             return result;
         }
 
 
-        private static StockSymbolHistory LookingForSecondLowest(List<StockSymbolHistory> histories, StockSymbolHistory lowest, StockSymbolHistory currentDateHistory)
+        private StockSymbolHistory LookingForSecondLowest(List<StockSymbolHistory> histories, StockSymbolHistory lowest, StockSymbolHistory currentDateHistory)
         {
             var theDaysAfterLowest = histories.Where(h => h.Date > lowest.Date && h.Date <= currentDateHistory.Date)
                 .OrderBy(h => h.Date)
@@ -301,8 +256,8 @@ namespace DotNetCoreSqlDb.Controllers
                             ConditionMatchAt = currentDateToCheck,
                             MoreInformation = new
                             {
-                                Text = @$"{history.StockSymbol}: Đáy 1 {lowest.Date.ToShortDateString()}: {lowest.L},
-                                        Đáy 2 {secondLowest.Date.ToShortDateString()}: {secondLowest.L},
+                                Text = @$"{history.StockSymbol}: Đáy 1 {lowest.Date.ToShortDateString()}: {lowest.C},
+                                        Đáy 2 {secondLowest.Date.ToShortDateString()}: {secondLowest.C},
                                         Giá đóng cửa hum nay ({history.C}) cao hơn giá đóng của đáy 2 {secondLowest.C},
                                         Đỉnh trong vòng 30 ngày ({highest.C}) giảm 15% ({highest.C * 0.85M}) vẫn cao hơn giá đóng cửa của đáy 1 {lowest.C},
                                         Giữa đáy 1 và đáy 2, có giá trị cao hơn đáy 2 và giá đóng cửa ngày hum nay ít nhất 2%",
@@ -310,11 +265,12 @@ namespace DotNetCoreSqlDb.Controllers
                                 TodayClosing = history.C,
                                 TodayLowest = history.L,
                                 TodayTrading = history.V,
-                                Previous1stLowest = lowest.L,
+                                Previous1stLowest = lowest.C,
                                 Previous1stLowestDate = lowest.Date,
-                                Previous2ndLowest = secondLowest.L,
+                                Previous2ndLowest = secondLowest.C,
                                 Previous2ndLowestDate = secondLowest.Date,
                                 AverageNumberOfTradingInPreviousTimes = avarageOfLastXXPhien,
+                                RealityExpectation = string.Empty,
                                 ShouldBuy = true
                             }
                         });
@@ -437,11 +393,11 @@ namespace DotNetCoreSqlDb.Controllers
                                 {
                                     TodayOpening = historyByWeek.O,
                                     TodayClosing = historyByWeek.C,
-                                    TodayLowest = historyByWeek.L,
+                                    TodayLowest = historyByWeek.C,
                                     TodayTrading = historyByWeek.V,
-                                    Day1 = day1.L,
+                                    Day1 = day1.C,
                                     Day1Date = day1.Date,
-                                    Day2 = day2.L,
+                                    Day2 = day2.C,
                                     Day2Date = day2.Date,
                                     Dinh1 = dinh1.C,
                                     Dinh1Date = dinh1.Date,
@@ -464,80 +420,6 @@ namespace DotNetCoreSqlDb.Controllers
                     {
                         result.TimTrendGiam.Items.Add(patternOnsymbol);
                     }
-
-
-                    //var avarageOfLastXXPhien = histories.Take(soPhienGd).Sum(h => h.V) / soPhienGd;
-                    //if (avarageOfLastXXPhien < trungbinhGd) return;
-
-                    //var dinh1 = GetHigestStockDataByWeek(historiesByStockCode, symbol._sc_, ngay);
-                    //if (dinh1 == null) return;
-
-                    //var day1 = GetLowestStockDataByWeek(historiesByStockCode, symbol._sc_, ngay, dinh1);
-                    //if (day1 == null) return;
-
-                    //var dinh2 = GetHigestStockDataByWeek(historiesByStockCode, symbol._sc_, ngay, day1);
-                    //if (dinh2 == null) return;
-
-                    //var day2 = GetLowestStockDataByWeek(historiesByStockCode, symbol._sc_, ngay, dinh2);
-                    //if (day2 == null) return;
-
-
-                    //var indexOfDinh2 = historiesByStockCode.IndexOf(dinh2);
-                    //var indexOfDinh1 = historiesByStockCode.IndexOf(dinh1);
-
-                    //var a = indexOfDinh2 - indexOfDinh1;
-                    //var b = dinh1.C - dinh2.C;
-
-                    //var formula = "y = ax / -b";
-
-                    //var thisWeek = histories.OrderByDescending(h => h.Date).FirstOrDefault();
-                    //if (thisWeek == null) return;
-
-                    //var distanceFrom0ToThisWeekX = historiesByStockCode.IndexOf(thisWeek) - indexOfDinh2;    //we need a positive number
-                    //var distanceFrom0ToThisWeekY = thisWeek.C - dinh2.C;                                        //we need a negative number
-
-                    //var expectedY = b * distanceFrom0ToThisWeekX / (-a);
-                    //var dk1 = (thisWeek.C - dinh2.C) > expectedY;
-
-                    //var dk2 = dinh1.C > dinh2.C;
-                    //var dk3 = dinh2.C > dinh1.C * 0.93M;
-                    //if (dk1 && dk2 && dk3) //basically we should start buying
-                    //{
-                    //    var ma5next = thisWeek.MA(allHistories, 5);
-
-                    //    patternOnsymbol.Details.Add(new PatternDetailsResponseModel
-                    //    {
-                    //        ConditionMatchAt = thisWeek.Date,
-                    //        MoreInformation = new
-                    //        {
-                    //            TodayOpening = thisWeek.O,
-                    //            TodayClosing = thisWeek.C,
-                    //            TodayLowest = thisWeek.L,
-                    //            TodayTrading = thisWeek.V,
-                    //            Day1 = day1.L,
-                    //            Day1Date = day1.Date,
-                    //            Day2 = day2.L,
-                    //            Day2Date = day2.Date,
-                    //            Dinh1 = dinh1.C,
-                    //            Dinh1Date = dinh1.Date,
-                    //            Dinh2 = dinh2.C,
-                    //            Dinh2Date = dinh2.Date,
-                    //            AverageNumberOfTradingInPreviousTimes = avarageOfLastXXPhien,
-                    //            ShouldBuy = true,
-                    //            RealityExpectation = ma5next == 0
-                    //                ? string.Empty
-                    //                : thisWeek.C < ma5next
-                    //                    ? "true"
-                    //                    : "false",
-                    //            Ma5WeekNext = ma5next,
-                    //        }
-                    //    });
-                    //}
-
-                    //if (patternOnsymbol.Details.Any())
-                    //{
-                    //    result.TimTrendGiam.Items.Add(patternOnsymbol);
-                    //}
                 }
                 catch (Exception ex)
                 {
@@ -557,11 +439,11 @@ namespace DotNetCoreSqlDb.Controllers
             {
                 var newOrder = stockDataByWeek.Where(s => s.StockSymbol == stockCode && s.Date > dinhTruoc.Date).OrderBy(s => s.Date).ToList();
 
-                return newOrder.Where(s => s.Date < toDate.AddDays(-4)).OrderBy(s => s.L).FirstOrDefault();
+                return newOrder.Where(s => s.Date < toDate.AddDays(-4)).OrderBy(s => s.C).FirstOrDefault();
             }
             else
             {
-                return stockDataByWeek.Where(s => s.StockSymbol == stockCode && s.Date < toDate.AddDays(-4)).OrderBy(s => s.L).FirstOrDefault();
+                return stockDataByWeek.Where(s => s.StockSymbol == stockCode && s.Date < toDate.AddDays(-4)).OrderBy(s => s.C).FirstOrDefault();
             }
 
             //return stockDataByWeek.Where(s => s.StockSymbol == stockCode && s.Date > fromDate && s.Date < toDate.AddDays(-4)).OrderBy(s => s.L).FirstOrDefault();
@@ -584,7 +466,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             if (dinh != null && dayTruoc == null) return dinh;
 
-            if (dinh != null && dinh.C > dayTruoc.L * 1.15M) return dinh;
+            if (dinh != null && dinh.C > dayTruoc.C * 1.15M) return dinh;
             return null;
         }
 
@@ -777,8 +659,8 @@ namespace DotNetCoreSqlDb.Controllers
                                 ConditionMatchAt = currentDateToCheck,
                                 MoreInformation = new
                                 {
-                                    Text = @$"{history.StockSymbol}: Đáy 1 {lowest.Date.ToShortDateString()}: {lowest.L},
-                                        Đáy 2 {secondLowest.Date.ToShortDateString()}: {secondLowest.L},
+                                    Text = @$"{history.StockSymbol}: Đáy 1 {lowest.Date.ToShortDateString()}: {lowest.C},
+                                        Đáy 2 {secondLowest.Date.ToShortDateString()}: {secondLowest.C},
                                         Giá đóng cửa hum nay ({history.C}) cao hơn giá đóng của đáy 2 {secondLowest.C},
                                         Đỉnh trong vòng 30 ngày ({highest1.C}) giảm 15% ({highest1.C * 0.85M}) vẫn cao hơn giá đóng cửa của đáy 1 {lowest.C},
                                         Giữa đáy 1 và đáy 2, có giá trị cao hơn đáy 2 và giá đóng cửa ngày hum nay ít nhất 2%",
@@ -786,9 +668,9 @@ namespace DotNetCoreSqlDb.Controllers
                                     TodayClosing = history.C,
                                     TodayLowest = history.L,
                                     TodayTrading = history.V,
-                                    Previous1stLowest = lowest.L,
+                                    Previous1stLowest = lowest.C,
                                     Previous1stLowestDate = lowest.Date,
-                                    Previous2ndLowest = secondLowest.L,
+                                    Previous2ndLowest = secondLowest.C,
                                     Previous2ndLowestDate = secondLowest.Date,
                                     AverageNumberOfTradingInPreviousTimes = avarageOfLastXXPhien,
                                     RealityExpectation = reality,
@@ -1005,7 +887,7 @@ namespace DotNetCoreSqlDb.Controllers
              * Thanh khoản tăng, giá giảm: Nguy hiểm
              * Thanh khoản tăng, giá không tăng: Sắp có điều chỉnh
              * Thanh khoản giảm, giá giảm: bán
-             * Thanh khoản giản, giá không giảm: mua
+             * Thanh khoản giản, giá không giảm: mua -> DGC ngày 13 tháng 12 2021
              * Thanh khoản tốt, giá tăng: nắm giữ
              * Tăng đột biến?
              */
@@ -1082,7 +964,7 @@ namespace DotNetCoreSqlDb.Controllers
                         }
                     }
 
-                    
+
                 }
                 catch (Exception ex)
                 {

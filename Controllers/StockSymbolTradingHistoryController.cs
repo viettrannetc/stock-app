@@ -37,6 +37,7 @@ namespace DotNetCoreSqlDb.Controllers
             huyNiemYet.Add("KSK");
             huyNiemYet.Add("TRT");
             huyNiemYet.Add("ABR");
+            huyNiemYet.Add("FUCTVGF2");
 
             var allSymbols = await _context.StockSymbol
                 //.Where(s => s._sc_ == "CEO")
@@ -73,8 +74,8 @@ namespace DotNetCoreSqlDb.Controllers
 
             //result = result.Where(r => r.Date > currentLatestDate).ToList();
 
-            var updated = result.Select(r => r.StockSymbol).ToList();
-            var notIn = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
+            //var updated = result.Select(r => r.StockSymbol).ToList();
+            //var notIn = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
 
             //if (notIn.Any())
             //    await GetV(result, notIn);
