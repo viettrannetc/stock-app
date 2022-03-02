@@ -32,6 +32,8 @@ namespace DotNetCoreSqlDb.Models
         /// combination between date & TIME
         /// </summary>
         public DateTime Date { get; set; }
+
+        public bool IsTangDotBien { get; set; }
     }
 }
 

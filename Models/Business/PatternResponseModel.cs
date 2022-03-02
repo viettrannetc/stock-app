@@ -28,73 +28,58 @@ namespace DotNetCoreSqlDb.Models.Business
         public PatternTimTrendGiamBySymbolResponseModel TimTrendGiam { get; set; }
     }
 
-    public class PatternTimDay2BySymbolResponseModel : PatternDetailResponseModel
-    {
-        public PatternTimDay2BySymbolResponseModel()
-        {
-            FailedItems = new List<PatternIsFailedBySymbolResponseModel>();
-        }
+    //public class PatternTimDay2BySymbolResponseModel : PatternDetailResponseModel
+    //{
+    //    public PatternTimDay2BySymbolResponseModel()
+    //    {
+    //        FailedItems = new List<PatternIsFailedBySymbolResponseModel>();
+    //    }
 
-        //public List<PatternBySymbolResponseModel> Symbols { get; set; }
-        //public List<string> SymbolCodes { get; set; }
-        public List<PatternIsFailedBySymbolResponseModel> FailedItems { get; set; }
-    }
+    //    //public List<PatternBySymbolResponseModel> Symbols { get; set; }
+    //    //public List<string> SymbolCodes { get; set; }
+    //    public List<PatternIsFailedBySymbolResponseModel> FailedItems { get; set; }
+    //}
 
-    public class PatternTimTrendGiamBySymbolResponseModel : PatternDetailResponseModel
-    {
-        public PatternTimTrendGiamBySymbolResponseModel()
-        {
-            //Symbols = new List<PatternBySymbolResponseModel>();
-            //SymbolCodes = new List<string>();
-            FailedItems = new List<PatternIsFailedBySymbolResponseModel>();
-        }
+    //public class PatternSellAndBuyBySymbolResponseModel
+    //{
+    //    public PatternSellAndBuyBySymbolResponseModel()
+    //    {
+    //        Buy = new PatternSellAndBuyBySymbolDetailResponseModel();
+    //        Sell = new PatternSellAndBuyBySymbolDetailResponseModel();
+    //    }
 
-        //public List<PatternBySymbolResponseModel> Symbols { get; set; }
-        //public List<string> SymbolCodes { get; set; }
-        public List<PatternIsFailedBySymbolResponseModel> FailedItems { get; set; }
-    }
+    //    public PatternSellAndBuyBySymbolDetailResponseModel Buy { get; set; }
+    //    public PatternSellAndBuyBySymbolDetailResponseModel Sell { get; set; }
+    //}
 
+    //public class PatternSellAndBuyBySymbolDetailResponseModel : PatternDetailResponseModel
+    //{
+    //    public PatternSellAndBuyBySymbolDetailResponseModel()
+    //    {
+    //        Items = new List<PatternBySymbolResponseModel>();
+    //    }
+    //    //public decimal SuccessRate
+    //    //{
+    //    //    get
+    //    //    {
+    //    //        if (Items.Any())
+    //    //        {
+    //    //            var details = Items.SelectMany(i => i.Details).ToList();
+    //    //            var availableDetails = details.Where(d => !string.IsNullOrEmpty(d.MoreInformation.RealityExpectation));
+    //    //            var count = availableDetails.Count();
+    //    //            if (count > 0)
+    //    //            {
+    //    //                var successNumber = availableDetails.Count(d => d.MoreInformation.RealityExpectation == "true");
+    //    //                return (decimal)successNumber / (decimal)count;
+    //    //            }
+    //    //        }
+    //    //        return 0;
+    //    //    }
+    //    //}
 
-    public class PatternSellAndBuyBySymbolResponseModel
-    {
-        public PatternSellAndBuyBySymbolResponseModel()
-        {
-            Buy = new PatternSellAndBuyBySymbolDetailResponseModel();
-            Sell = new PatternSellAndBuyBySymbolDetailResponseModel();
-        }
-
-        public PatternSellAndBuyBySymbolDetailResponseModel Buy { get; set; }
-        public PatternSellAndBuyBySymbolDetailResponseModel Sell { get; set; }
-    }
-
-    public class PatternSellAndBuyBySymbolDetailResponseModel : PatternDetailResponseModel
-    {
-        public PatternSellAndBuyBySymbolDetailResponseModel()
-        {
-            Items = new List<PatternBySymbolResponseModel>();
-        }
-        //public decimal SuccessRate
-        //{
-        //    get
-        //    {
-        //        if (Items.Any())
-        //        {
-        //            var details = Items.SelectMany(i => i.Details).ToList();
-        //            var availableDetails = details.Where(d => !string.IsNullOrEmpty(d.MoreInformation.RealityExpectation));
-        //            var count = availableDetails.Count();
-        //            if (count > 0)
-        //            {
-        //                var successNumber = availableDetails.Count(d => d.MoreInformation.RealityExpectation == "true");
-        //                return (decimal)successNumber / (decimal)count;
-        //            }
-        //        }
-        //        return 0;
-        //    }
-        //}
-
-        //public List<string> SymbolCodes { get { return Items.Select(i => i.StockCode).ToList(); } }
-        //public List<PatternBySymbolResponseModel> Items { get; set; }
-    }
+    //    //public List<string> SymbolCodes { get { return Items.Select(i => i.StockCode).ToList(); } }
+    //    //public List<PatternBySymbolResponseModel> Items { get; set; }
+    //}
 
     public class PatternDetailResponseModel
     {

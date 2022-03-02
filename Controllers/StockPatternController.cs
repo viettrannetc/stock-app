@@ -389,7 +389,7 @@ namespace DotNetCoreSqlDb.Controllers
                         if (historyByWeek.DateInWeek < ngay) continue;
 
                         var historiesByStockCodeUntilDate = historiesByStockCode.Where(h => h.DateInWeek < historyByWeek.DateInWeek).OrderByDescending(h => h.DateInWeek).Take(30).ToList();
-                        
+
 
                         var avarageOfLastXXPhien = historyByWeek.MA(histories, -soPhienGd);
                         if (avarageOfLastXXPhien < trungbinhGd) continue;
@@ -996,6 +996,237 @@ namespace DotNetCoreSqlDb.Controllers
             });
 
             return result;
+        }
+
+
+        public async Task<PatternResponseModel> FollowUpStock()
+        {
+            /*
+             * Thanh khoản tăng, giá giảm: Nguy hiểm
+             * Thanh khoản tăng, giá không tăng: Sắp có điều chỉnh
+             * Thanh khoản giảm, giá giảm: bán
+             * Thanh khoản giản, giá không giảm: mua
+             * Thanh khoản tốt, giá tăng: nắm giữ
+             * Tăng đột biến?
+             */
+
+            return null;
+        }
+
+        public async Task<PatternResponseModel> FollowUpPriceInDayMarkTangDotBien(string code)
+        {
+            var result = new PatternResponseModel();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            /*
+             * Dk1 == true
+             *  - send email
+             * 
+             * Dk1:
+             *  + khớp lệnh hiện tại là 1 trong 5 khớp lệnh với số lượng cp mua cao nhất đột biến
+             *      - Thế nào là "cao nhất đột biến"
+             *          + tính từ lần cuối cùng kiểm tra tới hiện tại, có bất kì giao dịch nào có lượng cp khớp  > trung bình cộng của tất cả lượng cp trung bình trong 5 phiên gần nhất ít nhất 50 lần
+             *              - Thế nào là "cp trung bình"
+             *                  + cổ phiếu không được tính là "giao dịch đột biến"
+             *                  + "giao dịch đột biến": là giao dịch > so với trung bình cộng của cp trung bình trong ngày trong những lần giao dịch trước đó ít nhất 50 lần
+             *                  
+             * select DATEADD(DAY, -1, '9/1/2011 20:08:20')                 
+             *                  
+             *                  
+             */
+
+            var last5Phien = _context.StockSymbolHistory.Where(s => s.StockSymbol == "CEO").OrderByDescending(s => s.Date).Take(5).Last();
+
+            var historiesInPeriodOfTimeNonDB = await _context.StockSymbolTradingHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date > last5Phien.Date)
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var lstDotBien = new List<string>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                try
+                {
+                    var historiesInPeriodByStockCode = historiesInPeriodOfTimeNonDB
+                        .Where(ss => ss.StockSymbol == symbol._sc_)
+                        .ToList();
+                    var allHistories = historiesInPeriodByStockCode
+                        .OrderBy(s => s.Date)
+                        .ToList();
+
+                    var lstDays = allHistories.Select(h => h.Date.WithoutHours()).Distinct().ToList();
+
+                    for (int i = 0; i < lstDays.Count; i++)
+                    {
+                        var day = lstDays[i];
+
+                        var tradingsHistoryByDate = allHistories.Where(h => h.Date > day && h.Date < day.AddDays(1).WithoutHours()).ToList();
+
+                        //foreach (var tradingHistory in tradingsHistoryByDate)
+                        //{
+
+                        //}
+
+                        for (int j = 0; j < tradingsHistoryByDate.Count; j++)
+                        {
+                            var trading = tradingsHistoryByDate[j];
+
+                        }
+                    }
+
+                    
+                }
+                catch (Exception ex)
+                {
+
+                    throw;
+                }
+            });
+
+
+
+
+            return null;
+            //var historiesInPeriodOfTimeNonDB = await _context.StockSymbolHistory
+            //        .Where(ss => stockCodes.Contains(ss.StockSymbol))
+            //        .OrderByDescending(ss => ss.Date)
+            //        .ToListAsync();
+
+            //var mua = new PatternSellAndBuyBySymbolDetailResponseModel();
+            //var ban = new PatternSellAndBuyBySymbolDetailResponseModel();
+
+            //result.BuyAndSell.Sell = ban;
+            //result.BuyAndSell.Buy = mua;
+
+            //Parallel.ForEach(symbols, symbol =>
+            //{
+            //    try
+            //    {
+            //        var patternOnsymbolOnBuy = new PatternBySymbolResponseModel();
+            //        var patternOnsymbolOnSell = new PatternBySymbolResponseModel();
+
+            //        var historiesInPeriodOfTime = historiesInPeriodOfTimeNonDB
+            //            .Where(ss => ss.StockSymbol == symbol._sc_)
+            //            .ToList();
+            //        var allHistories = historiesInPeriodOfTime
+            //            .OrderBy(s => s.Date)
+            //            .ToList();
+
+            //        var fromDateHistory = allHistories.FirstOrDefault(h => h.Date.Date >= fromDate);
+            //        if (fromDateHistory == null) return;
+
+            //        var fromDateIndex = allHistories.IndexOf(fromDateHistory);
+
+            //        for (int i = 0; i < allHistories.Count; i++)
+            //        {
+            //            var history = allHistories[i];
+            //            if (history.Date < fromDate || i < 1) continue;
+
+            //            var vol20 = history.VOL(allHistories, -20);
+            //            if (vol20 < 100000) continue;
+
+            //            var ma10 = history.MA(allHistories, -10);
+            //            var ma20 = history.MA(allHistories, -20);
+            //            var ma50 = history.MA(allHistories, -50);
+
+
+            //            var lastTrade = allHistories[i - 1];
+            //            var ma10Yesterday = lastTrade.MA(allHistories, -10);
+            //            var ma20Yesterday = lastTrade.MA(allHistories, -20);
+            //            var ma50Yesterday = lastTrade.MA(allHistories, -50);
+
+            //            var ma10Future = history.MA(allHistories, 10);
+            //            //if (ma10Future == 0) continue; //Consider continue or break....
+
+            //            var dk1 = ma10 > ma10Yesterday;
+            //            var dk2 = ma10 > ma20;
+            //            var dk3 = ma20 > ma50;
+            //            var dk4 = ma20 > ma20Yesterday && ma50 > ma50Yesterday;
+            //            var dk5 = history.C < ma50 * 1.07M;
+            //            var dk6 = history.C > ma50 * 1.15M;
+
+            //            var willBuy = dk1 && dk2 && dk3 && dk4 && dk5;
+            //            var willSell = dk6;
+
+            //            if (!willSell && !willBuy) continue;
+
+            //            var reality = string.Empty;
+
+            //            if (willBuy)
+            //            {
+            //                reality = ma10Future == 0
+            //                    ? string.Empty
+            //                    : ma10Future > history.C ? "true" : "false";
+            //                patternOnsymbolOnBuy.StockCode = symbol._sc_;
+            //                patternOnsymbolOnBuy.Details.Add(new PatternDetailsResponseModel
+            //                {
+            //                    ConditionMatchAt = history.Date,
+            //                    MoreInformation = new
+            //                    {
+            //                        ma10 = ma10,
+            //                        ma20 = ma20,
+            //                        ma50 = ma50,
+            //                        ma10Last = ma10Yesterday,
+            //                        ma20Last = ma20Yesterday,
+            //                        ma50Last = ma50Yesterday,
+            //                        ma10Next = ma10Future,
+            //                        TodayClosing = history.C,
+            //                        RealityExpectation = reality,
+            //                    }
+            //                });
+            //            }
+
+            //            if (willSell)
+            //            {
+            //                reality = ma10Future == 0
+            //                    ? string.Empty
+            //                    : ma10Future < history.C ? "true" : "false";
+            //                patternOnsymbolOnSell.StockCode = symbol._sc_;
+            //                patternOnsymbolOnSell.Details.Add(new PatternDetailsResponseModel
+            //                {
+            //                    ConditionMatchAt = history.Date,
+            //                    MoreInformation = new
+            //                    {
+            //                        ma10 = ma10,
+            //                        ma20 = ma10,
+            //                        ma50 = ma10,
+            //                        ma10Last = ma10Yesterday,
+            //                        ma20Last = ma10Yesterday,
+            //                        ma50Last = ma10Yesterday,
+            //                        ma10Next = ma10Future,
+            //                        TodayClosing = history.C,
+            //                        RealityExpectation = reality,
+            //                    }
+            //                });
+            //            }
+            //        }
+
+
+            //        if (patternOnsymbolOnBuy.Details.Any())
+            //        {
+            //            mua.Items.Add(patternOnsymbolOnBuy);
+            //        }
+            //        if (patternOnsymbolOnSell.Details.Any())
+            //        {
+            //            ban.Items.Add(patternOnsymbolOnSell);
+            //        }
+            //    }
+            //    catch (Exception ex)
+            //    {
+
+            //        throw;
+            //    }
+            //});
+
+            //return result;
         }
     }
 }
