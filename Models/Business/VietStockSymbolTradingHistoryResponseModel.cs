@@ -33,7 +33,7 @@ namespace DotNetCoreSqlDb.Models.Business
         public VietStockSymbolTradingHistoryModel()
         { }
 
-        public string Stockcode { get; set; }
+        public string Code { get; set; }
         public int Package { get; set; }
         public string TradingDate { get; set; }
         public decimal Price { get; set; }
@@ -51,8 +51,16 @@ namespace DotNetCoreSqlDb.Models.Business
                 if (!string.IsNullOrWhiteSpace(TradingDate))
                     return double.Parse(TradingDate.Substring(6, 13)).UnixTimeStampToDateTime();
                 else
-                    return new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, int.Parse(time.Substring(0, 2)), int.Parse(time.Substring(3, 2)), int.Parse(time.Substring(6, 2)));
+                    return new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day -1, int.Parse(time.Substring(0, 2)), int.Parse(time.Substring(3, 2)), int.Parse(time.Substring(6, 2)));
             }
         }
+
+        //public DateTime Date
+        //{
+        //    get
+        //    {
+        //        return DateTime.Parse(time);
+        //    }
+        //}
     }
 }

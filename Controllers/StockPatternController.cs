@@ -18,6 +18,30 @@ namespace DotNetCoreSqlDb.Controllers
     {
         private readonly MyDatabaseContext _context;
 
+        /*
+         * select Date, count(Date) as CDate, StockSymbol
+from StockSymbolTradingHistory
+where StockSymbol = 'DIG'
+group by Date, StockSymbol
+having count(Date) > 0
+
+select * from StockSymbolTradingHistory
+where StockSymbol = 'DIG' and Date = '2022-03-01T09:15:51'
+order by date asc
+
+--select count(*) from StockSymbolTradingHistory where IsTangDotBien = 'true'
+
+select distinct StockSymbol 
+from StockSymbolTradingHistory 
+where IsTangDotBien = 'true'
+and Date > '2022-03-03T00:00:00'
+
+select *
+from StockSymbolTradingHistory 
+where StockSymbol = 'AAA'
+and Date > '2022-03-03T00:00:00'
+order by date         
+         */
         public StockPatternController(MyDatabaseContext context)
         {
             _context = context;
