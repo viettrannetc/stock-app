@@ -47,13 +47,25 @@ namespace DotNetCoreSqlDb.Controllers
             allSymbols = allSymbols.Where(s => !huyNiemYet.Contains(s._sc_)).ToList();
 
             var result = new List<StockSymbolTradingHistory>();
-            
+
             await GetV(result, allSymbols);
 
             if (result.Any())
             {
-                await _context.StockSymbolTradingHistory.AddRangeAsync(result);
-                await _context.SaveChangesAsync();
+                Parallel.ForEach(allSymbols, symbol =>
+                {
+                    var historiesInPeriodByStockCode = result.Where(ss => ss.StockSymbol == symbol._sc_)
+                        .OrderBy(s => s.Date)
+                        .ToList();
+
+                    foreach (var item in historiesInPeriodByStockCode)
+                    {
+                        historiesInPeriodByStockCode.TimDiemTangGiaDotBien(item);
+                    }
+                });
+
+                //await _context.StockSymbolTradingHistory.AddRangeAsync(result);
+                //await _context.SaveChangesAsync();
             }
 
             return "true";
@@ -71,14 +83,6 @@ namespace DotNetCoreSqlDb.Controllers
             }
 
             await Task.WhenAll(TaskList.ToArray());
-
-            //result = result.Where(r => r.Date > currentLatestDate).ToList();
-
-            //var updated = result.Select(r => r.StockSymbol).ToList();
-            //var notIn = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
-
-            //if (notIn.Any())
-            //    await GetV(result, notIn);
         }
 
         /// <summary>

@@ -41,15 +41,11 @@ namespace DotNetCoreSqlDb.Models.Business.Report
 
     }
 
-    public class ReportFormular3TangDotBien : IReportFormular
-    {
-        public ReportFormularModel Calculation(string stockCode, DateTime startFrom, List<StockSymbolHistory> histories, List<StockSymbolTradingHistory> tradingHistories)
-        { return null; }
-    }
 
-    public class ReportFormular4GiaXuongDay : IReportFormular
-    {
-        public ReportFormularModel Calculation(string stockCode, DateTime startFrom, List<StockSymbolHistory> histories, List<StockSymbolTradingHistory> tradingHistories)
-        { return null; }
-    }
+
+    /*
+     * Fomula in the list:
+     * ATR: https://rtmath.net/assets/docs/finanalysis/html/30265e11-f334-4809-b9fd-2e7120aa0acd.htm
+     */
+
 }

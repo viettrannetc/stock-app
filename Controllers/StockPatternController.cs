@@ -927,7 +927,7 @@ namespace DotNetCoreSqlDb.Controllers
             var last5Phien = _context.StockSymbolHistory.Where(s => s.StockSymbol == "CEO").OrderByDescending(s => s.Date).Take(5).Last();
 
             var historiesInPeriodOfTimeNonDB = await _context.StockSymbolTradingHistory
-                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date > last5Phien.Date)
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date > last5Phien.Date && !ss.IsTangDotBien)
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
 
@@ -950,21 +950,15 @@ namespace DotNetCoreSqlDb.Controllers
                     {
                         var day = lstDays[i];
 
-                        var tradingsHistoryByDate = allHistories.Where(h => h.Date > day && h.Date < day.AddDays(1).WithoutHours()).ToList();
+                        var tradingsHistoryInSpecificDate = allHistories.Where(h => h.Date > day && h.Date < day.AddDays(1).WithoutHours())
+                            .OrderBy(h => h.Date)
+                            .ToList();
 
-                        //foreach (var tradingHistory in tradingsHistoryByDate)
-                        //{
-
-                        //}
-
-                        for (int j = 0; j < tradingsHistoryByDate.Count; j++)
+                        for (int j = 0; j < tradingsHistoryInSpecificDate.Count; j++)
                         {
-                            var trading = tradingsHistoryByDate[j];
-
+                            tradingsHistoryInSpecificDate.TimDiemTangGiaDotBien(tradingsHistoryInSpecificDate[j]);
                         }
                     }
-
-
                 }
                 catch (Exception ex)
                 {
