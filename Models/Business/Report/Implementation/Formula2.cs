@@ -9,28 +9,9 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
     {
         public ReportFormularModel Calculation(string code, DateTime ngay, List<StockSymbolHistory> historiesInPeriodOfTimeNonDB, List<StockSymbolTradingHistory> tradingHistories)
         {
-            var res = new ReportFormularModel();
-            res.Name = "Tim Day 2";
+            var result = new ReportFormularModel();
 
-            var result = new PatternResponseModel();// List<PatternDetailsResponseModel>();
-
-            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
-
-            //var symbols = string.IsNullOrWhiteSpace(code)
-            //    ? await _context.StockSymbol.ToListAsync()
-            //    : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
-
-            //var startFrom = ngay.AddDays(-60);
-
-            //var stockCodes = symbols.Select(s => s._sc_).ToList();
-            //var historiesInPeriodOfTimeNonDB = await _context.StockSymbolHistory
-            //        .Where(ss =>
-            //            stockCodes.Contains(ss.StockSymbol)
-            //            && ss.Date >= startFrom
-            //            )
-            //        .OrderByDescending(ss => ss.Date)
-            //        .ToListAsync();
-
+            var detailedAnalysis = new PatternResponseModel();
             try
             {
                 var patternOnsymbol = new PatternBySymbolResponseModel();
@@ -92,34 +73,30 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
                         }
                     });
 
-                    res.Date = history.Date; //TODO: find the next transaction date -> will be used to calculate T+3
-                    res.IsActive = true;
-                    res.Price = history.C;
+                    result.Name = "Tim Day 2";
+                    result.Price = history.C;
                 }
 
                 if (patternOnsymbol.Details.Any())
                 {
-                    result.TimDay2.Items.Add(patternOnsymbol);
+                    detailedAnalysis.TimDay2.Items.Add(patternOnsymbol);
                 }
             }
             catch (Exception ex)
             {
-
                 throw;
             }
 
-            result.TimDay2.Items = result.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
-
-            //return res;
-
-            return res.IsActive ? res : null;
+            detailedAnalysis.TimDay2.Items = detailedAnalysis.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
+            return string.IsNullOrEmpty(result.Name)
+                ? null
+                : result;
         }
 
         private StockSymbolHistory LookingForSecondLowest(List<StockSymbolHistory> histories, StockSymbolHistory lowest, StockSymbolHistory currentDateHistory)
         {
             var theDaysAfterLowest = histories.Where(h => h.Date > lowest.Date && h.Date <= currentDateHistory.Date)
                 .OrderBy(h => h.Date)
-                //.Skip(4)
                 .ToList();
 
             if (!theDaysAfterLowest.Any()) return null;

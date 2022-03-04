@@ -46,6 +46,9 @@ namespace DotNetCoreSqlDb.Controllers
 
         public async Task<bool> ConvertData()
         {
+            return false;
+            //Exp: we dont need this function anymore because the data is already pushed into database
+
             try
             {
                 string path = @"C:\Users\Viet\Documents\GitHub\stock-app\Data\Json\Transaction\1-2-March\2022-03-02.json";

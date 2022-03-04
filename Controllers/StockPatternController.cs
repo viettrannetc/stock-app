@@ -54,6 +54,14 @@ order by date
         }
 
         // GET: Stock/Pattern/5
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="code"></param>
+        /// <param name="startFrom">"2020-01-02 00:00:00.0000000"</param>
+        /// <param name="soPhienGd"></param>
+        /// <param name="trungbinhGd"></param>
+        /// <returns></returns>
         public async Task<ReportModel> Pattern(string code, DateTime startFrom, int soPhienGd, int trungbinhGd)
         {
             var result = new ReportModel();
@@ -64,25 +72,15 @@ order by date
                 ? await _context.StockSymbol.ToListAsync()
                 : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
 
-            //var startFrom = "2020-01-02 00:00:00.0000000"
-
-            /* 
-             * lay gia C de tinh day
-             * lay 30 phien cuoi cung
-             * 2 day cach nhau > 5 phien
-             * day 1 se cach dinh? cu~ (trong vong 1 thang) > 15% tro len 
-             * day 2 >= day 1 
-             * day 1 luon luon nam truoc day 2 
-             * ngay hien tai C > 2% so voi day 2 (ko bao gio > 7%)
-            */
-
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
+            //var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+            //        .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= startFrom)
+            //        .OrderByDescending(ss => ss.Date)
+            //        .ToListAsync();
+
             var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
-                    .Where(ss =>
-                        stockCodes.Contains(ss.StockSymbol)
-                        && ss.Date >= startFrom
-                        )
+                    .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= startFrom.AddDays(-60))
                     .OrderByDescending(ss => ss.Date)
                     .ToListAsync();
 
@@ -97,46 +95,50 @@ order by date
                     var patternOnsymbol = new PatternBySymbolResponseModel();
                     patternOnsymbol.StockCode = symbol._sc_;
 
-                    var historiesByStockCode = historiesInPeriodOfTimeByStockCode
+                    var orderedHistoryByStockCode = historiesInPeriodOfTimeByStockCode
                         .Where(ss => ss.StockSymbol == symbol._sc_)
-                        .ToList();
-
-                    var orderedHistory = historiesByStockCode
                         .OrderBy(s => s.Date)
                         .ToList();
 
-                    for (int i = 0; i < orderedHistory.Count; i++)
+                    var orderedHistoryByStockCodeFromStartDate = orderedHistoryByStockCode.Where(h => h.Date >= startFrom).ToList();
+
+                    for (int i = 0; i < orderedHistoryByStockCodeFromStartDate.Count; i++)
                     {
-                        var history = orderedHistory[i];
+                        var history = orderedHistoryByStockCodeFromStartDate[i];
                         if (history.Date < startFrom) continue;
 
-                        var avarageOfLastXXPhien = history.MA(orderedHistory, -soPhienGd);
+                        var histories = orderedHistoryByStockCode.Where(h => h.Date <= history.Date).ToList();
+
+                        var avarageOfLastXXPhien = history.VOL(histories, -soPhienGd);
                         if (avarageOfLastXXPhien < trungbinhGd) continue;
 
-                        //var historiesUntilCheckingDate = orderedHistory.Where(h => h.Date < history.Date).ToList();
-
                         var formular1TimTrendGiam = new ReportFormular1TimTrendGiam().Calculation(symbol._sc_, history.Date, dates, null);
-                        var formular2TimDay2 = new ReportFormular2TimDay2().Calculation(symbol._sc_, history.Date, orderedHistory, null);
-                        var formular3KLGDTangDotBien = new ReportFormular3TangDotBien().Calculation(symbol._sc_, history.Date, null, null);
-                        var formular4GiaXuongDay = new ReportFormular4GiaXuongDay().Calculation(symbol._sc_, history.Date, orderedHistory, null);
+                        var formular2TimDay2 = new ReportFormular2TimDay2().Calculation(symbol._sc_, history.Date, histories, null);
+                        var formular3KLGDTangDotBien = new ReportFormular3SideWayThenTangDotBien().Calculation(symbol._sc_, history.Date, histories, null);
+                        var formular4GiaXuongDay = new ReportFormular4GiaXuongDay().Calculation(symbol._sc_, history.Date, histories, null);
 
-                        ReportStockModel stockModel = new ReportStockModel();
-                        stockModel.Date = history.Date;
-                        stockModel.StockCode = symbol._sc_;
+                        ReportStockModel stockData = new ReportStockModel();
+                        stockData.Date = history.Date;
+                        stockData.Code = symbol._sc_;
 
-                        stockModel.Formulars
+                        stockData.Formulars
                             .Plus(formular1TimTrendGiam)
                             .Plus(formular2TimDay2)
                             .Plus(formular3KLGDTangDotBien)
                             .Plus(formular4GiaXuongDay);
 
-                        result.Stocks.Add(stockModel);
+                        result.Stocks.Add(stockData);
 
                     }
                 }
-                catch (Exception ex) { }
+                catch (Exception ex)
+                {
+                }
 
             });
+
+            var filename = Guid.NewGuid().ToString();
+            result.ConvertToDataTable().WriteToExcel(@$"C:\Projects\Test\Stock-app\{filename}.xlsx");
 
             return result;
         }

@@ -35,7 +35,6 @@ namespace DotNetCoreSqlDb.Common
             return checkingRange.Sum(h => h.V) / numberOfPreviousPhien;
         }
 
-
         public static decimal MA(this StockSymbolHistory checkingDate, List<StockSymbolHistory> histories, int numberOfPreviousPhien)
         {
             if (numberOfPreviousPhien == 0) return 0;
@@ -54,7 +53,6 @@ namespace DotNetCoreSqlDb.Common
             return checkingRange.Sum(h => h.C) / numberOfPreviousPhien;
         }
 
-
         public static decimal MA(this PatternWeekResearchModel checkingDate, List<PatternWeekResearchModel> histories, int numberOfPreviousPhien)
         {
             if (numberOfPreviousPhien == 0) return 0;
@@ -71,6 +69,19 @@ namespace DotNetCoreSqlDb.Common
             if (checkingRange.Count != numberOfPreviousPhien) return 0;
 
             return checkingRange.Sum(h => h.C) / numberOfPreviousPhien;
+        }
+
+        public static bool IsUpFromSideway(this StockSymbolHistory today, List<StockSymbolHistory> histories, int numberOfSideway)
+        {
+            var todayVol = today.V;
+            var averageOfVolInSideway = today.MASideway(histories, numberOfSideway);
+
+            return todayVol > averageOfVolInSideway * 2;
+        }
+
+        public static decimal MASideway(this StockSymbolHistory today, List<StockSymbolHistory> histories, int numberOfSideway)
+        {
+            return histories.Where(h => h.Date < today.Date).OrderByDescending(h => h.Date).Take(numberOfSideway).Sum(h => h.V) / numberOfSideway;
         }
 
     }
