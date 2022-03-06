@@ -68,9 +68,14 @@ order by date
 
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
 
+            var richSymbols = await _context.StockSymbolHistory.Where(s => s.V <= 500000 && s.V > 100000 && s.Date > DateTime.Today.AddDays(-3))
+                .Select(s => s.StockSymbol)
+                .Distinct()
+                .ToListAsync();
+
             var symbols = string.IsNullOrWhiteSpace(code)
-                ? await _context.StockSymbol.ToListAsync()
-                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+                ? await _context.StockSymbol.Where(s => richSymbols.Contains(s._sc_)).ToListAsync()
+                : await _context.StockSymbol.Where(s => richSymbols.Contains(s._sc_) && splitStringCode.Contains(s._sc_)).ToListAsync();
 
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
@@ -85,7 +90,7 @@ order by date
 
             await StartThreading(symbols, historiesInPeriodOfTimeByStockCode, startFrom, soPhienGd, trungbinhGd, result, dates);
 
-            var filename = $"{Guid.NewGuid().ToString()}";
+            var filename = $"{startFrom.Year}-{startFrom.Month}-{startFrom.Day}-{Guid.NewGuid().ToString()}";
 
             //Laptop cty - C:\Users\Viet\Documents\GitHub\stock-app
             //Home       - C:\Projects\Test\Stock-app\
@@ -100,7 +105,7 @@ order by date
             ReportModel result,
             List<StockSymbolHistory> dates)
         {
-            List<Task> TaskList = new List<Task>();
+            //List<Task> TaskList = new List<Task>();
 
             //Parallel.ForEach(symbols, symbol =>
             //{
@@ -108,13 +113,20 @@ order by date
             //    TaskList.Add(LastTask);
             //});
 
-            foreach (var item in symbols)
-            {
-                var LastTask = ExecuteEachThread(startFrom, item, historiesInPeriodOfTimeByStockCode, soPhienGd, trungbinhGd, result, dates);
-                TaskList.Add(LastTask);
-            }
+            //foreach (var item in symbols)
+            //{
+            //    var LastTask = ExecuteEachThread(startFrom, item, historiesInPeriodOfTimeByStockCode, soPhienGd, trungbinhGd, result, dates);
+            //    TaskList.Add(LastTask);
+            //}
 
-            await Task.WhenAll(TaskList.ToArray());
+            //await Task.WhenAll(TaskList.ToArray());
+
+
+
+            Parallel.ForEach(symbols, async symbol =>
+            {
+                await ExecuteEachThread(startFrom, symbol, historiesInPeriodOfTimeByStockCode, soPhienGd, trungbinhGd, result, dates);
+            });
         }
 
         public async Task ExecuteEachThread(DateTime startFrom, StockSymbol symbol, List<StockSymbolHistory> historiesInPeriodOfTimeByStockCode,
@@ -138,14 +150,11 @@ order by date
             {
                 var orderedHistoryByStockCodeFromStartDate = orderedHistoryByStockCode.Where(h => h.Date >= startFrom).ToList();
 
-                List<Task> TaskList = new List<Task>();
                 Parallel.ForEach(orderedHistoryByStockCodeFromStartDate, history =>
                 {
-                    var LastTask = Test(startFrom, symbol, orderedHistoryByStockCodeFromStartDate, orderedHistoryByStockCode, history, soPhienGd, trungbinhGd, result, dates);
-                    TaskList.Add(LastTask);
+                    Test(startFrom, symbol, orderedHistoryByStockCodeFromStartDate, orderedHistoryByStockCode, history, soPhienGd, trungbinhGd, result, dates);
                 });
 
-                await Task.WhenAll(TaskList.ToArray());
 
                 //for (int i = 0; i < orderedHistoryByStockCodeFromStartDate.Count; i++)
                 //{
@@ -197,7 +206,7 @@ order by date
             }
         }
 
-        private async Task Test(DateTime startFrom, StockSymbol symbol,
+        private void Test(DateTime startFrom, StockSymbol symbol,
             List<StockSymbolHistory> orderedHistoryByStockCodeFromStartDate,
             List<StockSymbolHistory> orderedHistoryByStockCode,
             StockSymbolHistory history,

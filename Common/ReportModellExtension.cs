@@ -23,6 +23,8 @@ namespace DotNetCoreSqlDb.Common
 
         public static DataTable ConvertToDataTable(this ReportModel reportData)
         {
+            if (!reportData.Stocks.Any()) return null;
+
             //create a datatable
             DataTable dataTable = new DataTable();
 
