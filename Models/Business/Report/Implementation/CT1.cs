@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
 {
-    public class ReportFormular1TimTrendGiam : IReportFormular
+    public class ReportFormularCT1 : IReportFormular
     {
         public PatternWeekResearchModel GetLowestStockDataByWeek(List<PatternWeekResearchModel> stockDataByWeek, string code, DateTime toDate, PatternWeekResearchModel? dinhTruoc = null)
         {
@@ -132,15 +132,15 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
         {
             var result = new ReportFormularModel();
             
-            var detailedModel = new PatternResponseModel();
+            //var detailedModel = new PatternResponseModel();
 
             var allHistories = GetStockDataByWeekFromNgay(dataFromLast8Months);// ;, code, ngay);
             var histories = allHistories.Where(h => h.DateInWeek <= ngay).OrderBy(h => h.Date).ToList();
 
-            try
-            {
-                var patternOnsymbol = new PatternBySymbolResponseModel();
-                patternOnsymbol.StockCode = code;
+            //try
+            //{
+                //var patternOnsymbol = new PatternBySymbolResponseModel();
+                //patternOnsymbol.StockCode = code;
 
                 var historyByWeek = histories.FirstOrDefault();
                 if (historyByWeek == null) return null;
@@ -181,54 +181,54 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
                 var dk3 = dinh2.C > dinh1.C * 0.93M;
                 if (dk1 && dk2 && dk3) //basically we should start buying
                 {
-                    var ma5next = historyByWeek.MA(histories, 5);
+                    //var ma5next = historyByWeek.MA(histories, 5);
 
-                    patternOnsymbol.Details.Add(new PatternDetailsResponseModel
-                    {
-                        ConditionMatchAt = historyByWeek.Date,
-                        MoreInformation = new
-                        {
-                            TodayOpening = historyByWeek.O,
-                            TodayClosing = historyByWeek.C,
-                            TodayLowest = historyByWeek.C,
-                            TodayTrading = historyByWeek.V,
-                            Day1 = day1.C,
-                            Day1Date = day1.Date,
-                            Day2 = day2.C,
-                            Day2Date = day2.Date,
-                            Dinh1 = dinh1.C,
-                            Dinh1Date = dinh1.Date,
-                            Dinh2 = dinh2.C,
-                            Dinh2Date = dinh2.Date,
-                            AverageNumberOfTradingInPreviousTimes = 0,
-                            ShouldBuy = true,
-                            RealityExpectation = ma5next == 0
-                                ? string.Empty
-                                : historyByWeek.C < ma5next
-                                    ? "true"
-                                    : "false",
-                            Ma5WeekNext = ma5next,
-                        }
-                    });
+                    //patternOnsymbol.Details.Add(new PatternDetailsResponseModel
+                    //{
+                    //    ConditionMatchAt = historyByWeek.Date,
+                    //    MoreInformation = new
+                    //    {
+                    //        TodayOpening = historyByWeek.O,
+                    //        TodayClosing = historyByWeek.C,
+                    //        TodayLowest = historyByWeek.C,
+                    //        TodayTrading = historyByWeek.V,
+                    //        Day1 = day1.C,
+                    //        Day1Date = day1.Date,
+                    //        Day2 = day2.C,
+                    //        Day2Date = day2.Date,
+                    //        Dinh1 = dinh1.C,
+                    //        Dinh1Date = dinh1.Date,
+                    //        Dinh2 = dinh2.C,
+                    //        Dinh2Date = dinh2.Date,
+                    //        AverageNumberOfTradingInPreviousTimes = 0,
+                    //        ShouldBuy = true,
+                    //        RealityExpectation = ma5next == 0
+                    //            ? string.Empty
+                    //            : historyByWeek.C < ma5next
+                    //                ? "true"
+                    //                : "false",
+                    //        Ma5WeekNext = ma5next,
+                    //    }
+                    //});
 
                     //res.Date = historyByWeek.Date; //TODO: find the next transaction date -> will be used to calculate T+3
                     //res.IsActive = true;
                     result.Price = historyByWeek.C;
-                    result.Name = "Tìm Trend Giảm";
+                    result.Name = ConstantData.CT1;
                 }
 
-                if (patternOnsymbol.Details.Any())
-                {
-                    detailedModel.TimTrendGiam.Items.Add(patternOnsymbol);
-                }
-            }
-            catch (Exception ex)
-            {
+                //if (patternOnsymbol.Details.Any())
+                //{
+                //    detailedModel.TimTrendGiam.Items.Add(patternOnsymbol);
+                //}
+            //}
+            //catch (Exception ex)
+            //{
 
-                throw;
-            }
+            //    throw;
+            //}
 
-            detailedModel.TimTrendGiam.Items = detailedModel.TimTrendGiam.Items.OrderBy(s => s.StockCode).ToList();
+            //detailedModel.TimTrendGiam.Items = detailedModel.TimTrendGiam.Items.OrderBy(s => s.StockCode).ToList();
             return string.IsNullOrEmpty(result.Name)
                 ? null
                 : result;

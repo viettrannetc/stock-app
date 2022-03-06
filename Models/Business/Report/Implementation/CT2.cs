@@ -5,25 +5,26 @@ using System.Linq;
 
 namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
 {
-    public class ReportFormular2TimDay2 : IReportFormular
+    public class ReportFormularCT2 : IReportFormular
     {
-        public ReportFormularModel Calculation(string code, DateTime ngay, List<StockSymbolHistory> historiesInPeriodOfTimeNonDB, List<StockSymbolTradingHistory> tradingHistories)
+        public ReportFormularModel Calculation(string code, DateTime ngay, List<StockSymbolHistory> histories, List<StockSymbolTradingHistory> tradingHistories)
         {
             var result = new ReportFormularModel();
 
-            var detailedAnalysis = new PatternResponseModel();
-            try
-            {
-                var patternOnsymbol = new PatternBySymbolResponseModel();
-                patternOnsymbol.StockCode = code;
+            //var detailedAnalysis = new PatternResponseModel();
+            //try
+            //{
+            //    var patternOnsymbol = new PatternBySymbolResponseModel();
+            //    patternOnsymbol.StockCode = code;
 
-                var historiesInPeriodOfTime = historiesInPeriodOfTimeNonDB
-                    .Where(ss => ss.StockSymbol == code)
-                    .ToList();
+                //var historiesInPeriodOfTime = historiesInPeriodOfTimeNonDB
+                //    .Where(ss => ss.StockSymbol == code)
+                //    .ToList();
 
-                var histories = historiesInPeriodOfTime
-                    .OrderBy(s => s.Date)
-                    .ToList();
+                //var histories = historiesInPeriodOfTime
+                //    .OrderBy(s => s.Date)
+                //    .ToList();
+                histories = histories.OrderBy(s => s.Date).ToList();
 
                 var history = histories.FirstOrDefault(h => h.Date == ngay);
                 if (history == null) return null;
@@ -49,45 +50,45 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
 
                 if (dk1 && dk2 && dk3 && dk4) //basically we should start buying
                 {
-                    patternOnsymbol.Details.Add(new PatternDetailsResponseModel
-                    {
-                        ConditionMatchAt = currentDateToCheck,
-                        MoreInformation = new
-                        {
-                            Text = @$"{history.StockSymbol}: Đáy 1 {lowest.Date.ToShortDateString()}: {lowest.C},
-                                        Đáy 2 {secondLowest.Date.ToShortDateString()}: {secondLowest.C},
-                                        Giá đóng cửa hum nay ({history.C}) cao hơn giá đóng của đáy 2 {secondLowest.C},
-                                        Đỉnh trong vòng 30 ngày ({highest.C}) giảm 15% ({highest.C * 0.85M}) vẫn cao hơn giá đóng cửa của đáy 1 {lowest.C},
-                                        Giữa đáy 1 và đáy 2, có giá trị cao hơn đáy 2 và giá đóng cửa ngày hum nay ít nhất 2%",
-                            TodayOpening = history.O,
-                            TodayClosing = history.C,
-                            TodayLowest = history.L,
-                            TodayTrading = history.V,
-                            Previous1stLowest = lowest.C,
-                            Previous1stLowestDate = lowest.Date,
-                            Previous2ndLowest = secondLowest.C,
-                            Previous2ndLowestDate = secondLowest.Date,
-                            AverageNumberOfTradingInPreviousTimes = 0,
-                            RealityExpectation = string.Empty,
-                            ShouldBuy = true
-                        }
-                    });
+                    //patternOnsymbol.Details.Add(new PatternDetailsResponseModel
+                    //{
+                    //    ConditionMatchAt = currentDateToCheck,
+                    //    MoreInformation = new
+                    //    {
+                    //        Text = @$"{history.StockSymbol}: Đáy 1 {lowest.Date.ToShortDateString()}: {lowest.C},
+                    //                    Đáy 2 {secondLowest.Date.ToShortDateString()}: {secondLowest.C},
+                    //                    Giá đóng cửa hum nay ({history.C}) cao hơn giá đóng của đáy 2 {secondLowest.C},
+                    //                    Đỉnh trong vòng 30 ngày ({highest.C}) giảm 15% ({highest.C * 0.85M}) vẫn cao hơn giá đóng cửa của đáy 1 {lowest.C},
+                    //                    Giữa đáy 1 và đáy 2, có giá trị cao hơn đáy 2 và giá đóng cửa ngày hum nay ít nhất 2%",
+                    //        TodayOpening = history.O,
+                    //        TodayClosing = history.C,
+                    //        TodayLowest = history.L,
+                    //        TodayTrading = history.V,
+                    //        Previous1stLowest = lowest.C,
+                    //        Previous1stLowestDate = lowest.Date,
+                    //        Previous2ndLowest = secondLowest.C,
+                    //        Previous2ndLowestDate = secondLowest.Date,
+                    //        AverageNumberOfTradingInPreviousTimes = 0,
+                    //        RealityExpectation = string.Empty,
+                    //        ShouldBuy = true
+                    //    }
+                    //});
 
-                    result.Name = "Tim Day 2";
+                    result.Name = ConstantData.CT2;
                     result.Price = history.C;
                 }
 
-                if (patternOnsymbol.Details.Any())
-                {
-                    detailedAnalysis.TimDay2.Items.Add(patternOnsymbol);
-                }
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
+                //if (patternOnsymbol.Details.Any())
+                //{
+                //    detailedAnalysis.TimDay2.Items.Add(patternOnsymbol);
+                //}
+            //}
+            //catch (Exception ex)
+            //{
+            //    throw;
+            //}
 
-            detailedAnalysis.TimDay2.Items = detailedAnalysis.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
+            //detailedAnalysis.TimDay2.Items = detailedAnalysis.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
             return string.IsNullOrEmpty(result.Name)
                 ? null
                 : result;

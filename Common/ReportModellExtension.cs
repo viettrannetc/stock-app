@@ -29,22 +29,51 @@ namespace DotNetCoreSqlDb.Common
             //add three colums to the datatable
             dataTable.Columns.Add("Ngay", typeof(string));
             dataTable.Columns.Add("Ma", typeof(string));
-            dataTable.Columns.Add("CT1 - Tim Trend Giam", typeof(string));
-            dataTable.Columns.Add("CT2 - Tim Đáy", typeof(string));
-            dataTable.Columns.Add("CT3 - Tim Sideway", typeof(string));
-            dataTable.Columns.Add("CT4 - Tim Gia Giam", typeof(string));
+            dataTable.Columns.Add("Gia T0", typeof(string));
+            dataTable.Columns.Add("KLGD", typeof(string));
+            dataTable.Columns.Add("Gia T3", typeof(string));
+            dataTable.Columns.Add(ConstantData.CT1, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT2, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT3, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT4, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT5, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT6, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT7, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT8, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT9, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT10, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT11, typeof(string));
+            dataTable.Columns.Add(ConstantData.CT12, typeof(string));
+
+
 
             //add some rows
             foreach (var stock in reportData.Stocks)
             {
                 var date = stock.Date.ToShortDateString();
                 var code = stock.Code.ToString();
-                var day1Active = stock.Formulars.Any(f => f.Name == "Tìm Trend Giảm").ToString();
-                var day2Active = stock.Formulars.Any(f => f.Name == "Tim Day 2").ToString();
-                var day3Active = stock.Formulars.Any(f => f.Name == "Tăng mạnh sau sideway").ToString();
-                var day4Active = stock.Formulars.Any(f => f.Name == "Giá đang giảm mạnh").ToString();
+                var gia = stock.Price.ToString();
+                var giaT3 = stock.PriceT3.ToString();
+                var vol = stock.Vol.ToString();
 
-                dataTable.Rows.Add(date, code, day1Active, day2Active, day3Active, day4Active);
+                var f1Active = stock.Formulars.Any(f => f.Name == ConstantData.CT1).ToString();
+                var f2Active = stock.Formulars.Any(f => f.Name == ConstantData.CT2).ToString();
+                var f3Active = stock.Formulars.Any(f => f.Name == ConstantData.CT3).ToString();
+                var f4Active = stock.Formulars.Any(f => f.Name == ConstantData.CT4).ToString();
+                var f5Active = stock.Formulars.Any(f => f.Name == ConstantData.CT5).ToString();
+                var f6Active = stock.Formulars.Any(f => f.Name == ConstantData.CT6).ToString();
+                var f7Active = stock.Formulars.Any(f => f.Name == ConstantData.CT7).ToString();
+                var f8Active = stock.Formulars.Any(f => f.Name == ConstantData.CT8).ToString();
+                var f9Active = stock.Formulars.Any(f => f.Name == ConstantData.CT9).ToString();
+                var f10Active = stock.Formulars.Any(f => f.Name == ConstantData.CT10).ToString();
+                var f11Active = stock.Formulars.Any(f => f.Name == ConstantData.CT11).ToString();
+                var f12Active = stock.Formulars.Any(f => f.Name == ConstantData.CT12).ToString();
+
+                dataTable.Rows.Add(date, code, gia, vol, giaT3,
+                    f1Active, f2Active, f3Active, f4Active,
+                    f5Active, f6Active, f7Active, f8Active,
+                    f9Active, f10Active, f11Active, f12Active
+                    );
             }
 
             return dataTable;
