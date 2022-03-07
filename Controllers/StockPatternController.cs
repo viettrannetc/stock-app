@@ -62,13 +62,15 @@ order by date
         /// <param name="soPhienGd"></param>
         /// <param name="trungbinhGd"></param>
         /// <returns></returns>
-        public async Task<bool> Pattern(string code, DateTime startFrom, int soPhienGd, int trungbinhGd)
+        public async Task<bool> Pattern(string code, DateTime startFrom, int soPhienGd, int trungbinhGd, DateTime toDate)
         {
             var result = new ReportModel();
 
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
 
-            var richSymbols = await _context.StockSymbolHistory.Where(s => s.V <= 500000 && s.V > 100000 && s.Date > DateTime.Today.AddDays(-3))
+            var richSymbols = await _context.StockSymbolHistory
+                //.Where(s => s.V <= 500000 && s.V > 100000 && s.Date > DateTime.Today.AddDays(-3))
+                .Where(s => s.V > 500000 && s.Date > DateTime.Today.AddDays(-3))
                 .Select(s => s.StockSymbol)
                 .Distinct()
                 .ToListAsync();
@@ -77,16 +79,28 @@ order by date
                 ? await _context.StockSymbol.Where(s => richSymbols.Contains(s._sc_)).ToListAsync()
                 : await _context.StockSymbol.Where(s => richSymbols.Contains(s._sc_) && splitStringCode.Contains(s._sc_)).ToListAsync();
 
+
+            //var symbols = string.IsNullOrWhiteSpace(code)
+            //    ? await _context.StockSymbol.ToListAsync()
+            //    : await _context.StockSymbol.ToListAsync();
+
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
             var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
-                    .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= startFrom.AddDays(-60))// && ss.V > 0)
+                    .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= startFrom.AddDays(-60)
+                            //&& ss.Date <= toDate.AddDays(3)
+                            )// && ss.V > 0)
                     .OrderByDescending(ss => ss.Date)
                     .ToListAsync();
 
+            var expectedT3 = historiesInPeriodOfTimeByStockCode.Where(h => h.Date >= toDate).OrderBy(h => h.Date).Take(3).LastOrDefault();
+
+            if (expectedT3 != null)
+                historiesInPeriodOfTimeByStockCode = historiesInPeriodOfTimeByStockCode.Where(h => h.Date <= expectedT3.Date).ToList();
+
             var dates = await _context.StockSymbolHistory.OrderByDescending(s => s.Date)
-                .Where(s => stockCodes.Contains(s.StockSymbol) && s.Date > startFrom.AddDays((30 * 8) * -1))// && s.V > 0)
-                .ToListAsync();
+            .Where(s => stockCodes.Contains(s.StockSymbol) && s.Date > startFrom.AddDays((30 * 8) * -1))// && s.V > 0)
+            .ToListAsync();
 
             await StartThreading(symbols, historiesInPeriodOfTimeByStockCode, startFrom, soPhienGd, trungbinhGd, result, dates);
 
