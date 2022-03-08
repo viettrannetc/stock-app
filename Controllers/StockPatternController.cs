@@ -17,6 +17,11 @@ namespace DotNetCoreSqlDb.Controllers
     public class StockPatternController : Controller
     {
         private readonly MyDatabaseContext _context;
+        /// <summary>
+        /// Laptop cty - C:\Users\Viet\Documents\GitHub\stock-app\
+        /// Home       - C:\Projects\Test\Stock-app\
+        /// </summary>
+        public const string path = @$"C:\Projects\Test\Stock-app\";
 
         /*
          * select Date, count(Date) as CDate, StockSymbol
@@ -74,17 +79,10 @@ order by date
 
             var symbols = await _context.StockSymbol.Where(s => richSymbols.Contains(s._sc_)).ToListAsync();
 
-
-            //var symbols = string.IsNullOrWhiteSpace(code)
-            //    ? await _context.StockSymbol.ToListAsync()
-            //    : await _context.StockSymbol.ToListAsync();
-
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
             var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
-                    .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= startFrom.AddDays(-60)
-                            //&& ss.Date <= toDate.AddDays(3)
-                            )// && ss.V > 0)
+                    .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= startFrom.AddDays(-60))
                     .OrderByDescending(ss => ss.Date)
                     .ToListAsync();
 
@@ -99,14 +97,53 @@ order by date
 
             await StartThreading(symbols, historiesInPeriodOfTimeByStockCode, startFrom, soPhienGd, trungbinhGd, reportData, dates);
 
-            var filename = $"{startFrom.Year}-{startFrom.Month}-{startFrom.Day}-{Guid.NewGuid().ToString()}";
+            var filename = $"500K-{startFrom.Year}-{startFrom.Month}-{startFrom.Day}-{Guid.NewGuid().ToString()}";
 
             //Laptop cty - C:\Users\Viet\Documents\GitHub\stock-app
             //Home       - C:\Projects\Test\Stock-app\
-            reportData.ConvertToDataTable().WriteToExcel(@$"C:\Users\Viet\Documents\GitHub\stock-app\{filename}.xlsx");
+            reportData.ConvertToDataTable().WriteToExcel($"{path}{ filename}.xlsx");
 
             return true;
         }
+
+        public async Task<bool> Pattern100K(DateTime startFrom, int soPhienGd, int trungbinhGd, DateTime toDate)
+        {
+            var reportData = new ReportModel();
+            var richSymbols = await _context.StockSymbolHistory
+                .Where(s => s.V <= 500000 && s.V > 100000 && s.Date > DateTime.Today.AddDays(-3))
+                .Select(s => s.StockSymbol)
+                .Distinct()
+                .ToListAsync();
+
+            var symbols = await _context.StockSymbol.Where(s => richSymbols.Contains(s._sc_)).ToListAsync();
+
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+                    .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= startFrom.AddDays(-60))
+                    .OrderByDescending(ss => ss.Date)
+                    .ToListAsync();
+
+            var expectedT3 = historiesInPeriodOfTimeByStockCode.Where(h => h.Date >= toDate).OrderBy(h => h.Date).Take(3).LastOrDefault();
+
+            if (expectedT3 != null)
+                historiesInPeriodOfTimeByStockCode = historiesInPeriodOfTimeByStockCode.Where(h => h.Date <= expectedT3.Date).ToList();
+
+            var dates = await _context.StockSymbolHistory.OrderByDescending(s => s.Date)
+            .Where(s => stockCodes.Contains(s.StockSymbol) && s.Date > startFrom.AddDays((30 * 8) * -1))
+            .ToListAsync();
+
+            await StartThreading(symbols, historiesInPeriodOfTimeByStockCode, startFrom, soPhienGd, trungbinhGd, reportData, dates);
+
+            var filename = $"500K-{startFrom.Year}-{startFrom.Month}-{startFrom.Day}-{Guid.NewGuid().ToString()}";
+
+            //Laptop cty - C:\Users\Viet\Documents\GitHub\stock-app
+            //Home       - C:\Projects\Test\Stock-app\
+            reportData.ConvertToDataTable().WriteToExcel($"{path}{ filename}.xlsx");
+
+            return true;
+        }
+
 
         // GET: Stock/Pattern
         /// <summary>
@@ -161,9 +198,7 @@ order by date
 
             var filename = $"{startFrom.Year}-{startFrom.Month}-{startFrom.Day}-{Guid.NewGuid().ToString()}";
 
-            //Laptop cty - C:\Users\Viet\Documents\GitHub\stock-app
-            //Home       - C:\Projects\Test\Stock-app\
-            result.ConvertToDataTable().WriteToExcel(@$"C:\Users\Viet\Documents\GitHub\stock-app\{filename}.xlsx");
+            result.ConvertToDataTable().WriteToExcel($"{path}{ filename}.xlsx");
 
             return true;
         }
@@ -1386,5 +1421,18 @@ order by date
 
             //return result;
         }
+
+        //TODO: 
+        /*
+         * Dk xac nhan
+            + tìm day 1 & day 2 giong nhu tim day 2 hien tai 
+	
+            Nến xác nhận đáy: ngày sau đáy 2 
+            Nến đáy 2: đáy 2 
+
+            Xét thêm 5 trường hợp kết hợp và tìm tỉ lệ đúng cao nhất
+
+        Note: khi chạy dk này thì, lúc xác định hum wa có phải đáy 2 hay ko, bỏ dk xác nhận ngày hiện tại lớn hơn đáy 2 2%
+         */
     }
 }
