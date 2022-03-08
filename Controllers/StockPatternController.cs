@@ -53,7 +53,62 @@ order by date
             return View(await _context.StockSymbol.ToListAsync());
         }
 
-        // GET: Stock/Pattern/5
+        // GET: Stock/Pattern
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="code"></param>
+        /// <param name="startFrom">"2020-01-02 00:00:00.0000000"</param>
+        /// <param name="soPhienGd"></param>
+        /// <param name="trungbinhGd"></param>
+        /// <returns></returns>
+        public async Task<bool> Pattern500K(DateTime startFrom, int soPhienGd, int trungbinhGd, DateTime toDate)
+        {
+            var reportData = new ReportModel();
+            var richSymbols = await _context.StockSymbolHistory
+                //.Where(s => s.V <= 500000 && s.V > 100000 && s.Date > DateTime.Today.AddDays(-3))
+                .Where(s => s.V > 500000 && s.Date > DateTime.Today.AddDays(-3))
+                .Select(s => s.StockSymbol)
+                .Distinct()
+                .ToListAsync();
+
+            var symbols = await _context.StockSymbol.Where(s => richSymbols.Contains(s._sc_)).ToListAsync();
+
+
+            //var symbols = string.IsNullOrWhiteSpace(code)
+            //    ? await _context.StockSymbol.ToListAsync()
+            //    : await _context.StockSymbol.ToListAsync();
+
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+                    .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= startFrom.AddDays(-60)
+                            //&& ss.Date <= toDate.AddDays(3)
+                            )// && ss.V > 0)
+                    .OrderByDescending(ss => ss.Date)
+                    .ToListAsync();
+
+            var expectedT3 = historiesInPeriodOfTimeByStockCode.Where(h => h.Date >= toDate).OrderBy(h => h.Date).Take(3).LastOrDefault();
+
+            if (expectedT3 != null)
+                historiesInPeriodOfTimeByStockCode = historiesInPeriodOfTimeByStockCode.Where(h => h.Date <= expectedT3.Date).ToList();
+
+            var dates = await _context.StockSymbolHistory.OrderByDescending(s => s.Date)
+            .Where(s => stockCodes.Contains(s.StockSymbol) && s.Date > startFrom.AddDays((30 * 8) * -1))// && s.V > 0)
+            .ToListAsync();
+
+            await StartThreading(symbols, historiesInPeriodOfTimeByStockCode, startFrom, soPhienGd, trungbinhGd, reportData, dates);
+
+            var filename = $"{startFrom.Year}-{startFrom.Month}-{startFrom.Day}-{Guid.NewGuid().ToString()}";
+
+            //Laptop cty - C:\Users\Viet\Documents\GitHub\stock-app
+            //Home       - C:\Projects\Test\Stock-app\
+            reportData.ConvertToDataTable().WriteToExcel(@$"C:\Users\Viet\Documents\GitHub\stock-app\{filename}.xlsx");
+
+            return true;
+        }
+
+        // GET: Stock/Pattern
         /// <summary>
         /// 
         /// </summary>
@@ -352,7 +407,21 @@ order by date
                     .OrderByDescending(ss => ss.Date)
                     .ToListAsync();
 
-            var bag = new ConcurrentBag<object>();
+            if (historiesInPeriodOfTimeNonDB.FirstOrDefault() != null && historiesInPeriodOfTimeNonDB.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
+            {
+                //Getting the real data
+                //
+                //var currentLatestDate = _context.StockSymbolHistory.Where(c => c.StockSymbol == "A32").OrderByDescending(r => r.Date).First().Date;
+                var newPackages = new List<StockSymbolHistory>();
+
+                var from = DateTime.Now.WithoutHours();
+                var to = DateTime.Now.WithoutHours().AddDays(1);
+
+                await GetV(newPackages, symbols, from, to, from);
+
+                historiesInPeriodOfTimeNonDB.AddRange(newPackages);
+            }
+
             Parallel.ForEach(symbols, symbol =>
             {
                 try
@@ -447,6 +516,63 @@ order by date
             result.TimDay2.Items = result.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
 
             return result;
+        }
+
+        public async Task GetV(List<StockSymbolHistory> result, List<StockSymbol> allSymbols, DateTime from, DateTime to, DateTime currentLatestDate)
+        {
+            var restService = new RestServiceHelper();
+            List<Task> TaskList = new List<Task>();
+            foreach (var item in allSymbols)
+            {
+                var LastTask = GetStockDataByDay(item, restService, result, from, to);
+                TaskList.Add(LastTask);
+            }
+
+            await Task.WhenAll(TaskList.ToArray());
+
+            result = result.Where(r => r.Date > currentLatestDate).ToList();
+
+            var updated = result.Select(r => r.StockSymbol).ToList();
+
+            var notIn = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
+
+            if (notIn.Any())
+                await GetV(result, notIn, from, to, currentLatestDate);
+        }
+
+        public const string VietStock_GetDetailsBySymbolCode = "https://api.vietstock.vn/ta/history?symbol={0}&resolution={1}&from={2}&to={3}";
+
+        private async Task GetStockDataByDay(StockSymbol item, RestServiceHelper restService, List<StockSymbolHistory> result, DateTime from, DateTime to)
+        {
+            var requestModel = new VietStockSymbolHistoryResquestModel();
+            requestModel.code = item._sc_;
+            requestModel.from = from;
+            requestModel.to = to;
+
+            var url = string.Format(VietStock_GetDetailsBySymbolCode,
+                            requestModel.code,
+                            "D",
+                            requestModel.from.ConvertToPhpInt(),
+                            requestModel.to.ConvertToPhpInt()
+                            );
+            var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
+
+            var numberOfT = allSharePointsObjects.t.Count();
+
+            for (int i = 0; i < numberOfT; i++)
+            {
+                var history = new StockSymbolHistory();
+                history.T = allSharePointsObjects.t[i];
+                history.Date = allSharePointsObjects.t[i].PhpIntConvertToDateTime();
+                history.O = allSharePointsObjects.o[i];
+                history.C = allSharePointsObjects.c[i];
+                history.H = allSharePointsObjects.h[i];
+                history.L = allSharePointsObjects.l[i];
+                history.V = allSharePointsObjects.v[i];
+                history.StockSymbol = requestModel.code;
+
+                result.Add(history);
+            }
         }
 
         /// <summary>
