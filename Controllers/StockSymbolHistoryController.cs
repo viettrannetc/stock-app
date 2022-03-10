@@ -85,7 +85,10 @@ namespace DotNetCoreSqlDb.Controllers
             var result = new List<StockSymbolHistory>();
             var currentLatestDate = _context.StockSymbolHistory.Where(c => c.StockSymbol == "A32").OrderByDescending(r => r.Date).First().Date;
             var from = currentLatestDate;
-            var to = DateTime.Now.WithoutHours().AddDays(1);
+            var to = DateTime.Now.WithoutHours();
+
+            //var from = DateTime.Now.WithoutHours().AddDays(-1);
+            //var to = DateTime.Now.WithoutHours().AddDays(-1);
 
             await GetV(result, allSymbols, from, to , currentLatestDate);
             
@@ -119,7 +122,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             var notIn = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
 
-            if (notIn.Any())
+            if (notIn.Any()) //TODO: try 3 times if the number of remaining the same, then ignore them.
                 await GetV(result, notIn, from, to, currentLatestDate);
         }
 

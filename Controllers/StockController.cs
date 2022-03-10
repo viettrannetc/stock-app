@@ -20,9 +20,9 @@ namespace DotNetCoreSqlDb.Controllers
         }
 
         // GET: Stock
-        public async Task<List<StockSymbol>> Index()
+        public async Task<List<string>> Index()
         {
-            return await _context.StockSymbol.ToListAsync();
+            return await _context.StockSymbol.Select(s => s._sc_).ToListAsync();
         }
 
         // GET: Stock/Details/5
@@ -70,6 +70,6 @@ namespace DotNetCoreSqlDb.Controllers
             return true;
         }
 
-        
+
     }
 }
