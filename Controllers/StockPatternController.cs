@@ -838,8 +838,6 @@ order by date
             return result;
         }
 
-
-
         /// <summary>
         /// 
         /// </summary>

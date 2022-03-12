@@ -10,6 +10,8 @@ using DotNetCoreSqlDb.Models.Business.Report;
 using DotNetCoreSqlDb.Models.Business.Report.Implementation;
 using DotNetCoreSqlDb.Common;
 using DotNetCoreSqlDb.Models.Business;
+using System.Data;
+using System.Text;
 
 namespace DotNetCoreSqlDb.Controllers
 {
@@ -20,42 +22,58 @@ namespace DotNetCoreSqlDb.Controllers
         /// Laptop cty - C:\Users\Viet\Documents\GitHub\stock-app\
         /// Home       - C:\Projects\Test\Stock-app\
         /// </summary>
-        public const string path = @$"C:\Projects\Test\Stock-app\";
+        public const string path = @$"C:\Projects\Test\Stock-app\Data\Learning\Source\";
 
         public LearningController(MyDatabaseContext context)
         {
             _context = context;
         }
 
-        ///// <summary>
-        ///// Build learning data
-        ///// </summary>
-        ///// <returns></returns>
-        //public async Task<IActionResult> Build()
-        //{
-        //    /*
-        //     * READ Excel file: 500K data for instance
-        //     * Get all data from column with true/false data and the result of the expectation (T3 lãi hay ko)
-        //     * Format: 
-        //     *      + Condition1-value - true                                           :single condition
-        //     *      + Condition2-value - false                                          :single condition
-        //     *      + Condition3-value - true                                           :single condition
-        //     *      + Condition1-value,Condition2-value - true                          :combination of them
-        //     *      + Condition1-value,Condition2-value,Condition3-value - true         :combination of them
-        //     * Example:
-        //     *      + Đáy 2-True - true
-        //     *      + Hum Nay Vol Tang-True - true
-        //     *      + Đáy 2-True,Hum Nay Vol Tang-True - true
-        //     * 
-        //     * Foreach all elements to see how many
-        //     *      + duplicated items on true/false -> success ratio
-        //     *      
-        //     * Extract to the file, it will help the machine to learn
-        //     * 
-        //    */
+        /// <summary>
+        /// Build learning data
+        /// </summary>
+        /// <returns></returns>
+        public async Task<IActionResult> BuildRaw()
+        {
+            /*
+             * READ Excel file: 500K data for instance
+             * Get all data from column with true/false data and the result of the expectation (T3 lãi hay ko)
+             * Format: 
+             *      + Condition1-value - true                                           :single condition
+             *      + Condition2-value - false                                          :single condition
+             *      + Condition3-value - true                                           :single condition
+             *      + Condition1-value,Condition2-value - true                          :combination of them
+             *      + Condition1-value,Condition2-value,Condition3-value - true         :combination of them
+             * Example:
+             *      + Đáy 2-True - true
+             *      + Hum Nay Vol Tang-True - true
+             *      + Đáy 2-True,Hum Nay Vol Tang-True - true
+             * 
+             * Foreach all elements to see how many
+             *      + duplicated items on true/false -> success ratio
+             *      
+             * Extract to the file, it will help the machine to learn
+             * 
+            */
 
-        //    return View(await _context.Todo.ToListAsync());
-        //}
+            
+
+            string pathExcel = $"{path}A32-2019-1-17-To-2022-3-7-efd67260-9068-4347-b006-1d88dd290f46.xlsx";
+            var data = pathExcel.ReadFromExcel();
+            var test = data.ExportTo(EnumExcelColumnModel.F, EnumExcelColumnModel.G, EnumExcelColumnModel.H);
+            var groupBy = test.Data.GroupBy(d => d.Combination).ToDictionary(d => d.Key, d => d.ToList());
+            var stringText = new StringBuilder();
+
+            foreach (var item in groupBy)
+            {
+                var t = test.Data.Count(t => t.Combination == item.Key);
+                var s = test.Data.Count(t => t.Combination == item.Key && t.Result);
+                var p = Math.Round((decimal)s / (decimal)t, 2) * 100;
+                stringText.AppendLine($"{item} - {t} - {p}%");
+            }
+            
+            return View(stringText);
+        }
 
         /// <summary>
         /// Start learning data
@@ -75,7 +93,7 @@ namespace DotNetCoreSqlDb.Controllers
         /// Predict the future based on the historical data (learning data)
         /// </summary>
         /// <returns></returns>
-        public async Task<IActionResult> Predict()
+        public async Task<IActionResult> Predict(DateTime date)
         {
             /*
              * 
