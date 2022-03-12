@@ -20,7 +20,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
             var today = history;
             var higestPrice = history.LayGiaCaoNhatCuaCacPhienSau(histories, 4, 10);
 
-            var dk1 = today.C < higestPrice;
+            var dk1 = today.C * 1.1M < higestPrice;
 
             if (dk1)
             {

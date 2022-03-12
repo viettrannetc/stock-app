@@ -25,7 +25,7 @@ namespace DotNetCoreSqlDb.Controllers
         /// Laptop cty - @$"C:\Projects\Test\Stock-app\Data\Learning\Source\"
         /// Home       - C:\Users\Viet\Documents\GitHub\stock-app\Data\Testing\
         /// </summary>
-        public const string path = @$"C:\Projects\Test\Stock-app\Data\Testing\";
+        public const string path = @$"C:\Users\Viet\Documents\GitHub\stock-app\Data\Testing\";
 
         public LearningController(MyDatabaseContext context)
         {
@@ -190,7 +190,7 @@ namespace DotNetCoreSqlDb.Controllers
                     .Where(s => s.StockSymbol == code && s.Date > startFrom.Value.AddDays((30 * 8) * -1))
                     .ToListAsync();
 
-                await ExecuteEachThread(startFrom.Value, code, historiesInPeriodOfTimeByStockCode, reportData, dates);
+                await ExecuteEachThread(startFrom.Value, code, historiesInPeriodOfTimeByStockCode, reportData, dates, toDate.Value);
 
                 var specificFilename = $"{filename}-{Guid.NewGuid().ToString()}";
 
@@ -206,7 +206,7 @@ namespace DotNetCoreSqlDb.Controllers
 
         public async Task ExecuteEachThread(DateTime startFrom, string code, List<StockSymbolHistory> historiesInPeriodOfTimeByStockCode,
             ReportModel result,
-            List<StockSymbolHistory> dates)
+            List<StockSymbolHistory> dates, DateTime toDate)
         {
             var patternOnsymbol = new PatternBySymbolResponseModel();
             patternOnsymbol.StockCode = code;
@@ -225,7 +225,7 @@ namespace DotNetCoreSqlDb.Controllers
 
                 Parallel.ForEach(orderedHistoryByStockCodeFromStartDate, history =>
                 {
-                    Test(startFrom, code, orderedHistoryByStockCode, history, result, dates);
+                    Test(startFrom, code, orderedHistoryByStockCode, history, result, dates, toDate);
                 });
             }
         }
@@ -234,9 +234,12 @@ namespace DotNetCoreSqlDb.Controllers
             List<StockSymbolHistory> orderedHistoryByStockCode,
             StockSymbolHistory history,
             ReportModel result,
-            List<StockSymbolHistory> dates)
+            List<StockSymbolHistory> dates,
+            DateTime toDate)
         {
             if (history.Date < startFrom) return;
+
+            if (history.Date > toDate) return;
 
             var histories = orderedHistoryByStockCode.Where(h => h.Date <= history.Date).ToList();
 
