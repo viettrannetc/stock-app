@@ -116,7 +116,14 @@ namespace DotNetCoreSqlDb.Common
                 }
 
                 var itertools = new Itertools();
-                var combination = itertools.Combinations(expectedData, minCombination).ToList();
+                var combination = new List<IEnumerable<string>>();
+
+                for (int i = minCombination; i < columnNames.Count(); i++)
+                {
+                    var t1 = itertools.Combinations(expectedData, i).ToList();
+                    combination.AddRange(t1);
+                }
+                
 
                 var res = row[(int)targetColumn].ToString() == "True" ? true : false;
                 var drawData = combination.CombineResult(res);
