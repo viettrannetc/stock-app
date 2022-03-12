@@ -21,8 +21,11 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
 
             var todayVol = history.V;
             var yesterdayVol = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < checkingDate);
+            if (yesterdayVol == null) return null;
             var yesterdayV1Vol = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < yesterdayVol.Date);
+            if (yesterdayV1Vol == null) return null;
             var yesterdayV2Vol = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < yesterdayV1Vol.Date);
+            if (yesterdayV2Vol == null) return null;
 
             //var dk1 = todayVol < yesterdayVol.V;
             var dk1 = yesterdayVol.V < yesterdayV1Vol.V;

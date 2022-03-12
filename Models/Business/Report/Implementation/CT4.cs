@@ -24,8 +24,11 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
 
             var todayVol = history.C;
             var yesterdayVol = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < checkingDate);
+            if (yesterdayVol == null) return null;
             var yesterdayV1Vol = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < yesterdayVol.Date);
+            if (yesterdayV1Vol == null) return null;
             var yesterdayV2Vol = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < yesterdayV1Vol.Date);
+            if (yesterdayV2Vol == null) return null;
 
             var dk1 = yesterdayVol.C.IsDifferenceInRank(yesterdayV1Vol.C, 0.03M);
             var dk2 = yesterdayV1Vol.C.IsDifferenceInRank(yesterdayV2Vol.C, 0.03M);

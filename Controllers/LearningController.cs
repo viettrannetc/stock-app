@@ -25,7 +25,7 @@ namespace DotNetCoreSqlDb.Controllers
         /// Laptop cty - @$"C:\Projects\Test\Stock-app\Data\Learning\Source\"
         /// Home       - C:\Users\Viet\Documents\GitHub\stock-app\Data\Testing\
         /// </summary>
-        public const string path = @$"C:\Users\Viet\Documents\GitHub\stock-app\Data\Testing\";
+        public const string path = @$"C:\Projects\Test\Stock-app\Data\Testing\";
 
         public LearningController(MyDatabaseContext context)
         {
@@ -40,7 +40,7 @@ namespace DotNetCoreSqlDb.Controllers
         {
             var folder = path;
             var g = new Guid();
-            var masterFile = $@"C:\Users\Viet\Documents\GitHub\stock-app\Data\Testing\{g}.xlsx";
+            var masterFile = $@"{path}{g}.xlsx";
 
             folder.Merge(masterFile);
 
@@ -198,7 +198,7 @@ namespace DotNetCoreSqlDb.Controllers
 
                 return true;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 return false;
             }

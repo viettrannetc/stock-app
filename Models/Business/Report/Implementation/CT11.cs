@@ -20,13 +20,16 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
             //    patternOnsymbol.StockCode = code;
 
             var today = history;
-            var yesterday = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < checkingDate);
-            var yesterdayV1 = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < yesterday.Date);
-            var yesterdayV2 = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < yesterdayV1.Date);
+            var yesterdayVol = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < checkingDate);
+            if (yesterdayVol == null) return null;
+            var yesterdayV1Vol = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < yesterdayVol.Date);
+            if (yesterdayV1Vol == null) return null;
+            var yesterdayV2Vol = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < yesterdayV1Vol.Date);
+            if (yesterdayV2Vol == null) return null;
 
-            var dk1 = today.C > yesterday.C * 1.1M;
-            var dk2 = yesterday.C > yesterdayV1.C * 1.1M;
-            var dk3 = yesterdayV1.C > yesterdayV2.C * 1.1M;
+            var dk1 = today.C > yesterdayVol.C * 1.1M;
+            var dk2 = yesterdayVol.C > yesterdayV1Vol.C * 1.1M;
+            var dk3 = yesterdayV1Vol.C > yesterdayV2Vol.C * 1.1M;
 
 
             if (dk1 & dk2 && dk3)
