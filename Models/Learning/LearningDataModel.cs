@@ -1,4 +1,6 @@
-﻿namespace DotNetCoreSqlDb.Models.Learning
+﻿using System.Collections.Generic;
+
+namespace DotNetCoreSqlDb.Models.Learning
 {
     /// <summary>    
     /// Data : [

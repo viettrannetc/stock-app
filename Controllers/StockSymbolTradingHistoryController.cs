@@ -184,26 +184,29 @@ namespace DotNetCoreSqlDb.Controllers
                         .OrderBy(s => s.Date)
                         .ToList();
 
-                    var newList = historiesInPeriodByStockCode.GroupBy(h => h.Date).ToDictionary(h => h.Key, h => new StockSymbolTradingHistory
+                    if (historiesInPeriodByStockCode.Any())
                     {
-                        Date = h.Key,
-                        Change = h.OrderByDescending(i => i.Change).First().Change,
-                        IsBuy = h.First().IsBuy,
-                        MatchQtty = h.Sum(i => i.MatchQtty),
-                        Price = h.OrderByDescending(i => i.Price).First().Change,
-                        StockSymbol = symbol._sc_,
-                        TotalVol = h.OrderByDescending(i => i.TotalVol).First().Change
-                    });
+                        var newList = historiesInPeriodByStockCode.GroupBy(h => h.Date).ToDictionary(h => h.Key, h => new StockSymbolTradingHistory
+                        {
+                            Date = h.Key,
+                            Change = h.OrderByDescending(i => i.Change).First().Change,
+                            IsBuy = h.First().IsBuy,
+                            MatchQtty = h.Sum(i => i.MatchQtty),
+                            Price = h.OrderByDescending(i => i.Price).First().Change,
+                            StockSymbol = symbol._sc_,
+                            TotalVol = h.OrderByDescending(i => i.TotalVol).First().Change
+                        });
 
-                    var newlst = newList.Select(nl => nl.Value).ToList();
+                        var newlst = newList.Select(nl => nl.Value).ToList();
 
-                    foreach (var item in newlst)
-                    {
-                        newlst.TimDiemTangGiaDotBien(item);
+                        foreach (var item in newlst)
+                        {
+                            newlst.TimDiemTangGiaDotBien(item);
+                        }
+
+                        lock (result)
+                            result.AddRange(newlst);
                     }
-                    
-                    lock (result)
-                        result.AddRange(newlst);
                 });
 
                 var t1 = result.Select(r => r.StockSymbol).Distinct().Count();

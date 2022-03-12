@@ -12,6 +12,9 @@ using DotNetCoreSqlDb.Common;
 using DotNetCoreSqlDb.Models.Business;
 using System.Data;
 using System.Text;
+using System.IO;
+using DotNetCoreSqlDb.Models.Learning;
+using CSharpItertools;
 
 namespace DotNetCoreSqlDb.Controllers
 {
@@ -19,10 +22,10 @@ namespace DotNetCoreSqlDb.Controllers
     {
         private readonly MyDatabaseContext _context;
         /// <summary>
-        /// Laptop cty - C:\Users\Viet\Documents\GitHub\stock-app\
-        /// Home       - C:\Projects\Test\Stock-app\
+        /// Laptop cty - @$"C:\Projects\Test\Stock-app\Data\Learning\Source\"
+        /// Home       - C:\Users\Viet\Documents\GitHub\stock-app\Data\Testing\
         /// </summary>
-        public const string path = @$"C:\Projects\Test\Stock-app\Data\Learning\Source\";
+        public const string path = @$"C:\Users\Viet\Documents\GitHub\stock-app\Data\Testing\";
 
         public LearningController(MyDatabaseContext context)
         {
@@ -30,10 +33,26 @@ namespace DotNetCoreSqlDb.Controllers
         }
 
         /// <summary>
+        /// Merge all raw data from excel files
+        /// </summary>
+        /// <returns></returns>
+        public async Task<bool> Merge()
+        {
+            var folder = path;
+            var g = new Guid();
+            var masterFile = $@"C:\Users\Viet\Documents\GitHub\stock-app\Data\Testing\{g}.xlsx";
+
+            folder.Merge(masterFile);
+
+            return true;
+        }
+
+        /// <summary>
         /// Build learning data
         /// </summary>
         /// <returns></returns>
-        public async Task<IActionResult> BuildRaw()
+        [HttpPost]
+        public async Task<LearningDataResponseModel> BuildRaw([Bind("FileName,Columns, MinCombination")] LearningDataRequestModel requestModel)
         {
             /*
              * READ Excel file: 500K data for instance
@@ -56,23 +75,39 @@ namespace DotNetCoreSqlDb.Controllers
              * 
             */
 
-            
+            var columnsArray = new List<EnumExcelColumnModel>();
+            foreach (var item in requestModel.Columns[0].Split(','))
+            {
+                Enum.TryParse(item.Trim(), out EnumExcelColumnModel myStatus);
+                columnsArray.Add(myStatus);
+            }
 
-            string pathExcel = $"{path}A32-2019-1-17-To-2022-3-7-efd67260-9068-4347-b006-1d88dd290f46.xlsx";
+            string pathExcel = $"{path}{requestModel.FileName}.xlsx";
             var data = pathExcel.ReadFromExcel();
-            var test = data.ExportTo(EnumExcelColumnModel.F, EnumExcelColumnModel.G, EnumExcelColumnModel.H);
+            //Q or AB
+            var test = data.ExportTo(requestModel.MinCombination, EnumExcelColumnModel.AB, columnsArray.ToArray());
             var groupBy = test.Data.GroupBy(d => d.Combination).ToDictionary(d => d.Key, d => d.ToList());
-            var stringText = new StringBuilder();
+
+            var result = new LearningDataResponseModel();
 
             foreach (var item in groupBy)
             {
-                var t = test.Data.Count(t => t.Combination == item.Key);
-                var s = test.Data.Count(t => t.Combination == item.Key && t.Result);
+                var t = item.Value.Count;
+                var s = item.Value.Count(t => t.Combination == item.Key && t.Result);
                 var p = Math.Round((decimal)s / (decimal)t, 2) * 100;
-                stringText.AppendLine($"{item} - {t} - {p}%");
+                result.Pattern.Add(new LearningDataPatternResponseModel
+                {
+                    Pattern = item.Key,
+                    Tile = p,
+                    Tong = t
+                });
             }
-            
-            return View(stringText);
+
+            result.Pattern = result.Pattern.OrderByDescending(r => r.Tile).ToList();
+
+            return result;
+
+
         }
 
         /// <summary>
@@ -99,6 +134,11 @@ namespace DotNetCoreSqlDb.Controllers
              * 
              * 
             */
+
+            var a = new string[] { "A", "B", "C", "D" };
+            var itertools = new Itertools();
+
+            var t1 = itertools.Combinations(a, 2);
 
             return View(await _context.Todo.ToListAsync());
         }
@@ -154,8 +194,6 @@ namespace DotNetCoreSqlDb.Controllers
 
                 var specificFilename = $"{filename}-{Guid.NewGuid().ToString()}";
 
-                //Laptop cty - C:\Users\Viet\Documents\GitHub\stock-app
-                //Home       - C:\Projects\Test\Stock-app\
                 reportData.ConvertToDataTable().WriteToExcel($"{path}{specificFilename}.xlsx");
 
                 return true;
@@ -208,6 +246,7 @@ namespace DotNetCoreSqlDb.Controllers
             stockData.Price = history.C;
             stockData.Vol = history.V;
             stockData.PriceT3 = history.LayGiaCuaPhienSau(orderedHistoryByStockCode, 3);
+            stockData.HPriceT4T10 = history.LayGiaCaoNhatCuaCacPhienSau(orderedHistoryByStockCode, 4, 10);
 
             var dk1 = new ReportFormularCT1().Calculation(code, history.Date, dates, null);
             var dk2 = new ReportFormularCT2().Calculation(code, history.Date, histories, null);
@@ -222,6 +261,17 @@ namespace DotNetCoreSqlDb.Controllers
             var dk11 = new ReportFormularCT11().Calculation(code, history.Date, histories, null);
             var dk12 = new ReportFormularCT12().Calculation(code, history.Date, orderedHistoryByStockCode, null);
 
+            var dk13 = new ReportFormularCT13().Calculation(code, history.Date, histories, null);
+            var dk14 = new ReportFormularCT14().Calculation(code, history.Date, histories, null);
+            var dk15 = new ReportFormularCT15().Calculation(code, history.Date, histories, null);
+            var dk16 = new ReportFormularCT16().Calculation(code, history.Date, histories, null);
+            var dk17 = new ReportFormularCT17().Calculation(code, history.Date, histories, null);
+            var dk18 = new ReportFormularCT18().Calculation(code, history.Date, histories, null);
+            var dk19 = new ReportFormularCT19().Calculation(code, history.Date, histories, null);
+            var dk20 = new ReportFormularCT20().Calculation(code, history.Date, histories, null);
+            var dk21 = new ReportFormularCT21().Calculation(code, history.Date, histories, null);
+            var dk22 = new ReportFormularCT22().Calculation(code, history.Date, orderedHistoryByStockCode, null);
+
             stockData.Formulars
                 .Plus(dk1)
                 .Plus(dk2)
@@ -235,6 +285,17 @@ namespace DotNetCoreSqlDb.Controllers
                 .Plus(dk10)
                 .Plus(dk11)
                 .Plus(dk12)
+
+                .Plus(dk13)
+                .Plus(dk14)
+                .Plus(dk15)
+                .Plus(dk16)
+                .Plus(dk17)
+                .Plus(dk18)
+                .Plus(dk19)
+                .Plus(dk20)
+                .Plus(dk21)
+                .Plus(dk22)
                 ;
 
             result.Stocks.Add(stockData);

@@ -1,7 +1,9 @@
-﻿using DotNetCoreSqlDb.Models.Business;
+﻿using CSharpItertools;
+using DotNetCoreSqlDb.Models.Business;
 using DotNetCoreSqlDb.Models.Learning;
 using OfficeOpenXml;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
@@ -16,7 +18,7 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="filename"></param>
         /// <param name="dataTable"></param>
         /// <returns></returns>
-        public static bool WriteToExcel(this DataTable dataTable, string filename)
+        public static bool WriteToExcel(this DataTable dataTable, string filename, bool usingHeader = true)
         {
             if (dataTable == null) return false;
 
@@ -25,10 +27,16 @@ namespace DotNetCoreSqlDb.Common
             using (ExcelPackage excelPackage = new ExcelPackage(filename))
             {
                 //create a WorkSheet
-                ExcelWorksheet worksheet = excelPackage.Workbook.Worksheets.Add("Sheet 1");
+                ExcelWorksheet worksheet = excelPackage.Workbook.Worksheets.Any()
+                    ? excelPackage.Workbook.Worksheets[0]
+                    : excelPackage.Workbook.Worksheets.Add("Sheet 1");
 
                 //add all the content from the DataTable, starting at cell A1
-                worksheet.Cells["A1"].LoadFromDataTable(dataTable, true);
+                var startCell = usingHeader 
+                    ? "A1"
+                    : $"A{int.Parse(worksheet.Cells.Last(c => c.Start.Column == 1).ToString().Split('A')[1]) + 1}";
+
+                worksheet.Cells[startCell].LoadFromDataTable(dataTable, usingHeader);
 
                 excelPackage.Save();
 
@@ -88,7 +96,8 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="filename"></param>
         /// <param name="dataTable"></param>
         /// <returns></returns>
-        public static LearningModel ExportTo(this DataTable dataTable, params EnumExcelColumnModel[] columnNames)
+        public static LearningModel ExportTo(this DataTable dataTable, int minCombination, EnumExcelColumnModel targetColumn,
+            params EnumExcelColumnModel[] columnNames)
         {
             if (dataTable == null) return null;
 
@@ -106,8 +115,10 @@ namespace DotNetCoreSqlDb.Common
                     expectedData.Add($"{column.ToString()}-{row[(int)column].ToString().ToBit()}");
                 }
 
-                var combination = Combinations(expectedData);
-                var res = row[(int)EnumExcelColumnModel.Q].ToString() == "True" ? true : false;
+                var itertools = new Itertools();
+                var combination = itertools.Combinations(expectedData, minCombination).ToList();
+
+                var res = row[(int)targetColumn].ToString() == "True" ? true : false;
                 var drawData = combination.CombineResult(res);
 
                 result.Data.AddRange(drawData);
@@ -124,7 +135,7 @@ namespace DotNetCoreSqlDb.Common
             return Boolean == "True" ? 1 : 0;
         }
 
-        public static List<T[]> Combinations<T>(IEnumerable<T> source)
+        public static List<T[]> Combinate<T>(this IEnumerable<T> source, int minCombination = 1)
         {
             if (null == source)
                 throw new ArgumentNullException(nameof(source));
@@ -133,14 +144,14 @@ namespace DotNetCoreSqlDb.Common
 
             return Enumerable
               //.Range(0, 1 << (data.Length))
-              .Range(1, (1 << (data.Length)) - 1)               //I don't want to take empty array
+              .Range(minCombination, (minCombination << (data.Length)) - minCombination)
               .Select(index => data
                  .Where((v, i) => (index & (1 << i)) != 0)
                  .ToArray())
               .ToList();
         }
 
-        public static List<LearningDataModel> CombineResult(this List<string[]> source, bool expectedResult)
+        public static List<LearningDataModel> CombineResult(this List<IEnumerable<string>> source, bool expectedResult)
         {
             if (null == source)
                 throw new ArgumentNullException(nameof(source));
@@ -152,6 +163,23 @@ namespace DotNetCoreSqlDb.Common
             }
 
             return lst;
+        }
+
+        public static void Merge(this string folderOfExcelFiles, string masterFilePath)
+        {
+            DirectoryInfo di = new DirectoryInfo(folderOfExcelFiles);
+            FileInfo[] files = di.GetFiles("*.xlsx");
+
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+            
+            for (int i = 0; i < files.Length; i++)
+            {
+                var hasHeader = i == 0;
+                var file = files[i];
+                var data = file.FullName.ReadFromExcel();
+                data.WriteToExcel(masterFilePath, hasHeader);
+            }
+
         }
     }
 }

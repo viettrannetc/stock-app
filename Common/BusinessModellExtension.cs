@@ -176,6 +176,65 @@ namespace DotNetCoreSqlDb.Common
             return transaction.O;
         }
 
+        /// <summary>
+        /// Lấy giá đóng cửa của các phiên sau để xem thời điểm bán có lời hay ko
+        /// </summary>
+        /// <param name="checkingDate"></param>
+        /// <param name="histories"></param>
+        /// <param name="T"></param>
+        /// <returns></returns>
+        public static decimal LayGiaCaoNhatCuaCacPhienSau(this StockSymbolHistory checkingDate, List<StockSymbolHistory> histories, int fromT, int toT)
+        {
+            if (toT < fromT) return 0;
+
+            //if (T == 0) return checkingDate.C;
+
+            var nextTransactions = histories
+                .Where(h => h.Date > checkingDate.Date && h.V > 0)
+                .OrderBy(h => h.Date)
+                .Skip(fromT)
+                .Take(toT)
+                .ToList();
+
+            if (!nextTransactions.Any() || nextTransactions.Count() < (toT - fromT)) return 0;
+
+            var transaction = nextTransactions.OrderByDescending(t => t.C).First();
+
+            return transaction.C;
+        }
+
+        public static StockSymbolHistory LookingForSecondLowestWithout2Percent(this StockSymbolHistory lowest, List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory)
+        {
+            var theDaysAfterLowest = histories.Where(h => h.Date > lowest.Date && h.Date <= currentDateHistory.Date)
+                .OrderBy(h => h.Date)
+                .ToList();
+
+            if (!theDaysAfterLowest.Any()) return null;
+
+            for (int i = 0; i < theDaysAfterLowest.Count(); i++)
+            {
+                if (i <= 3) continue;
+                var secondLowestAssumption = theDaysAfterLowest[i];
+                var rangesFromLowestTo2ndLowest = theDaysAfterLowest.Where(d => d.Date > lowest.Date && d.Date < secondLowestAssumption.Date).ToList();
+
+                var dkSub1 = rangesFromLowestTo2ndLowest.Any(r => r.C > secondLowestAssumption.C);//at least 1 day > 2nd lowest
+                if (!dkSub1) continue;
+
+                var dkSub2 = false;//at least 1 day > next Phien from 2nd lowest
+                if (i < theDaysAfterLowest.Count() - 1)
+                {
+                    var nextPhien = theDaysAfterLowest[i + 1];
+                    dkSub2 = rangesFromLowestTo2ndLowest.Any(r => r.C > nextPhien.C) && nextPhien.C > secondLowestAssumption.C; //(secondLowestAssumption.C * 1.02M);
+                }
+
+                if (dkSub1 && dkSub2)
+                {
+                    return secondLowestAssumption;
+                }
+            }
+
+            return null;
+        }
     }
 
 }

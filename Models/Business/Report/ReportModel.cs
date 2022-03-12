@@ -24,6 +24,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report
         public string Code { get; set; }
         public decimal Price { get; set; }
         public decimal PriceT3 { get; set; }
+        public decimal HPriceT4T10 { get; set; }
         public decimal Vol { get; set; }
 
         public List<ReportFormularModel> Formulars { get; set; }

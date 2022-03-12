@@ -5,6 +5,9 @@ using System.Linq;
 
 namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
 {
+    /// <summary>
+    /// Đáy 2 
+    /// </summary>
     public class ReportFormularCT2 : IReportFormular
     {
         public ReportFormularModel Calculation(string code, DateTime ngay, List<StockSymbolHistory> histories, List<StockSymbolTradingHistory> tradingHistories)
