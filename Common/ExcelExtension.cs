@@ -32,7 +32,7 @@ namespace DotNetCoreSqlDb.Common
                     : excelPackage.Workbook.Worksheets.Add("Sheet 1");
 
                 //add all the content from the DataTable, starting at cell A1
-                var startCell = usingHeader 
+                var startCell = usingHeader
                     ? "A1"
                     : $"A{int.Parse(worksheet.Cells.Last(c => c.Start.Column == 1).ToString().Split('A')[1]) + 1}";
 
@@ -171,15 +171,22 @@ namespace DotNetCoreSqlDb.Common
             FileInfo[] files = di.GetFiles("*.xlsx");
 
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-            
-            for (int i = 0; i < files.Length; i++)
-            {
-                var hasHeader = i == 0;
-                var file = files[i];
-                var data = file.FullName.ReadFromExcel();
-                data.WriteToExcel(masterFilePath, hasHeader);
-            }
 
+            var batch = files.Length / 100;
+            batch = batch + 1;
+
+            for (int j = 0; j < batch; j++)
+            {
+                var filesInBatch = files.Skip(j * 100).Take(100).ToList();
+                var name = $"{folderOfExcelFiles}{j}.xlsx";
+                for (int i = 0; i < filesInBatch.Count; i++)
+                {
+                    var hasHeader = i == 0;
+                    var file = files[i];
+                    var data = file.FullName.ReadFromExcel();
+                    data.WriteToExcel(name, hasHeader);
+                }
+            }
         }
     }
 }
