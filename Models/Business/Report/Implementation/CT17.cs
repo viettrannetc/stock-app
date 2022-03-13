@@ -29,7 +29,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
             var vol20Phien = history.VOL(histories, -20);
 
             var dk1 = histories.Where(h => h.Date < history.Date).OrderByDescending(h => h.Date).First().ID == secondLowest.ID; //nến xác nhận đáy là ngày ngay sau đáy 2
-            var dk2 = history.H > history.C * 1.01M;
+            var dk2 = history.H < history.C * 1.01M;
 
             if (dk2 && dk2)
             {
