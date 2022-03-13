@@ -19,24 +19,17 @@ namespace DotNetCoreSqlDb.Models.Learning
     {
         public LearningModel()
         {
-            Data = new List<LearningDataModel>();
+            Data = new List<LearningDataPatternResponseModel>();
         }
-        public List<LearningDataModel> Data { get; set; }
-
-        /// <summary>
-        /// Pattern: 
-        ///     + X-Y-Z
-        ///     + Times
-        ///     + Success
-        /// </summary>
-        public List<LearningDataModel> Data2 { get; set; }
+        public List<LearningDataPatternResponseModel> Data { get; set; }
     }
 
-    public class LearningDataModel
-    {
-        public string Combination { get; set; }
-        public bool Result { get; set; }
-    }
+    //public class LearningDataModel
+    //{
+    //    public string Combination { get; set; }
+
+    //    public bool Result { get; set; }
+    //}
 
     public class LearningDataConditionModel
     {

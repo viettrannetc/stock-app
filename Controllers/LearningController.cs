@@ -38,7 +38,7 @@ namespace DotNetCoreSqlDb.Controllers
             var g = new Guid();
             var masterFile = $@"{folder}{g}.xlsx";
 
-            folder.Merge(masterFile);
+            folder.Merge();
 
             return true;
         }
@@ -77,8 +77,10 @@ namespace DotNetCoreSqlDb.Controllers
                 var conditions = requestModel.Condition.Split(',');
                 foreach (var item in conditions)
                 {
-                    Enum.TryParse(item.Trim(), out EnumExcelColumnModel myStatus);
-                    condition.Condition.Add(myStatus, ConstantData.Condition.Contains(item.Trim().ToString()) ? true : false);
+                    var columnName = item.Split('=')[0];
+                    var columnValue = item.Split('=')[1];
+                    Enum.TryParse(columnName.Trim(), out EnumExcelColumnModel myStatus);
+                    condition.Condition.Add(myStatus, ConstantData.Condition.Contains(columnValue.Trim().ToString()) ? true : false);
                 }
             }
 
@@ -89,29 +91,55 @@ namespace DotNetCoreSqlDb.Controllers
                 columnsArray.Add(myStatus);
             }
 
+
+
+
+
+
+            var r = new List<string>();
+            requestModel.Columns[0].Split(',').ToList().GetCombination(new List<string>() { "True", "False" }, r);
+
+
+            var t = 0;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             string pathExcel = $"{ConstantPath.Path}{requestModel.FileName}.xlsx";
             var data = pathExcel.ReadFromExcel();
 
             Enum.TryParse(requestModel.MeasureColumn.Trim(), out EnumExcelColumnModel measureColumn);
-            var test = data.ExportTo(requestModel.MinCombination, measureColumn, condition, columnsArray.ToArray());
-            var groupBy = test.Data.GroupBy(d => d.Combination).ToDictionary(d => d.Key, d => d.ToList());
+            var result = data.ExportTo(requestModel.MinCombination, measureColumn, condition, columnsArray.ToArray());
+            //var groupBy = test.Data.GroupBy(d => d.Combination).ToDictionary(d => d.Key, d => d.ToList());
 
-            var result = new LearningDataResponseModel();
+            //var result = new LearningDataResponseModel();
 
-            foreach (var item in groupBy)
-            {
-                var t = item.Value.Count;
-                var s = item.Value.Count(t => t.Combination == item.Key && t.Result);
-                var p = Math.Round((decimal)s / (decimal)t, 2) * 100;
-                result.Pattern.Add(new LearningDataPatternResponseModel
-                {
-                    Pattern = item.Key,
-                    Tile = p,
-                    Tong = t
-                });
-            }
+            //foreach (var item in groupBy)
+            //{
+            //    var t = item.Value.Count;
+            //    var s = item.Value.Count(t => t.Combination == item.Key && t.Result);
+            //    var p = Math.Round((decimal)s / (decimal)t, 2) * 100;
+            //    result.Pattern.Add(new LearningDataPatternResponseModel
+            //    {
+            //        Pattern = item.Key,
+            //        Tile = p,
+            //        Tong = t
+            //    });
+            //}
 
-            result.Pattern = result.Pattern.OrderByDescending(r => r.Tile).ToList();
+            //result.Pattern = result.Pattern.OrderByDescending(r => r.Tile).ToList();
 
             return result;
 
