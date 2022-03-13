@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using DotNetCoreSqlDb.Models.Business;
+using System.Collections.Generic;
 
 namespace DotNetCoreSqlDb.Models.Learning
 {
@@ -37,5 +38,12 @@ namespace DotNetCoreSqlDb.Models.Learning
         public bool Result { get; set; }
     }
 
-
+    public class LearningDataConditionModel
+    {
+        public LearningDataConditionModel()
+        {
+            Condition = new Dictionary<EnumExcelColumnModel, bool>();
+        }
+        public Dictionary<EnumExcelColumnModel, bool> Condition { get; set; }
+    }
 }

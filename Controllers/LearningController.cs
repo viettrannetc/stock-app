@@ -21,11 +21,7 @@ namespace DotNetCoreSqlDb.Controllers
     public class LearningController : Controller
     {
         private readonly MyDatabaseContext _context;
-        /// <summary>
-        /// Laptop cty - @$"C:\Projects\Test\Stock-app\Data\Learning\Source\"
-        /// Home       - C:\Users\Viet\Documents\GitHub\stock-app\Data\Testing\
-        /// </summary>
-        public const string path = @$"C:\Users\Viet\Documents\GitHub\stock-app\Data\Testing\";
+
 
         public LearningController(MyDatabaseContext context)
         {
@@ -38,9 +34,9 @@ namespace DotNetCoreSqlDb.Controllers
         /// <returns></returns>
         public async Task<bool> Merge()
         {
-            var folder = path;
+            var folder = ConstantPath.Path;
             var g = new Guid();
-            var masterFile = $@"{path}{g}.xlsx";
+            var masterFile = $@"{folder}{g}.xlsx";
 
             folder.Merge(masterFile);
 
@@ -52,7 +48,7 @@ namespace DotNetCoreSqlDb.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPost]
-        public async Task<LearningDataResponseModel> BuildRaw([Bind("FileName,Columns, MinCombination")] LearningDataRequestModel requestModel)
+        public async Task<LearningDataResponseModel> BuildRaw([Bind("FileName,Columns, MinCombination, Condition, MeasureColumn")] LearningDataRequestModel requestModel)
         {
             /*
              * READ Excel file: 500K data for instance
@@ -75,6 +71,17 @@ namespace DotNetCoreSqlDb.Controllers
              * 
             */
 
+            var condition = new LearningDataConditionModel();// new Dictionary<EnumExcelColumnModel, bool>();
+            if (!string.IsNullOrEmpty(requestModel.Condition))
+            {
+                var conditions = requestModel.Condition.Split(',');
+                foreach (var item in conditions)
+                {
+                    Enum.TryParse(item.Trim(), out EnumExcelColumnModel myStatus);
+                    condition.Condition.Add(myStatus, ConstantData.Condition.Contains(item.Trim().ToString()) ? true : false);
+                }
+            }
+
             var columnsArray = new List<EnumExcelColumnModel>();
             foreach (var item in requestModel.Columns[0].Split(','))
             {
@@ -82,10 +89,11 @@ namespace DotNetCoreSqlDb.Controllers
                 columnsArray.Add(myStatus);
             }
 
-            string pathExcel = $"{path}{requestModel.FileName}.xlsx";
+            string pathExcel = $"{ConstantPath.Path}{requestModel.FileName}.xlsx";
             var data = pathExcel.ReadFromExcel();
-            //Q or AB
-            var test = data.ExportTo(requestModel.MinCombination, EnumExcelColumnModel.AB, columnsArray.ToArray());
+
+            Enum.TryParse(requestModel.MeasureColumn.Trim(), out EnumExcelColumnModel measureColumn);
+            var test = data.ExportTo(requestModel.MinCombination, measureColumn, condition, columnsArray.ToArray());
             var groupBy = test.Data.GroupBy(d => d.Combination).ToDictionary(d => d.Key, d => d.ToList());
 
             var result = new LearningDataResponseModel();
@@ -171,7 +179,7 @@ namespace DotNetCoreSqlDb.Controllers
 
                 var filename = $"{code}-{startFrom.Value.Year}-{startFrom.Value.Month}-{startFrom.Value.Day}-To-{toDate.Value.Year}-{toDate.Value.Month}-{toDate.Value.Day}";
 
-                bool contains = Directory.EnumerateFiles(path).Any(f => f.IndexOf(filename, StringComparison.OrdinalIgnoreCase) > 0);
+                bool contains = Directory.EnumerateFiles(ConstantPath.Path).Any(f => f.IndexOf(filename, StringComparison.OrdinalIgnoreCase) > 0);
                 if (contains) return true;
 
                 var historiesInPeriodOfTimeByStockCode =
@@ -194,7 +202,7 @@ namespace DotNetCoreSqlDb.Controllers
 
                 var specificFilename = $"{filename}-{Guid.NewGuid().ToString()}";
 
-                reportData.ConvertToDataTable().WriteToExcel($"{path}{specificFilename}.xlsx");
+                reportData.ConvertToDataTable().WriteToExcel($"{ConstantPath.Path}{specificFilename}.xlsx");
 
                 return true;
             }
@@ -223,14 +231,14 @@ namespace DotNetCoreSqlDb.Controllers
             {
                 var orderedHistoryByStockCodeFromStartDate = orderedHistoryByStockCode.Where(h => h.Date >= startFrom).ToList();
 
-                Parallel.ForEach(orderedHistoryByStockCodeFromStartDate, history =>
+                Parallel.ForEach(orderedHistoryByStockCodeFromStartDate, async history =>
                 {
-                    Test(startFrom, code, orderedHistoryByStockCode, history, result, dates, toDate);
+                    await Test(startFrom, code, orderedHistoryByStockCode, history, result, dates, toDate);
                 });
             }
         }
 
-        private void Test(DateTime startFrom, string code,
+        private async Task Test(DateTime startFrom, string code,
             List<StockSymbolHistory> orderedHistoryByStockCode,
             StockSymbolHistory history,
             ReportModel result,
@@ -251,15 +259,15 @@ namespace DotNetCoreSqlDb.Controllers
             stockData.PriceT3 = history.LayGiaCuaPhienSau(orderedHistoryByStockCode, 3);
             stockData.HPriceT4T10 = history.LayGiaCaoNhatCuaCacPhienSau(orderedHistoryByStockCode, 4, 10);
 
-            var dk1 = new ReportFormularCT1().Calculation(code, history.Date, dates, null);
-            var dk2 = new ReportFormularCT2().Calculation(code, history.Date, histories, null);
-            var dk3 = new ReportFormularCT3().Calculation(code, history.Date, histories, null);
-            var dk4 = new ReportFormularCT4().Calculation(code, history.Date, histories, null);
-            var dk5 = new ReportFormularCT5().Calculation(code, history.Date, histories, null);
-            var dk6 = new ReportFormularCT6().Calculation(code, history.Date, histories, null);
-            var dk7 = new ReportFormularCT7().Calculation(code, history.Date, histories, null);
-            var dk8 = new ReportFormularCT8().Calculation(code, history.Date, histories, null);
-            var dk9 = new ReportFormularCT9().Calculation(code, history.Date, histories, null);
+            var dk01 = new ReportFormularCT1().Calculation(code, history.Date, dates, null);
+            var dk02 = new ReportFormularCT2().Calculation(code, history.Date, histories, null);
+            var dk03 = new ReportFormularCT3().Calculation(code, history.Date, histories, null);
+            var dk04 = new ReportFormularCT4().Calculation(code, history.Date, histories, null);
+            var dk05 = new ReportFormularCT5().Calculation(code, history.Date, histories, null);
+            var dk06 = new ReportFormularCT6().Calculation(code, history.Date, histories, null);
+            var dk07 = new ReportFormularCT7().Calculation(code, history.Date, histories, null);
+            var dk08 = new ReportFormularCT8().Calculation(code, history.Date, histories, null);
+            var dk09 = new ReportFormularCT9().Calculation(code, history.Date, histories, null);
             var dk10 = new ReportFormularCT10().Calculation(code, history.Date, histories, null);
             var dk11 = new ReportFormularCT11().Calculation(code, history.Date, histories, null);
             var dk12 = new ReportFormularCT12().Calculation(code, history.Date, orderedHistoryByStockCode, null);
@@ -267,38 +275,42 @@ namespace DotNetCoreSqlDb.Controllers
             var dk13 = new ReportFormularCT13().Calculation(code, history.Date, histories, null);
             var dk14 = new ReportFormularCT14().Calculation(code, history.Date, histories, null);
             var dk15 = new ReportFormularCT15().Calculation(code, history.Date, histories, null);
-            var dk16 = new ReportFormularCT16().Calculation(code, history.Date, histories, null);
+            //var dk16 = new ReportFormularCT16().Calculation(code, history.Date, histories, null);
             var dk17 = new ReportFormularCT17().Calculation(code, history.Date, histories, null);
             var dk18 = new ReportFormularCT18().Calculation(code, history.Date, histories, null);
-            var dk19 = new ReportFormularCT19().Calculation(code, history.Date, histories, null);
+            //var dk19 = new ReportFormularCT19().Calculation(code, history.Date, histories, null);
             var dk20 = new ReportFormularCT20().Calculation(code, history.Date, histories, null);
             var dk21 = new ReportFormularCT21().Calculation(code, history.Date, histories, null);
             var dk22 = new ReportFormularCT22().Calculation(code, history.Date, orderedHistoryByStockCode, null);
 
+            var dk23 = new ReportFormularCT23().Calculation(code, history.Date, histories, null);
+            var dk24 = new ReportFormularCT24().Calculation(code, history.Date, histories, null);
+
             stockData.Formulars
-                .Plus(dk1)
-                .Plus(dk2)
-                .Plus(dk3)
-                .Plus(dk4)
-                .Plus(dk5)
-                .Plus(dk6)
-                .Plus(dk7)
-                .Plus(dk8)
-                .Plus(dk9)
+                .Plus(dk01)
+                .Plus(dk02)
+                .Plus(dk03)
+                .Plus(dk04)
+                .Plus(dk05)
+                .Plus(dk06)
+                .Plus(dk07)
+                .Plus(dk08)
+                .Plus(dk09)
                 .Plus(dk10)
                 .Plus(dk11)
                 .Plus(dk12)
-
                 .Plus(dk13)
                 .Plus(dk14)
                 .Plus(dk15)
-                .Plus(dk16)
+                //.Plus(dk16)
                 .Plus(dk17)
                 .Plus(dk18)
-                .Plus(dk19)
+                //.Plus(dk19)
                 .Plus(dk20)
                 .Plus(dk21)
                 .Plus(dk22)
+                .Plus(dk23)
+                .Plus(dk24)
                 ;
 
             result.Stocks.Add(stockData);

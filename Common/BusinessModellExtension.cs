@@ -203,6 +203,21 @@ namespace DotNetCoreSqlDb.Common
             return transaction.C;
         }
 
+        public static StockSymbolHistory LookingForLowestWithout2Percent(this StockSymbolHistory currentDateHistory, List<StockSymbolHistory> histories)//, StockSymbolHistory currentDateHistory)
+        {
+            if (currentDateHistory == null) return null;
+
+            var history = histories.FirstOrDefault(h => h.Date == currentDateHistory.Date);
+            if (history == null) return null;
+
+            var currentDateToCheck = history.Date;
+            var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(30).ToList();
+
+            var lowest = previousDaysFromCurrentDay.OrderBy(h => h.C).FirstOrDefault();
+
+            return lowest;
+        }
+
         public static StockSymbolHistory LookingForSecondLowestWithout2Percent(this StockSymbolHistory lowest, List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory)
         {
             var theDaysAfterLowest = histories.Where(h => h.Date > lowest.Date && h.Date <= currentDateHistory.Date)

@@ -10,39 +10,35 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
     /// Nến xác nhận đáy: ngày sau đáy 2 
     /// Nến đáy 2: đáy 2 
     /// </summary>
-    public class ReportFormularCT19 : IReportFormular
-    {
-        public ReportFormularModel Calculation(string code, DateTime ngay, List<StockSymbolHistory> histories, List<StockSymbolTradingHistory> tradingHistories)
-        {
-            var result = new ReportFormularModel();
+    //public class ReportFormularCT19 : IReportFormular
+    //{
+    //    public ReportFormularModel Calculation(string code, DateTime ngay, List<StockSymbolHistory> histories, List<StockSymbolTradingHistory> tradingHistories)
+    //    {
+    //        var result = new ReportFormularModel();
 
-            histories = histories.OrderBy(s => s.Date).ToList();
+    //        histories = histories.OrderBy(s => s.Date).ToList();
 
-            var history = histories.FirstOrDefault(h => h.Date == ngay);
-            if (history == null) return null;
+    //        var history = histories.FirstOrDefault(h => h.Date == ngay);
+    //        if (history == null) return null;
+    //        var lowest = history.LookingForLowestWithout2Percent(histories);
+    //        if (lowest == null) return null;
 
-            var currentDateToCheck = history.Date;
-            var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(30).ToList();
+    //        var secondLowest = lowest.LookingForSecondLowestWithout2Percent(histories, history);
+    //        if (secondLowest == null) return null;
 
-            var lowest = previousDaysFromCurrentDay.OrderBy(h => h.C).FirstOrDefault();
-            if (lowest == null) return null;
+    //        var vol20Phien = history.VOL(histories, -20);
 
-            var secondLowest = lowest.LookingForSecondLowestWithout2Percent(histories, history);
-            if (secondLowest == null) return null;
+    //        var dk1 = secondLowest.V < vol20Phien;
+    //        if (dk1)
+    //        {
+    //            result.Name = ConstantData.CT19;
+    //            result.Price = history.C;
+    //        }
 
-            var vol20Phien = history.VOL(histories, -20);
+    //        return string.IsNullOrEmpty(result.Name)
+    //            ? null
+    //            : result;
+    //    }
 
-            var dk1 = secondLowest.V < vol20Phien;
-            if (dk1)
-            {
-                result.Name = ConstantData.CT19;
-                result.Price = history.C;
-            }
-
-            return string.IsNullOrEmpty(result.Name)
-                ? null
-                : result;
-        }
-
-    }
+    //}
 }

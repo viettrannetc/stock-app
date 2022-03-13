@@ -214,7 +214,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
                     //res.Date = historyByWeek.Date; //TODO: find the next transaction date -> will be used to calculate T+3
                     //res.IsActive = true;
                     result.Price = historyByWeek.C;
-                    result.Name = ConstantData.CT1;
+                    result.Name = ConstantData.CT01;
                 }
 
                 //if (patternOnsymbol.Details.Any())

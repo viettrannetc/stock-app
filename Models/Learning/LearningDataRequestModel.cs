@@ -23,6 +23,11 @@ namespace DotNetCoreSqlDb.Models.Learning
         public string FileName { get; set; }
         public List<string> Columns { get; set; }
         public int MinCombination { get; set; }
+        public string Condition { get; set; }
+        /// <summary>
+        /// It should be Q or AB
+        /// </summary>
+        public string MeasureColumn { get; set; }
     }
 
 

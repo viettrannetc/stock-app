@@ -21,10 +21,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
             var history = histories.FirstOrDefault(h => h.Date == ngay);
             if (history == null) return null;
 
-            var currentDateToCheck = history.Date;
-            var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(30).ToList();
-
-            var lowest = previousDaysFromCurrentDay.OrderBy(h => h.C).FirstOrDefault();
+            var lowest = history.LookingForLowestWithout2Percent(histories);
             if (lowest == null) return null;
 
             var secondLowest = lowest.LookingForSecondLowestWithout2Percent(histories, history);

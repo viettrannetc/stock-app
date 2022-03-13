@@ -49,7 +49,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
                 //    }
                 //});
 
-                result.Name = ConstantData.CT9;
+                result.Name = ConstantData.CT09;
                 result.Price = history.C;
             }
 

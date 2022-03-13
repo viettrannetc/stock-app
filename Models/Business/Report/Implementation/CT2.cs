@@ -77,7 +77,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
                 //    }
                 //});
 
-                result.Name = ConstantData.CT2;
+                result.Name = ConstantData.CT02;
                 result.Price = history.C;
             }
 

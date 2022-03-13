@@ -96,18 +96,29 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="filename"></param>
         /// <param name="dataTable"></param>
         /// <returns></returns>
-        public static LearningModel ExportTo(this DataTable dataTable, int minCombination, EnumExcelColumnModel targetColumn,
+        public static LearningModel ExportTo(this DataTable dataTable, int minCombination,
+            EnumExcelColumnModel targetColumn,
+            LearningDataConditionModel condition,
             params EnumExcelColumnModel[] columnNames)
         {
             if (dataTable == null) return null;
-
-            //if (!columnNames.Any()) return null;
 
             var result = new LearningModel();
 
             foreach (DataRow row in dataTable.Rows)
             {
-                var lines = new LearningDataModel();
+                if (condition != null && condition.Condition.Any())
+                {
+                    bool isMatchCondition = true;
+                    foreach (var item in condition.Condition)
+                    {
+                        var check = row[(int)item.Key].ToString() == "True" ? true : false;
+                        if (check != item.Value)
+                            isMatchCondition = false;
+                    }
+                    if (!isMatchCondition)
+                        continue;
+                }
 
                 var expectedData = new List<string>();
                 foreach (var column in columnNames)
@@ -123,9 +134,9 @@ namespace DotNetCoreSqlDb.Common
                     var t1 = itertools.Combinations(expectedData, i).ToList();
                     combination.AddRange(t1);
                 }
-                
 
-                var res = row[(int)targetColumn].ToString() == "True" ? true : false;
+
+                var res = ConstantData.Condition.Contains(row[(int)targetColumn].ToString()) ? true : false;
                 var drawData = combination.CombineResult(res);
 
                 result.Data.AddRange(drawData);
