@@ -720,7 +720,6 @@ order by date
             return result;
         }
 
-
         /// <summary>
         /// /*
         /// * dk1: ma10 cua phien hien tai tang so voi ma10 cua phien truoc
@@ -888,7 +887,6 @@ order by date
 
             return result;
         }
-
 
         public async Task<PatternResponseModel> FollowUpStock()
         {
@@ -1126,5 +1124,91 @@ order by date
 
         Note: khi chạy dk này thì, lúc xác định hum wa có phải đáy 2 hay ko, bỏ dk xác nhận ngày hiện tại lớn hơn đáy 2 2%
          */
+
+        public async Task<PatternResponseModel> FollowUpSymbolsGoingDown(string code, DateTime dateTime)
+        {
+            var result = new PatternResponseModel();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesInPeriodOfTimeNonDB = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= dateTime.AddDays(-60))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+
+            int expectedLowerPercentage = 20;
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                try
+                {
+                    var histories = historiesInPeriodOfTimeNonDB
+                        .Where(ss => ss.StockSymbol == symbol._sc_)
+                        .OrderByDescending(ss => ss.Date)
+                        .ToList();
+
+                    var patternOnsymbol = new PatternBySymbolResponseModel();
+                    patternOnsymbol.StockCode = symbol._sc_;
+                    histories = histories.OrderBy(s => s.Date).ToList();
+
+                    var history = histories.FirstOrDefault(h => h.Date == dateTime);
+                    if (history == null) return;
+
+                    if (history.VOL(histories, -20) < 100000) return;
+
+                    var currentDateToCheck = history.Date;
+                    var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(5).ToList();
+
+                    var lowest = previousDaysFromCurrentDay.OrderBy(h => h.C).FirstOrDefault();
+                    if (lowest == null) return;
+
+                    var previousDaysForHigestFromLowest = histories.Where(h => h.Date < lowest.Date).OrderByDescending(h => h.Date).Take(20).ToList();
+                    var highest = previousDaysForHigestFromLowest.OrderByDescending(h => h.C).FirstOrDefault();
+                    if (highest == null) return;
+
+                    var dk1 = highest.C * (100 - expectedLowerPercentage) / 100 >= lowest.C;
+                    var dk2 = history.C > history.O;
+
+                    if (dk1) //Start following
+                    {
+                        patternOnsymbol.Details.Add(new PatternDetailsResponseModel
+                        {
+                            ConditionMatchAt = currentDateToCheck,
+                            MoreInformation = new
+                            {
+                                Lowest = lowest.C,
+                                LowestDate = lowest.Date,
+                                Highest = highest.C,
+                                HighestDate = highest.Date,
+                                RealityExpectation = string.Empty,
+                                ShouldBuy = true
+                            }
+                        });
+                    }
+
+                    if (patternOnsymbol.Details.Any())
+                    {
+                        result.TimDay2.Items.Add(patternOnsymbol);
+                        result.TimDay2.Items = result.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
+                    }
+
+                    
+                }
+                catch (Exception ex)
+                {
+
+                    throw;
+                }
+            });
+
+            return result;
+        }
     }
 }

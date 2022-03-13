@@ -96,7 +96,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             Enum.TryParse(requestModel.MeasureColumn.Trim(), out EnumExcelColumnModel measureColumn);
             var result = data.ExportTo(requestModel.MinCombination, measureColumn, condition, columnsArray.ToArray());
-            
+
             return result;
 
 
@@ -166,9 +166,7 @@ namespace DotNetCoreSqlDb.Controllers
                 bool contains = Directory.EnumerateFiles(ConstantPath.Path).Any(f => f.IndexOf(filename, StringComparison.OrdinalIgnoreCase) > 0);
                 if (contains) return true;
 
-                var historiesInPeriodOfTimeByStockCode =
-
-                    await _context.StockSymbolHistory
+                var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
                         .Where(ss => ss.StockSymbol == code && ss.Date >= startFrom.Value.AddDays(-60))
                         .OrderByDescending(ss => ss.Date)
                         .ToListAsync();
