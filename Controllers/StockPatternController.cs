@@ -183,7 +183,7 @@ order by date
                     if (secondLowest == null) return;
 
                     var previousDaysForHigestFromLowest = histories.Where(h => h.Date < lowest.Date).OrderByDescending(h => h.Date).Take(soPhienGd).ToList();
-                    var highest = previousDaysFromCurrentDay.OrderByDescending(h => h.C).FirstOrDefault();
+                    var highest = previousDaysForHigestFromLowest.OrderByDescending(h => h.C).FirstOrDefault();
                     if (highest == null) return;
 
                     var dk1 = highest.C * 0.85M >= lowest.C;

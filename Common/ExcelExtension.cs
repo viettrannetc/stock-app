@@ -309,7 +309,7 @@ namespace DotNetCoreSqlDb.Common
             var batch = files.Length / batchNumber;
             batch = batch + 1;
 
-            for (int j = 1; j < batch; j++)
+            for (int j = 0; j < batch; j++)
             {
                 var skip = j == 0 ? 0 : j * batchNumber;
 
@@ -318,7 +318,7 @@ namespace DotNetCoreSqlDb.Common
                 for (int i = 0; i < filesInBatch.Count; i++)
                 {
                     var hasHeader = i == 0;
-                    var file = files[skip + i + 1];
+                    var file = j == 0 ? files[i] : files[skip + i + 1];
                     var data = file.FullName.ReadFromExcel();
                     data.WriteToExcel(name, hasHeader);
                 }

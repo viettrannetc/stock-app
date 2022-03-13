@@ -91,56 +91,12 @@ namespace DotNetCoreSqlDb.Controllers
                 columnsArray.Add(myStatus);
             }
 
-
-
-
-
-
-            var r = new List<string>();
-            requestModel.Columns[0].Split(',').ToList().GetCombination(new List<string>() { "True", "False" }, r);
-
-
-            var t = 0;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
             string pathExcel = $"{ConstantPath.Path}{requestModel.FileName}.xlsx";
             var data = pathExcel.ReadFromExcel();
 
             Enum.TryParse(requestModel.MeasureColumn.Trim(), out EnumExcelColumnModel measureColumn);
             var result = data.ExportTo(requestModel.MinCombination, measureColumn, condition, columnsArray.ToArray());
-            //var groupBy = test.Data.GroupBy(d => d.Combination).ToDictionary(d => d.Key, d => d.ToList());
-
-            //var result = new LearningDataResponseModel();
-
-            //foreach (var item in groupBy)
-            //{
-            //    var t = item.Value.Count;
-            //    var s = item.Value.Count(t => t.Combination == item.Key && t.Result);
-            //    var p = Math.Round((decimal)s / (decimal)t, 2) * 100;
-            //    result.Pattern.Add(new LearningDataPatternResponseModel
-            //    {
-            //        Pattern = item.Key,
-            //        Tile = p,
-            //        Tong = t
-            //    });
-            //}
-
-            //result.Pattern = result.Pattern.OrderByDescending(r => r.Tile).ToList();
-
+            
             return result;
 
 
@@ -311,8 +267,8 @@ namespace DotNetCoreSqlDb.Controllers
             var dk21 = new ReportFormularCT21().Calculation(code, history.Date, histories, null);
             var dk22 = new ReportFormularCT22().Calculation(code, history.Date, orderedHistoryByStockCode, null);
 
-            var dk23 = new ReportFormularCT23().Calculation(code, history.Date, histories, null);
-            var dk24 = new ReportFormularCT24().Calculation(code, history.Date, histories, null);
+            //var dk23 = new ReportFormularCT23().Calculation(code, history.Date, histories, null);
+            //var dk24 = new ReportFormularCT24().Calculation(code, history.Date, histories, null);
 
             stockData.Formulars
                 .Plus(dk01)
@@ -337,8 +293,8 @@ namespace DotNetCoreSqlDb.Controllers
                 .Plus(dk20)
                 .Plus(dk21)
                 .Plus(dk22)
-                .Plus(dk23)
-                .Plus(dk24)
+                //.Plus(dk23)
+                //.Plus(dk24)
                 ;
 
             result.Stocks.Add(stockData);

@@ -25,8 +25,22 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
             var secondLowest = lowest.LookingForSecondLowestWithout2Percent(histories, history);
             if (secondLowest == null) return null;
 
-            result.Name = ConstantData.CT24;
-            result.Price = history.C;
+
+
+            var previousDaysForHigestFromLowest = histories.Where(h => h.Date < lowest.Date).OrderByDescending(h => h.Date).Take(30).ToList();
+            var highest = previousDaysForHigestFromLowest.OrderByDescending(h => h.C).FirstOrDefault();
+            if (highest == null) return null;
+
+            var dk1 = highest.C * 0.85M >= lowest.C;
+            //var dk2 = history.C >= secondLowest.C * 1.02M;
+            var dk3 = histories.Where(h => h.Date < history.Date).OrderByDescending(h => h.Date).First().ID == secondLowest.ID;
+            var dk4 = lowest.C * 1.15M >= secondLowest.C;
+
+            if (dk1 && dk3 && dk4)
+            {
+                result.Name = ConstantData.CT24;
+                result.Price = history.C;
+            }
 
             return string.IsNullOrEmpty(result.Name)
                 ? null

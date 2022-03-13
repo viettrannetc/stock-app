@@ -61,8 +61,8 @@ namespace DotNetCoreSqlDb.Common
             dataTable.Columns.Add(ConstantData.CT21, typeof(string));
             dataTable.Columns.Add(ConstantData.CT22, typeof(string));
 
-            dataTable.Columns.Add(ConstantData.CT23, typeof(string));
-            dataTable.Columns.Add(ConstantData.CT24, typeof(string));
+            //dataTable.Columns.Add(ConstantData.CT23, typeof(string));
+            //dataTable.Columns.Add(ConstantData.CT24, typeof(string));
 
 
 
@@ -98,13 +98,13 @@ namespace DotNetCoreSqlDb.Common
                 var f20 = stock.Formulars.Any(f => f.Name == ConstantData.CT20).ToString();
                 var f21 = stock.Formulars.Any(f => f.Name == ConstantData.CT21).ToString();
                 var f22 = stock.Formulars.Any(f => f.Name == ConstantData.CT22).ToString();
-                var f23 = stock.Formulars.Any(f => f.Name == ConstantData.CT23).ToString();
-                var f24 = stock.Formulars.Any(f => f.Name == ConstantData.CT24).ToString();
+                //var f23 = stock.Formulars.Any(f => f.Name == ConstantData.CT23).ToString();
+                //var f24 = stock.Formulars.Any(f => f.Name == ConstantData.CT24).ToString();
 
                 dataTable.Rows.Add(date, code, gia, vol, giaT3, hpT4T10,
                     f01, f02, f03, f04, f05, f06, f07, f08, f09,
                     f10, f11, f12, f13, f14, f15, /*f16,*/ f17, f18, /*f19,*/
-                    f20, f21, f22, f23, f24
+                    f20, f21, f22/*, f23, f24*/
 
                     );
             }
