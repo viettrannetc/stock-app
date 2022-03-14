@@ -74,6 +74,7 @@ namespace DotNetCoreSqlDb.Controllers
             huyNiemYet.Add("KSK");
             huyNiemYet.Add("TRT");
             huyNiemYet.Add("ABR");
+            huyNiemYet.Add("GTN");
             huyNiemYet.Add("FUCTVGF2");
 
             var allSymbols = await _context.StockSymbol
@@ -83,15 +84,16 @@ namespace DotNetCoreSqlDb.Controllers
             allSymbols = allSymbols.Where(s => !huyNiemYet.Contains(s._sc_)).ToList();
 
             var result = new List<StockSymbolHistory>();
-            var currentLatestDate = _context.StockSymbolHistory.Where(c => c.StockSymbol == "A32").OrderByDescending(r => r.Date).First().Date;
+            var t1 = _context.StockSymbolHistory.Where(c => c.StockSymbol == "A32").OrderByDescending(r => r.Date).FirstOrDefault();
+            var currentLatestDate = t1 == null ? new DateTime(2000, 1, 1) : t1.Date;
             var from = currentLatestDate;
             var to = DateTime.Now.WithoutHours();
 
             //var from = DateTime.Now.WithoutHours().AddDays(-1);
             //var to = DateTime.Now.WithoutHours().AddDays(-1);
 
-            await GetV(result, allSymbols, from, to , currentLatestDate);
-            
+            await GetV(result, allSymbols, from, to, currentLatestDate);
+
             result = result.Where(r => r.Date > currentLatestDate).ToList();
 
             if (result.Any())
@@ -106,21 +108,32 @@ namespace DotNetCoreSqlDb.Controllers
         public async Task GetV(List<StockSymbolHistory> result, List<StockSymbol> allSymbols, DateTime from, DateTime to, DateTime currentLatestDate)
         {
             var restService = new RestServiceHelper();
-            List<Task> TaskList = new List<Task>();
+
+            //List<Task> TaskList = new List<Task>();
+            //foreach (var item in allSymbols)
+            //{
+            //    var LastTask = GetStockDataByDay(item, restService, result, from, to);
+            //    TaskList.Add(LastTask);
+            //}
+
+            //await Task.WhenAll(TaskList.ToArray());
+
+            //Parallel.ForEach(allSymbols, async item => {
+            //    await GetStockDataByDay(item, restService, result, from, to);
+            //});
+
             foreach (var item in allSymbols)
             {
-                var LastTask = GetStockDataByDay(item, restService, result, from, to);
-                //LastTask.Start();
-                TaskList.Add(LastTask);
+                await GetStockDataByDay(item, restService, result, from, to);
             }
 
-            await Task.WhenAll(TaskList.ToArray());
-
             result = result.Where(r => r.Date > currentLatestDate).ToList();
-
             var updated = result.Select(r => r.StockSymbol).ToList();
-
             var notIn = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
+
+            //var expectedNumber = result.Any() ? result.Count() : allSymbols.Count();
+
+
 
             if (notIn.Any()) //TODO: try 3 times if the number of remaining the same, then ignore them.
                 await GetV(result, notIn, from, to, currentLatestDate);
@@ -140,6 +153,9 @@ namespace DotNetCoreSqlDb.Controllers
                             requestModel.to.ConvertToPhpInt()
                             );
             var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
+
+            if (allSharePointsObjects == null || allSharePointsObjects.t == null || !allSharePointsObjects.t.Any())
+                return;
 
             var numberOfT = allSharePointsObjects.t.Count();
             var numberOfO = allSharePointsObjects.t.Count();
