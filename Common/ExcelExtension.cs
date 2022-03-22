@@ -148,7 +148,7 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="filename"></param>
         /// <param name="dataTable"></param>
         /// <returns></returns>
-        public static LearningDataResponseModel ExportTo(this DataTable dataTable, int minCombination,
+        public static LearningDataResponseModel ExportTo(this DataTable dataTable,
             EnumExcelColumnModel targetColumn,
             LearningDataConditionModel condition,
             params EnumExcelColumnModel[] columnNames)
@@ -156,22 +156,6 @@ namespace DotNetCoreSqlDb.Common
             if (dataTable == null) return null;
 
             var result = new LearningDataResponseModel();
-
-            //var itertools = new Itertools();
-            //var combinations = new List<IEnumerable<string>>();
-
-            //var expectedData = new List<string>();
-            //foreach (var column in columnNames)
-            //{
-            //    expectedData.Add($"{column.ToString()}-True");
-            //    expectedData.Add($"{column.ToString()}-False");
-            //}
-
-            //for (int i = minCombination; i <= columnNames.Count(); i++)
-            //{
-            //    var t1 = itertools.Combinations(expectedData, i).ToList();
-            //    combinations.AddRange(t1);
-            //}
 
             var combinations = new List<string>();
             columnNames.Select(x => x.ToString()).ToList().GetCombination(new List<string>() { "True", "False" }, combinations);
@@ -212,92 +196,10 @@ namespace DotNetCoreSqlDb.Common
                     Tong = tong
                 });
             }
-            //foreach (DataRow row in gotConditionRows)
-            //{
-            //    var res = ConstantData.Condition.Contains(row[(int)targetColumn].ToString()) ? true : false;
-            //    var drawData = combination.CombineResult(res);
-
-            //    result.Data.AddRange(drawData);
-            //}
-
-            //foreach (DataRow row in dataTable.Rows)
-            //{
-            //    if (condition != null && condition.Condition.Any())
-            //    {
-            //        bool isMatchCondition = true;
-            //        foreach (var item in condition.Condition)
-            //        {
-            //            var check = row[(int)item.Key].ToString() == "True" ? true : false;
-            //            if (check != item.Value)
-            //                isMatchCondition = false;
-            //        }
-            //        if (!isMatchCondition)
-            //            continue;
-            //    }
-
-            //    var expectedData = new List<string>();
-            //    foreach (var column in columnNames)
-            //    {
-            //        expectedData.Add($"{column.ToString()}-{row[(int)column].ToString().ToBit()}");
-            //    }
-
-            //    var itertools = new Itertools();
-            //    var combination = new List<IEnumerable<string>>();
-
-            //    for (int i = minCombination; i <= columnNames.Count(); i++)
-            //    {
-            //        var t1 = itertools.Combinations(expectedData, i).ToList();
-            //        combination.AddRange(t1);
-            //    }
-
-
-            //    var res = ConstantData.Condition.Contains(row[(int)targetColumn].ToString()) ? true : false;
-            //    var drawData = combination.CombineResult(res);
-
-            //    result.Data.AddRange(drawData);
-            //}
 
             result.Pattern = result.Pattern.OrderByDescending(r => r.Tile).ToList();
             return result;
         }
-
-        //public static int ToBit(this string Boolean)
-        //{
-        //    if (string.IsNullOrWhiteSpace(Boolean))
-        //        return 0;
-
-        //    return Boolean == "True" ? 1 : 0;
-        //}
-
-        //public static List<T[]> Combinate<T>(this IEnumerable<T> source, int minCombination = 1)
-        //{
-        //    if (null == source)
-        //        throw new ArgumentNullException(nameof(source));
-
-        //    T[] data = source.ToArray();
-
-        //    return Enumerable
-        //      //.Range(0, 1 << (data.Length))
-        //      .Range(minCombination, (minCombination << (data.Length)) - minCombination)
-        //      .Select(index => data
-        //         .Where((v, i) => (index & (1 << i)) != 0)
-        //         .ToArray())
-        //      .ToList();
-        //}
-
-        //public static List<LearningDataModel> CombineResult(this List<IEnumerable<string>> source, bool expectedResult)
-        //{
-        //    if (null == source)
-        //        throw new ArgumentNullException(nameof(source));
-
-        //    var lst = new List<LearningDataModel>();
-        //    foreach (var item in source)
-        //    {
-        //        lst.Add(new LearningDataModel() { Combination = $"[{string.Join(", ", item)}]", Result = expectedResult });
-        //    }
-
-        //    return lst;
-        //}
 
         public static void Merge(this string folderOfExcelFiles)
         {
@@ -323,6 +225,76 @@ namespace DotNetCoreSqlDb.Common
                     data.WriteToExcel(name, hasHeader);
                 }
             }
+        }
+
+        public static LearningDataResponseModel ExportTo(this DataTable dataTable,
+            int minMatchedPattern,
+            decimal minExpectedSucceed,
+            EnumExcelColumnModel targetColumn,
+            LearningDataConditionModel condition,
+            params EnumExcelColumnModel[] columnNames)
+        {
+            if (dataTable == null) return null;
+
+            var result = new LearningDataResponseModel();
+
+            var combinations = new List<string>();
+            columnNames.Select(x => x.ToString()).ToList().GetCombination(new List<string>() { "True", "False" }, combinations);
+
+            var data = dataTable.AsEnumerable();
+            var codes = data.Select(x => x.Field<string>(1).Trim()).Distinct().ToList();
+
+            var gotConditionRows = dataTable
+                .AsEnumerable();
+
+            foreach (var item in condition.Condition)
+            {
+                gotConditionRows = gotConditionRows.Where(myRow => ConstantData.Condition.Contains(myRow.Field<string>((int)item.Key)) == item.Value);
+            }
+
+            foreach (var combination in combinations)
+            {
+                var rowsMatchedPattern = gotConditionRows.AsEnumerable();
+
+                foreach (var item in combination.Split(','))
+                {
+                    var column = item.Split('-')[0];
+                    Enum.TryParse(column.Trim(), out EnumExcelColumnModel myColumn);
+                    var value = item.Split('-')[1];
+                    rowsMatchedPattern = rowsMatchedPattern.Where(myRow => myRow.Field<string>((int)myColumn) == value);
+                }
+
+                var codeDetails = new LearningDataPatternWithCodeResponseModel
+                {
+                    Pattern = $"[{string.Join(", ", combination)}]"
+                };
+                foreach (var ma in codes)
+                {
+                    var maData = rowsMatchedPattern.Where(myRow => myRow.Field<string>(1) == ma);
+
+                    var tong = maData.Count();
+                    var success = tong == 0
+                        ? 0
+                        : maData.Count(myRow => ConstantData.Condition.Contains(myRow.Field<string>((int)targetColumn)));
+                    var tile = tong == 0
+                        ? 0
+                        : Math.Round((decimal)success / (decimal)tong, 2) * 100;
+
+                    if (tile > minExpectedSucceed)
+                        codeDetails.Details.Add(new LearningDataPatternWithCodeDetailResponseModel()
+                        {
+                            Tile = tile,
+                            Tong = tong,
+                            Ma = ma
+                        });
+                }
+
+                codeDetails.Details = codeDetails.Details.OrderByDescending(r => r.Tile).ToList();
+                result.PatternWithCodes.Add(codeDetails);
+            }
+
+            result.PatternWithCodes = result.PatternWithCodes.OrderByDescending(r => r.Pattern).ToList();
+            return result;
         }
     }
 }

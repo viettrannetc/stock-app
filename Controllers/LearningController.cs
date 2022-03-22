@@ -48,7 +48,7 @@ namespace DotNetCoreSqlDb.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPost]
-        public async Task<LearningDataResponseModel> BuildRaw([Bind("FileName,Columns, MinCombination, Condition, MeasureColumn")] LearningDataRequestModel requestModel)
+        public async Task<LearningDataResponseModel> BuildRaw([Bind("FileName,Columns, Condition, MeasureColumn")] LearningDataRequestModel requestModel)
         {
             /*
              * READ Excel file: 500K data for instance
@@ -95,7 +95,7 @@ namespace DotNetCoreSqlDb.Controllers
             var data = pathExcel.ReadFromExcel();
 
             Enum.TryParse(requestModel.MeasureColumn.Trim(), out EnumExcelColumnModel measureColumn);
-            var result = data.ExportTo(requestModel.MinCombination, measureColumn, condition, columnsArray.ToArray());
+            var result = data.ExportTo(measureColumn, condition, columnsArray.ToArray());
 
             return result;
 
@@ -297,5 +297,49 @@ namespace DotNetCoreSqlDb.Controllers
 
             result.Stocks.Add(stockData);
         }
+
+
+
+        public async Task<LearningDataResponseModel> Consider([Bind("FileName,Columns, Condition,ExpectedPercentage, minMatchedPattern, MeasureColumn")] LearningDataRequestModel requestModel)
+        {
+            var condition = new LearningDataConditionModel();// new Dictionary<EnumExcelColumnModel, bool>();
+            if (!string.IsNullOrEmpty(requestModel.Condition))
+            {
+                var conditions = requestModel.Condition.Split(',');
+                foreach (var item in conditions)
+                {
+                    var columnName = item.Split('=')[0];
+                    var columnValue = item.Split('=')[1];
+                    Enum.TryParse(columnName.Trim(), out EnumExcelColumnModel myStatus);
+                    condition.Condition.Add(myStatus, ConstantData.Condition.Contains(columnValue.Trim().ToString()) ? true : false);
+                }
+            }
+
+            var columnsArray = new List<EnumExcelColumnModel>();
+            foreach (var item in requestModel.Columns[0].Split(','))
+            {
+                Enum.TryParse(item.Trim(), out EnumExcelColumnModel myStatus);
+                columnsArray.Add(myStatus);
+            }
+
+            string pathExcel = $"{ConstantPath.Path}{requestModel.FileName}.xlsx";
+            var data = pathExcel.ReadFromExcel();
+
+            Enum.TryParse(requestModel.MeasureColumn.Trim(), out EnumExcelColumnModel measureColumn);
+            var result = data.ExportTo(requestModel.minMatchedPattern, requestModel.ExpectedPercentage, measureColumn, condition, columnsArray.ToArray());
+
+            return result;
+
+
+        }
+
+        /*
+         * Pattern (min 3 for instance)
+         * Exptected result
+         * Ma
+         * Times
+         * Ti lệ
+         * Thời gian xảy ra
+         */
     }
 }
