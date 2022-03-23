@@ -2,6 +2,10 @@
 using Microsoft.EntityFrameworkCore;
 using DotNetCoreSqlDb.Models;
 using DotNetCoreSqlDb.Common;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
+using System;
 
 namespace DotNetCoreSqlDb.Controllers
 {
