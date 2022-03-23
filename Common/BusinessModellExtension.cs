@@ -250,6 +250,41 @@ namespace DotNetCoreSqlDb.Common
 
             return null;
         }
+
+        public static StockSymbolHistory LookingForSecondLowest(this StockSymbolHistory lowest, List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory, bool included2PercentHigher = false)
+        {
+            var theDaysAfterLowest = histories.Where(h => h.Date > lowest.Date && h.Date <= currentDateHistory.Date)
+                .OrderBy(h => h.Date)
+                .ToList();
+
+            if (!theDaysAfterLowest.Any()) return null;
+
+            for (int i = 0; i < theDaysAfterLowest.Count(); i++)
+            {
+                if (i <= 3) continue;
+                var secondLowestAssumption = theDaysAfterLowest[i];
+                var rangesFromLowestTo2ndLowest = theDaysAfterLowest.Where(d => d.Date > lowest.Date && d.Date < secondLowestAssumption.Date).ToList();
+
+                var dkSub1 = rangesFromLowestTo2ndLowest.Any(r => r.C > secondLowestAssumption.C);//at least 1 day > 2nd lowest
+                if (!dkSub1) continue;
+
+                var dkSub2 = false;//at least 1 day > next Phien from 2nd lowest
+                if (i < theDaysAfterLowest.Count() - 1)
+                {
+                    var nextPhien = theDaysAfterLowest[i + 1];                    
+                    dkSub2 = included2PercentHigher
+                        ? rangesFromLowestTo2ndLowest.Any(r => r.C > nextPhien.C) && nextPhien.C > (secondLowestAssumption.C * 1.02M)
+                        : rangesFromLowestTo2ndLowest.Any(r => r.C > nextPhien.C) && nextPhien.C > secondLowestAssumption.C;
+                }
+
+                if (dkSub1 && dkSub2)
+                {
+                    return secondLowestAssumption;
+                }
+            }
+
+            return null;
+        }
     }
 
 }

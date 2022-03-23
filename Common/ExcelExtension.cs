@@ -93,23 +93,6 @@ namespace DotNetCoreSqlDb.Common
 
         public static void GetCombination(this List<string> str, List<string> possibleOptions, List<string> result)
         {
-
-
-            //var item = new StringBuilder();
-
-            //for (int i = 1; i <= str.Count; i++)
-            //{
-            //    foreach (var option in possibleOptions)
-            //    {
-
-            //        //item.Append($"{str[i]}-{option}");
-            //        GetCombination
-            //    }
-
-            //}
-
-            //return null;
-
             string item = string.Empty;
             var firstItem = str[0];
             foreach (var option in possibleOptions)
@@ -118,7 +101,6 @@ namespace DotNetCoreSqlDb.Common
                 var remainingItems = str.Where(x => x != firstItem).ToList();
                 GetCombination1(item, remainingItems, possibleOptions, result);
             }
-
         }
 
         private static void GetCombination1(string parentItem, List<string> str, List<string> possibleOptions, List<string> result)
@@ -227,6 +209,26 @@ namespace DotNetCoreSqlDb.Common
             }
         }
 
+        public static void MergeBigFiles(this string folderOfExcelFiles, params int[] fileNames)
+        {
+            DirectoryInfo di = new DirectoryInfo(folderOfExcelFiles);
+            var files = new List<FileInfo>();
+
+            foreach (var item in fileNames)
+            {
+                var t1 = di.GetFiles($"{item}.xlsx")[0];
+                files.Add(t1);
+            }
+            var name = $"{folderOfExcelFiles}{Guid.NewGuid().ToString()}.xlsx";
+            for (int i = 0; i < files.Count(); i++)
+            {
+                var hasHeader = i == 0;
+                var file = files[i];
+                var data = file.FullName.ReadFromExcel();
+                data.WriteToExcel(name, hasHeader);
+            }
+        }
+
         public static LearningDataResponseModel ExportTo(this DataTable dataTable,
             int minMatchedPattern,
             decimal minExpectedSucceed,
@@ -273,7 +275,7 @@ namespace DotNetCoreSqlDb.Common
                     var maData = rowsMatchedPattern.Where(myRow => myRow.Field<string>(1) == ma);
 
                     var tong = maData.Count();
-                    var success = tong == 0
+                    var success = tong == 0 || tong < minMatchedPattern
                         ? 0
                         : maData.Count(myRow => ConstantData.Condition.Contains(myRow.Field<string>((int)targetColumn)));
                     var tile = tong == 0
@@ -296,5 +298,63 @@ namespace DotNetCoreSqlDb.Common
             result.PatternWithCodes = result.PatternWithCodes.OrderByDescending(r => r.Pattern).ToList();
             return result;
         }
+
+        public static List<string> ExportToString(this DataTable dataTable,
+            int minMatchedPattern,
+            decimal minExpectedSucceed,
+            EnumExcelColumnModel targetColumn,
+            LearningDataConditionModel condition,
+            params EnumExcelColumnModel[] columnNames)
+        {
+            if (dataTable == null) return null;
+
+            var result = new List<string>();
+
+            var combinations = new List<string>();
+            columnNames.Select(x => x.ToString()).ToList().GetCombination(new List<string>() { "True", "False" }, combinations);
+
+            var data = dataTable.AsEnumerable();
+            var codes = data.Select(x => x.Field<string>(1).Trim()).Distinct().ToList();
+
+            var gotConditionRows = dataTable
+                .AsEnumerable();
+
+            foreach (var item in condition.Condition)
+            {
+                gotConditionRows = gotConditionRows.Where(myRow => ConstantData.Condition.Contains(myRow.Field<string>((int)item.Key)) == item.Value);
+            }
+
+            foreach (var combination in combinations)
+            {
+                var rowsMatchedPattern = gotConditionRows.AsEnumerable();
+
+                foreach (var item in combination.Split(','))
+                {
+                    var column = item.Split('-')[0];
+                    Enum.TryParse(column.Trim(), out EnumExcelColumnModel myColumn);
+                    var value = item.Split('-')[1];
+                    rowsMatchedPattern = rowsMatchedPattern.Where(myRow => myRow.Field<string>((int)myColumn) == value);
+                }
+
+                Parallel.ForEach(codes, code => {
+                    var maData = rowsMatchedPattern.Where(myRow => myRow.Field<string>(1) == code);
+
+                    var tong = maData.Count();
+                    var success = tong == 0 || tong < minMatchedPattern
+                        ? 0
+                        : maData.Count(myRow => ConstantData.Condition.Contains(myRow.Field<string>((int)targetColumn)));
+                    var tile = tong == 0
+                        ? 0
+                        : Math.Round((decimal)success / (decimal)tong, 2) * 100;
+
+                    if (tile >= minExpectedSucceed)
+                        result.Add($"{code},{tile},{tong},[{string.Join(", ", combination)}]");
+                });
+            }
+
+            return result;
+        }
+
+
     }
 }

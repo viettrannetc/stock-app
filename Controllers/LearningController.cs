@@ -44,6 +44,18 @@ namespace DotNetCoreSqlDb.Controllers
         }
 
         /// <summary>
+        /// Merge all raw data from excel files
+        /// </summary>
+        /// <returns></returns>
+        public async Task<bool> MergeV2()
+        {
+            var folder = ConstantPath.Path;
+            folder.MergeBigFiles(new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8 });
+
+            return true;
+        }
+
+        /// <summary>
         /// Build learning data
         /// </summary>
         /// <returns></returns>
@@ -298,9 +310,12 @@ namespace DotNetCoreSqlDb.Controllers
             result.Stocks.Add(stockData);
         }
 
-
-
-        public async Task<LearningDataResponseModel> Consider([Bind("FileName,Columns, Condition,ExpectedPercentage, minMatchedPattern, MeasureColumn")] LearningDataRequestModel requestModel)
+        /// <summary>
+        /// Xem xét mẫu có tỉ lệ >100
+        /// </summary>
+        /// <param name="requestModel"></param>
+        /// <returns></returns>
+        public async Task<List<string>> Consider([Bind("FileName,Columns,Condition,ExpectedPercentage,minMatchedPattern,MeasureColumn")] LearningDataRequestModel requestModel)
         {
             var condition = new LearningDataConditionModel();// new Dictionary<EnumExcelColumnModel, bool>();
             if (!string.IsNullOrEmpty(requestModel.Condition))
@@ -326,20 +341,17 @@ namespace DotNetCoreSqlDb.Controllers
             var data = pathExcel.ReadFromExcel();
 
             Enum.TryParse(requestModel.MeasureColumn.Trim(), out EnumExcelColumnModel measureColumn);
-            var result = data.ExportTo(requestModel.minMatchedPattern, requestModel.ExpectedPercentage, measureColumn, condition, columnsArray.ToArray());
+            var result = data.ExportToString(requestModel.minMatchedPattern, requestModel.ExpectedPercentage, measureColumn, condition, columnsArray.ToArray());
 
             return result;
-
-
         }
 
         /*
-         * Pattern (min 3 for instance)
-         * Exptected result
          * Ma
-         * Times
-         * Ti lệ
-         * Thời gian xảy ra
+         * Tỉ lệ   (100% for example)
+         * Số lần  (min 3 for instance)
+         * Pattern (min 3-matched for instance)
+         * Thời gian xảy ra ????
          */
     }
 }

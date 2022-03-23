@@ -1,13 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using DotNetCoreSqlDb.Models;
 using DotNetCoreSqlDb.Common;
-using DotNetCoreSqlDb.Models.Business;
 
 namespace DotNetCoreSqlDb.Controllers
 {
@@ -62,13 +56,6 @@ namespace DotNetCoreSqlDb.Controllers
         [HttpPost]
         public async Task<string> Create()
         {
-            /*
-             *  https://www.w3schools.com/php/phptryit.asp?filename=tryphp_compiler
-                echo date("Y-m-d H:i:s", 1388516401);
-                echo strtotime("2022-02-22 00:00:01");
-                echo "-";
-                echo strtotime("2022-02-24 00:00:01");
-             */
             var restService = new RestServiceHelper();
             var huyNiemYet = new List<string>();
             huyNiemYet.Add("KSK");
@@ -89,10 +76,8 @@ namespace DotNetCoreSqlDb.Controllers
             var from = currentLatestDate;
             var to = DateTime.Now.WithoutHours();
 
-            //var from = DateTime.Now.WithoutHours().AddDays(-1);
-            //var to = DateTime.Now.WithoutHours().AddDays(-1);
-
-            await GetV(result, allSymbols, from, to, currentLatestDate);
+            var service = new Service();
+            await service.GetV(result, allSymbols, from, to, from, 0);
 
             result = result.Where(r => r.Date > currentLatestDate).ToList();
 
@@ -103,127 +88,6 @@ namespace DotNetCoreSqlDb.Controllers
             }
 
             return "true";
-        }
-
-        public async Task GetV(List<StockSymbolHistory> result, List<StockSymbol> allSymbols, DateTime from, DateTime to, DateTime currentLatestDate)
-        {
-            var restService = new RestServiceHelper();
-
-            //List<Task> TaskList = new List<Task>();
-            //foreach (var item in allSymbols)
-            //{
-            //    var LastTask = GetStockDataByDay(item, restService, result, from, to);
-            //    TaskList.Add(LastTask);
-            //}
-
-            //await Task.WhenAll(TaskList.ToArray());
-
-            //Parallel.ForEach(allSymbols, async item => {
-            //    await GetStockDataByDay(item, restService, result, from, to);
-            //});
-
-            foreach (var item in allSymbols)
-            {
-                await GetStockDataByDay(item, restService, result, from, to);
-            }
-
-            result = result.Where(r => r.Date > currentLatestDate).ToList();
-            var updated = result.Select(r => r.StockSymbol).ToList();
-            var notIn = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
-
-            //var expectedNumber = result.Any() ? result.Count() : allSymbols.Count();
-
-
-
-            if (notIn.Any()) //TODO: try 3 times if the number of remaining the same, then ignore them.
-                await GetV(result, notIn, from, to, currentLatestDate);
-        }
-
-        private async Task GetStockDataByDay(StockSymbol item, RestServiceHelper restService, List<StockSymbolHistory> result, DateTime from, DateTime to)
-        {
-            var requestModel = new VietStockSymbolHistoryResquestModel();
-            requestModel.code = item._sc_;
-            requestModel.from = from;
-            requestModel.to = to;
-
-            var url = string.Format(VietStock_GetDetailsBySymbolCode,
-                            requestModel.code,
-                            "D",
-                            requestModel.from.ConvertToPhpInt(),
-                            requestModel.to.ConvertToPhpInt()
-                            );
-            var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
-
-            if (allSharePointsObjects == null || allSharePointsObjects.t == null || !allSharePointsObjects.t.Any())
-                return;
-
-            var numberOfT = allSharePointsObjects.t.Count();
-            var numberOfO = allSharePointsObjects.t.Count();
-            var numberOfC = allSharePointsObjects.t.Count();
-            var numberOfH = allSharePointsObjects.t.Count();
-            var numberOfL = allSharePointsObjects.t.Count();
-            var numberOfV = allSharePointsObjects.t.Count();
-
-            for (int i = 0; i < numberOfT; i++)
-            {
-                var history = new StockSymbolHistory();
-                history.T = allSharePointsObjects.t[i];
-                history.Date = allSharePointsObjects.t[i].PhpIntConvertToDateTime();
-                history.O = allSharePointsObjects.o[i];
-                history.C = allSharePointsObjects.c[i];
-                history.H = allSharePointsObjects.h[i];
-                history.L = allSharePointsObjects.l[i];
-                history.V = allSharePointsObjects.v[i];
-                history.StockSymbol = requestModel.code;
-
-                //var isExisting = _context.StockSymbolHistory.Any(e => e.StockSymbol == history.StockSymbol && e.T == history.T);
-                //if (!isExisting)
-                result.Add(history);
-            }
-        }
-
-        public async Task GetVet(List<StockSymbolHistory> currentResults, string code, DateTime from, DateTime to)
-        {
-            var requestModel = new VietStockSymbolHistoryResquestModel();
-            requestModel.code = code;
-            requestModel.from = from;// currentLatestDate.AddDays(1);
-            requestModel.to = requestModel.from == DateTime.Now.WithoutHours()
-                ? requestModel.from.AddDays(1)
-                : DateTime.Now.WithoutHours();
-
-            var url = string.Format(VietStock_GetDetailsBySymbolCode,
-                            requestModel.code,
-                            "D",
-                            requestModel.from.ConvertToPhpInt(),
-                            requestModel.to.ConvertToPhpInt()
-                            );
-
-            var restService = new RestServiceHelper();
-            var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
-
-            var numberOfT = allSharePointsObjects.t.Count();
-            var numberOfO = allSharePointsObjects.t.Count();
-            var numberOfC = allSharePointsObjects.t.Count();
-            var numberOfH = allSharePointsObjects.t.Count();
-            var numberOfL = allSharePointsObjects.t.Count();
-            var numberOfV = allSharePointsObjects.t.Count();
-
-            for (int i = 0; i < numberOfT; i++)
-            {
-                var history = new StockSymbolHistory();
-                history.T = allSharePointsObjects.t[i];
-                history.Date = allSharePointsObjects.t[i].PhpIntConvertToDateTime();
-                history.O = allSharePointsObjects.o[i];
-                history.C = allSharePointsObjects.c[i];
-                history.H = allSharePointsObjects.h[i];
-                history.L = allSharePointsObjects.l[i];
-                history.V = allSharePointsObjects.v[i];
-                history.StockSymbol = requestModel.code;
-
-                var isExisting = currentResults.Any(r => r.StockSymbol == history.StockSymbol && r.Date == history.Date);
-                if (!isExisting)
-                    currentResults.Add(history);
-            }
         }
     }
 }

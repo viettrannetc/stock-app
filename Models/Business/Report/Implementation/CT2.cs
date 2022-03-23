@@ -22,11 +22,10 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
             var currentDateToCheck = history.Date;
             var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(30).ToList();
 
-            //TODO: lowest & 2nd lowest can be reused to improve performance
             var lowest = previousDaysFromCurrentDay.OrderBy(h => h.C).FirstOrDefault();
             if (lowest == null) return null;
 
-            var secondLowest = LookingForSecondLowest(histories, lowest, history);
+            var secondLowest = lowest.LookingForSecondLowest(histories, history);
             if (secondLowest == null) return null;
 
             var previousDaysForHigestFromLowest = histories.Where(h => h.Date < lowest.Date).OrderByDescending(h => h.Date).Take(30).ToList();
@@ -47,39 +46,6 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
             return string.IsNullOrEmpty(result.Name)
                 ? null
                 : result;
-        }
-
-        private StockSymbolHistory LookingForSecondLowest(List<StockSymbolHistory> histories, StockSymbolHistory lowest, StockSymbolHistory currentDateHistory)
-        {
-            var theDaysAfterLowest = histories.Where(h => h.Date > lowest.Date && h.Date <= currentDateHistory.Date)
-                .OrderBy(h => h.Date)
-                .ToList();
-
-            if (!theDaysAfterLowest.Any()) return null;
-
-            for (int i = 0; i < theDaysAfterLowest.Count(); i++)
-            {
-                if (i <= 3) continue;
-                var secondLowestAssumption = theDaysAfterLowest[i];
-                var rangesFromLowestTo2ndLowest = theDaysAfterLowest.Where(d => d.Date > lowest.Date && d.Date < secondLowestAssumption.Date).ToList();
-
-                var dkSub1 = rangesFromLowestTo2ndLowest.Any(r => r.C > secondLowestAssumption.C);//at least 1 day > 2nd lowest
-                if (!dkSub1) continue;
-
-                var dkSub2 = false;//at least 1 day > next Phien from 2nd lowest
-                if (i < theDaysAfterLowest.Count() - 1)
-                {
-                    var nextPhien = theDaysAfterLowest[i + 1];
-                    dkSub2 = rangesFromLowestTo2ndLowest.Any(r => r.C > nextPhien.C) && nextPhien.C > secondLowestAssumption.C; // (secondLowestAssumption.C * 1.02M);
-                }
-
-                if (dkSub1 && dkSub2)
-                {
-                    return secondLowestAssumption;
-                }
-            }
-
-            return null;
         }
     }
 }
