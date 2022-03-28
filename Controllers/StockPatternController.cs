@@ -30,6 +30,24 @@ namespace DotNetCoreSqlDb.Controllers
             return View(await _context.StockSymbol.ToListAsync());
         }
 
+
+        public async Task<PatternResponseModel> All(string code, DateTime ngay, int soPhienGd, int trungbinhGd)
+        {
+            var result = new PatternResponseModel();
+
+            var td2 = await TimDay2(code, ngay, soPhienGd, trungbinhGd);
+            result.TimDay2 = td2.TimDay2;
+
+            result.TimTrendGiam = (await TimTrendGiam(code, false, ngay, soPhienGd, trungbinhGd)).TimTrendGiam;
+
+            result.GiamSau = (await FollowUpSymbolsGoingDown(code, ngay)).TimDay2;
+
+
+            return result;
+        }
+
+
+
         /// <summary>
         /// Scan from the specific day back to 60 days
         /// - trung binh gd trong so phien gd > 100K
@@ -66,7 +84,7 @@ namespace DotNetCoreSqlDb.Controllers
             var startFrom = ngay.AddDays(-60);
 
             var stockCodes = symbols.Select(s => s._sc_).ToList();
-            var historiesInPeriodOfTimeNonDB = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
                     .Where(ss =>
                         stockCodes.Contains(ss.StockSymbol)
                         && ss.Date >= startFrom
@@ -74,7 +92,7 @@ namespace DotNetCoreSqlDb.Controllers
                     .OrderByDescending(ss => ss.Date)
                     .ToListAsync();
 
-            if (historiesInPeriodOfTimeNonDB.FirstOrDefault() != null && historiesInPeriodOfTimeNonDB.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
+            if (historiesInPeriodOfTimeByStockCode.FirstOrDefault() != null && historiesInPeriodOfTimeByStockCode.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
             {
                 var newPackages = new List<StockSymbolHistory>();
                 var from = DateTime.Now.WithoutHours();
@@ -83,15 +101,25 @@ namespace DotNetCoreSqlDb.Controllers
                 var service = new Service();
                 await service.GetV(newPackages, symbols, from, to, from, 0);
 
-                historiesInPeriodOfTimeNonDB.AddRange(newPackages);
+                historiesInPeriodOfTimeByStockCode.AddRange(newPackages);
             }
 
             Parallel.ForEach(symbols, symbol =>
             {
+                var orderedHistoryByStockCode = historiesInPeriodOfTimeByStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(s => s.Date)
+                    .ToList();
+
+                var latestDate = orderedHistoryByStockCode.OrderByDescending(h => h.Date).FirstOrDefault();
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(orderedHistoryByStockCode);
+
+                if (biCanhCao) return;
+
                 var patternOnsymbol = new PatternBySymbolResponseModel();
                 patternOnsymbol.StockCode = symbol._sc_;
 
-                var historiesInPeriodOfTime = historiesInPeriodOfTimeNonDB
+                var historiesInPeriodOfTime = historiesInPeriodOfTimeByStockCode
                     .Where(ss => ss.StockSymbol == symbol._sc_)
                     .ToList();
 
@@ -193,109 +221,100 @@ namespace DotNetCoreSqlDb.Controllers
 
             var allHistories = ct1.GetStockDataByWeekFromNgay(dates);
 
-
-            var historiesInPeriodOfTimeNonDB = kiemTraTiLe
+            var historiesInPeriodOfTimeByStockCode = kiemTraTiLe
                 ? allHistories
                 : allHistories.Where(h => h.DateInWeek <= ngay).ToList();
 
             Parallel.ForEach(symbols, symbol =>
             {
-                try
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var historiesByStockCode = historiesInPeriodOfTimeByStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .ToList();
+
+                var histories = historiesByStockCode
+                    .OrderBy(s => s.Date)
+                    .ToList();
+
+                for (int i = 0; i < histories.Count; i++)
                 {
-                    var patternOnsymbol = new PatternBySymbolResponseModel();
-                    patternOnsymbol.StockCode = symbol._sc_;
+                    var historyByWeek = histories[i];
+                    if (historyByWeek.DateInWeek < ngay) continue;
 
-                    var historiesByStockCode = historiesInPeriodOfTimeNonDB
-                        .Where(ss => ss.StockSymbol == symbol._sc_)
-                        .ToList();
+                    var historiesByStockCodeUntilDate = historiesByStockCode.Where(h => h.DateInWeek < historyByWeek.DateInWeek).OrderByDescending(h => h.DateInWeek).Take(30).ToList();
 
-                    var histories = historiesByStockCode
-                        .OrderBy(s => s.Date)
-                        .ToList();
 
-                    for (int i = 0; i < histories.Count; i++)
+                    var avarageOfLastXXPhien = historyByWeek.MA(histories, -soPhienGd);
+                    if (avarageOfLastXXPhien < trungbinhGd) continue;
+
+                    var dinh1 = ct1.GetHigestStockDataByWeek(historiesByStockCodeUntilDate, symbol._sc_, historyByWeek.DateInWeek);
+                    if (dinh1 == null) continue;
+
+                    var day1 = ct1.GetLowestStockDataByWeek(historiesByStockCodeUntilDate, symbol._sc_, historyByWeek.DateInWeek, dinh1);
+                    if (day1 == null) continue;
+
+                    var dinh2 = ct1.GetHigestStockDataByWeek(historiesByStockCodeUntilDate, symbol._sc_, historyByWeek.DateInWeek, day1);
+                    if (dinh2 == null) continue;
+
+                    var day2 = ct1.GetLowestStockDataByWeek(historiesByStockCodeUntilDate, symbol._sc_, historyByWeek.DateInWeek, dinh2);
+                    if (day2 == null) continue;
+
+
+                    var indexOfDinh2 = historiesByStockCodeUntilDate.IndexOf(dinh2);
+                    var indexOfDinh1 = historiesByStockCodeUntilDate.IndexOf(dinh1);
+
+                    var a = indexOfDinh2 - indexOfDinh1;
+                    var b = dinh1.C - dinh2.C;
+
+                    var formula = "y = ax / -b";
+
+                    var distanceFrom0ToThisWeekX = historiesByStockCodeUntilDate.IndexOf(historyByWeek) - indexOfDinh2;    //we need a positive number
+                    var distanceFrom0ToThisWeekY = historyByWeek.C - dinh2.C;                                              //we need a negative number
+
+                    var expectedY = b * distanceFrom0ToThisWeekX / (-a);
+                    var dk1 = (historyByWeek.C - dinh2.C) > expectedY;
+
+                    var dk2 = dinh1.C > dinh2.C;
+                    var dk3 = dinh2.C > dinh1.C * 0.93M;
+                    if (dk1 && dk2 && dk3) //basically we should start buying
                     {
-                        var historyByWeek = histories[i];
-                        if (historyByWeek.DateInWeek < ngay) continue;
+                        var ma5next = historyByWeek.MA(histories, 5);
 
-                        var historiesByStockCodeUntilDate = historiesByStockCode.Where(h => h.DateInWeek < historyByWeek.DateInWeek).OrderByDescending(h => h.DateInWeek).Take(30).ToList();
-
-
-                        var avarageOfLastXXPhien = historyByWeek.MA(histories, -soPhienGd);
-                        if (avarageOfLastXXPhien < trungbinhGd) continue;
-
-                        var dinh1 = ct1.GetHigestStockDataByWeek(historiesByStockCodeUntilDate, symbol._sc_, historyByWeek.DateInWeek);
-                        if (dinh1 == null) continue;
-
-                        var day1 = ct1.GetLowestStockDataByWeek(historiesByStockCodeUntilDate, symbol._sc_, historyByWeek.DateInWeek, dinh1);
-                        if (day1 == null) continue;
-
-                        var dinh2 = ct1.GetHigestStockDataByWeek(historiesByStockCodeUntilDate, symbol._sc_, historyByWeek.DateInWeek, day1);
-                        if (dinh2 == null) continue;
-
-                        var day2 = ct1.GetLowestStockDataByWeek(historiesByStockCodeUntilDate, symbol._sc_, historyByWeek.DateInWeek, dinh2);
-                        if (day2 == null) continue;
-
-
-                        var indexOfDinh2 = historiesByStockCodeUntilDate.IndexOf(dinh2);
-                        var indexOfDinh1 = historiesByStockCodeUntilDate.IndexOf(dinh1);
-
-                        var a = indexOfDinh2 - indexOfDinh1;
-                        var b = dinh1.C - dinh2.C;
-
-                        var formula = "y = ax / -b";
-
-                        var distanceFrom0ToThisWeekX = historiesByStockCodeUntilDate.IndexOf(historyByWeek) - indexOfDinh2;    //we need a positive number
-                        var distanceFrom0ToThisWeekY = historyByWeek.C - dinh2.C;                                              //we need a negative number
-
-                        var expectedY = b * distanceFrom0ToThisWeekX / (-a);
-                        var dk1 = (historyByWeek.C - dinh2.C) > expectedY;
-
-                        var dk2 = dinh1.C > dinh2.C;
-                        var dk3 = dinh2.C > dinh1.C * 0.93M;
-                        if (dk1 && dk2 && dk3) //basically we should start buying
+                        patternOnsymbol.Details.Add(new PatternDetailsResponseModel
                         {
-                            var ma5next = historyByWeek.MA(histories, 5);
-
-                            patternOnsymbol.Details.Add(new PatternDetailsResponseModel
+                            ConditionMatchAt = historyByWeek.Date,
+                            MoreInformation = new
                             {
-                                ConditionMatchAt = historyByWeek.Date,
-                                MoreInformation = new
-                                {
-                                    TodayOpening = historyByWeek.O,
-                                    TodayClosing = historyByWeek.C,
-                                    TodayLowest = historyByWeek.C,
-                                    TodayTrading = historyByWeek.V,
-                                    Day1 = day1.C,
-                                    Day1Date = day1.Date,
-                                    Day2 = day2.C,
-                                    Day2Date = day2.Date,
-                                    Dinh1 = dinh1.C,
-                                    Dinh1Date = dinh1.Date,
-                                    Dinh2 = dinh2.C,
-                                    Dinh2Date = dinh2.Date,
-                                    AverageNumberOfTradingInPreviousTimes = avarageOfLastXXPhien,
-                                    ShouldBuy = true,
-                                    RealityExpectation = ma5next == 0
-                                        ? string.Empty
-                                        : historyByWeek.C < ma5next
-                                            ? "true"
-                                            : "false",
-                                    Ma5WeekNext = ma5next,
-                                }
-                            });
-                        }
-                    }
-
-                    if (patternOnsymbol.Details.Any())
-                    {
-                        result.TimTrendGiam.Items.Add(patternOnsymbol);
+                                TodayOpening = historyByWeek.O,
+                                TodayClosing = historyByWeek.C,
+                                TodayLowest = historyByWeek.C,
+                                TodayTrading = historyByWeek.V,
+                                Day1 = day1.C,
+                                Day1Date = day1.Date,
+                                Day2 = day2.C,
+                                Day2Date = day2.Date,
+                                Dinh1 = dinh1.C,
+                                Dinh1Date = dinh1.Date,
+                                Dinh2 = dinh2.C,
+                                Dinh2Date = dinh2.Date,
+                                AverageNumberOfTradingInPreviousTimes = avarageOfLastXXPhien,
+                                ShouldBuy = true,
+                                RealityExpectation = ma5next == 0
+                                    ? string.Empty
+                                    : historyByWeek.C < ma5next
+                                        ? "true"
+                                        : "false",
+                                Ma5WeekNext = ma5next,
+                            }
+                        });
                     }
                 }
-                catch (Exception ex)
-                {
 
-                    throw;
+                if (patternOnsymbol.Details.Any())
+                {
+                    result.TimTrendGiam.Items.Add(patternOnsymbol);
                 }
             });
 
@@ -494,8 +513,8 @@ namespace DotNetCoreSqlDb.Controllers
             var mua = new PatternSellAndBuyBySymbolDetailResponseModel();
             var ban = new PatternSellAndBuyBySymbolDetailResponseModel();
 
-            result.BuyAndSell.Sell = ban;
-            result.BuyAndSell.Buy = mua;
+            //result.BuyAndSell.Sell = ban;
+            //result.BuyAndSell.Buy = mua;
 
             Parallel.ForEach(symbols, symbol =>
             {
@@ -861,17 +880,25 @@ namespace DotNetCoreSqlDb.Controllers
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
 
-
             int expectedLowerPercentage = 20;
 
             Parallel.ForEach(symbols, symbol =>
             {
-                try
+                var orderedHistoryByStockCode = historiesInPeriodOfTimeNonDB
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(s => s.Date)
+                    .ToList();
+
+                var latestDate = orderedHistoryByStockCode.OrderByDescending(h => h.Date).FirstOrDefault();
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(orderedHistoryByStockCode);
+
+                if (!biCanhCao)
                 {
+
                     var histories = historiesInPeriodOfTimeNonDB
-                        .Where(ss => ss.StockSymbol == symbol._sc_)
-                        .OrderByDescending(ss => ss.Date)
-                        .ToList();
+                            .Where(ss => ss.StockSymbol == symbol._sc_)
+                            .OrderByDescending(ss => ss.Date)
+                            .ToList();
 
                     var patternOnsymbol = new PatternBySymbolResponseModel();
                     patternOnsymbol.StockCode = symbol._sc_;
@@ -917,13 +944,6 @@ namespace DotNetCoreSqlDb.Controllers
                         result.TimDay2.Items.Add(patternOnsymbol);
                         result.TimDay2.Items = result.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
                     }
-
-
-                }
-                catch (Exception ex)
-                {
-
-                    throw;
                 }
             });
 
