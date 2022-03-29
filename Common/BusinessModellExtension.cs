@@ -271,7 +271,7 @@ namespace DotNetCoreSqlDb.Common
                 var dkSub2 = false;//at least 1 day > next Phien from 2nd lowest
                 if (i < theDaysAfterLowest.Count() - 1)
                 {
-                    var nextPhien = theDaysAfterLowest[i + 1];                    
+                    var nextPhien = theDaysAfterLowest[i + 1];
                     dkSub2 = included2PercentHigher
                         ? rangesFromLowestTo2ndLowest.Any(r => r.C > nextPhien.C) && nextPhien.C > (secondLowestAssumption.C * 1.02M)
                         : rangesFromLowestTo2ndLowest.Any(r => r.C > nextPhien.C) && nextPhien.C > secondLowestAssumption.C;
@@ -284,6 +284,191 @@ namespace DotNetCoreSqlDb.Common
             }
 
             return null;
+        }
+
+        public static StockSymbolHistory LookingForSecondLowestWithCheckingDate(this StockSymbolHistory lowest, List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory, bool included2PercentHigher = false)
+        {
+            var theDaysAfterLowest = histories.Where(h => h.Date > lowest.Date && h.Date < currentDateHistory.Date)
+                .OrderBy(h => h.Date)
+                .ToList();
+
+            if (!theDaysAfterLowest.Any()) return null;
+
+            var adjustmentDays = theDaysAfterLowest.Skip(4).ToList();
+            var secondLowestAssumption = theDaysAfterLowest.OrderByDescending(h => h.Date).FirstOrDefault();
+            if (secondLowestAssumption == null) return null;
+
+            var rangesFromLowestTo2ndLowest = theDaysAfterLowest.Where(d => d.Date > lowest.Date && d.Date < secondLowestAssumption.Date).ToList();
+            var dkSub1 = rangesFromLowestTo2ndLowest.Any(r => r.C > secondLowestAssumption.C);//at least 1 day > 2nd lowest
+
+            var dkSub2 = included2PercentHigher
+                        ? adjustmentDays.Any(r => r.C > currentDateHistory.C) && currentDateHistory.C > (secondLowestAssumption.C * 1.02M)
+                        : adjustmentDays.Any(r => r.C > currentDateHistory.C) && currentDateHistory.C > secondLowestAssumption.C;
+
+            if (dkSub1 && dkSub2) return secondLowestAssumption;
+
+            return null;
+        }
+
+        public static StockSymbolHistory LookingForSecondLowestWithoutLowest(List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory, bool included2PercentHigher = false)
+        {
+            var theDaysInThePast = histories.Where(h => h.Date < currentDateHistory.Date)
+                .OrderByDescending(h => h.Date)
+                .ToList();
+
+            if (!theDaysInThePast.Any()) return null;
+
+            foreach (var secondLowestAssumption in theDaysInThePast)
+            {
+                var rangesFromLowestTo2ndLowest = theDaysInThePast.Where(d => d.Date < secondLowestAssumption.Date).Take(20).ToList();
+
+                var day1 = rangesFromLowestTo2ndLowest.OrderBy(h => h.C).FirstOrDefault();
+
+                var dkSub1 = rangesFromLowestTo2ndLowest.Any(r => r.C > secondLowestAssumption.C);//at least 1 day > 2nd lowest
+
+                var adjustmentDays = rangesFromLowestTo2ndLowest.Skip(4).ToList();
+                var dkSub2 = included2PercentHigher
+                        ? adjustmentDays.Any(r => r.C > currentDateHistory.C) && currentDateHistory.C > (secondLowestAssumption.C * 1.02M)
+                        : adjustmentDays.Any(r => r.C > currentDateHistory.C) && currentDateHistory.C > secondLowestAssumption.C;
+
+                if (dkSub1 && dkSub2) return secondLowestAssumption;
+            }
+
+            return null;
+        }
+
+        public static StockSymbolHistory LookingForLowest(this List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory)
+        {
+            var h1 = histories.Where(h => h.Date < currentDateHistory.Date).OrderByDescending(h => h.Date).ToList();
+
+            foreach (var day1Ao in h1)
+            {
+                if (day1Ao.C * 1.15M <= currentDateHistory.C) continue;
+
+                var BaMuoiPhienTruoc = histories.Where(h => h.Date < day1Ao.Date).OrderByDescending(h => h.Date).Take(30).ToList();
+                if (BaMuoiPhienTruoc == null || !BaMuoiPhienTruoc.Any()) continue;
+
+                if (BaMuoiPhienTruoc.Any(b => b.C > day1Ao.C * 1.15M))
+                    return day1Ao;
+            }
+
+            return null;
+        }
+
+        public static bool DidDay2ShowYesterday(this List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory, out StockSymbolHistory dinh1, out StockSymbolHistory day1, out StockSymbolHistory day2)
+        {
+            var h1 = histories.Where(h => h.Date < currentDateHistory.Date).OrderByDescending(h => h.Date).ToList();
+            day1 = new StockSymbolHistory();
+            day2 = new StockSymbolHistory();
+            dinh1 = new StockSymbolHistory();
+
+            foreach (var day1Ao in h1)
+            {
+                if (day1Ao.C > currentDateHistory.C
+                    || day1Ao.C * 1.15M <= currentDateHistory.C) continue;
+
+                var BaMuoiPhienTruoc = histories.Where(h => h.Date < day1Ao.Date).OrderByDescending(h => h.Date).Take(30).ToList();
+                if (BaMuoiPhienTruoc == null || !BaMuoiPhienTruoc.Any()) continue;
+
+                var dinh1Ao = BaMuoiPhienTruoc.FirstOrDefault(b => b.C > day1Ao.C * 1.15M);
+                if (dinh1Ao == null) continue;
+                if (day1Ao == null) continue;
+
+                var day2Ao = day1Ao.LookingForSecondLowestWithCheckingDate(histories, currentDateHistory);
+                if (day2Ao == null) continue;
+
+                var dk1 = day1Ao.C * 1.15M >= day2Ao.C && day1Ao.C < day2Ao.C;
+
+                if (dk1)
+                {
+                    dinh1 = dinh1Ao;
+                    day1 = day1Ao;
+                    day2 = day2Ao;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+
+        public static bool DidDay2ShowYesterdayStartWithDay2(this List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory, out StockSymbolHistory dinh1, out StockSymbolHistory day1, out StockSymbolHistory day2)
+        {
+            //var h1 = histories.Where(h => h.Date < currentDateHistory.Date).OrderByDescending(h => h.Date).ToList();
+
+            day1 = new StockSymbolHistory();
+            day2 = new StockSymbolHistory();
+            dinh1 = new StockSymbolHistory();
+
+            var theDaysInThePast = histories.Where(h => h.Date < currentDateHistory.Date)
+                .OrderByDescending(h => h.Date)
+                .ToList();
+
+            if (!theDaysInThePast.Any()) return false;
+
+            var day2Ao = theDaysInThePast.First();
+            if (day2Ao == null) return false;
+            //foreach (var day2Ao in theDaysInThePast)
+            //{
+            var rangesFromLowestTo2ndLowest = theDaysInThePast.Where(d => d.Date < day2Ao.Date).Take(20).ToList();
+
+            var dkSub1 = rangesFromLowestTo2ndLowest.Any(r => r.C > day2Ao.C);//at least 1 day > 2nd lowest
+
+            var adjustmentDays = rangesFromLowestTo2ndLowest.Skip(4).ToList();
+            var dkSub2 = adjustmentDays.Any(r => r.C > currentDateHistory.C) && currentDateHistory.C > day2Ao.C;
+
+            var dkCoDay2 = dkSub1 && dkSub2;
+
+            var day1Ao = rangesFromLowestTo2ndLowest.OrderBy(h => h.C).FirstOrDefault();
+            if (day1Ao == null) return false;
+
+            var dk1 = day1Ao.C * 1.15M >= day2Ao.C && day1Ao.C < day2Ao.C;
+
+            if (day1Ao.C > currentDateHistory.C || day1Ao.C * 1.15M <= currentDateHistory.C) return false;
+
+            var BaMuoiPhienTruoc = histories.Where(h => h.Date < day1Ao.Date).OrderByDescending(h => h.Date).Take(30).ToList();
+            if (BaMuoiPhienTruoc == null || !BaMuoiPhienTruoc.Any()) return false;
+
+            var dinh1Ao = BaMuoiPhienTruoc.FirstOrDefault(b => b.C > day1Ao.C * 1.15M);
+            if (dinh1Ao == null) return false;
+
+
+            if (dk1 && dkCoDay2)
+            {
+                dinh1 = dinh1Ao;
+                day1 = day1Ao;
+                day2 = day2Ao;
+                return true;
+            }
+            //}
+
+            return false;
+
+            //foreach (var day1Ao in h1)
+            //{
+            //    if (day1Ao.C > currentDateHistory.C
+            //        || day1Ao.C * 1.15M <= currentDateHistory.C) continue;
+
+            //    var BaMuoiPhienTruoc = histories.Where(h => h.Date < day1Ao.Date).OrderByDescending(h => h.Date).Take(30).ToList();
+            //    if (BaMuoiPhienTruoc == null || !BaMuoiPhienTruoc.Any()) continue;
+
+            //    var dinh1Ao = BaMuoiPhienTruoc.FirstOrDefault(b => b.C > day1Ao.C * 1.15M);
+            //    if (dinh1Ao == null) continue;
+            //    if (day1Ao == null) continue;
+
+            //    var day2Ao = day1Ao.LookingForSecondLowestWithCheckingDate(histories, currentDateHistory);
+            //    if (day2Ao == null) continue;
+
+            //    var dk1 = day1Ao.C * 1.15M >= day2Ao.C && day1Ao.C < day2Ao.C;
+
+            //    if (dk1)
+            //    {
+            //        dinh1 = dinh1Ao;
+            //        day1 = day1Ao;
+            //        day2 = day2Ao;
+            //        return true;
+            //    }
+            //}
+            //return false;
         }
     }
 
