@@ -1,0 +1,35 @@
+﻿YEAR: 
+		URL: https://finance.vietstock.vn/data/financeinfo
+
+		Header:
+		POST /data/financeinfo HTTP/1.1
+		Host: finance.vietstock.vn
+		Connection: keep-alive
+		Content-Length: 211
+		sec-ch-ua: " Not A;Brand";v="99", "Chromium";v="99", "Google Chrome";v="99"
+		Accept: */*
+		Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+		X-Requested-With: XMLHttpRequest
+		sec-ch-ua-mobile: ?0
+		User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.84 Safari/537.36
+		sec-ch-ua-platform: "Windows"
+		Origin: https://finance.vietstock.vn
+		Sec-Fetch-Site: same-origin
+		Sec-Fetch-Mode: cors
+		Sec-Fetch-Dest: empty
+		Referer: https://finance.vietstock.vn/VIC/tai-chinh.htm
+		Accept-Encoding: gzip, deflate, br
+		Accept-Language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,vi;q=0.6
+		Cookie: _ga=GA1.2.713551826.1644247671; _ga=GA1.3.713551826.1644247671; dable_uid=43391554.1574785018857; dable_uid=43391554.1574785018857; AnonymousNotification=; language=vi-VN; Theme=Light; vst_usr_lg_token=uUHaeIUDf0m7PjoQ5xSvaA==; ASP.NET_SessionId=ce3tpeln1dungqdakvkkxr1j; finance_viewedstock=VIC,; __RequestVerificationToken=3O6qgFI53obG1YivhA3U8WJQnqQozWGEK9uadZeSUgf0FEdo0g26G676b6ADkfpafbAObn4CD2rafhnz5O_uS9H5xo7tC4nHnrux6QVUfnI1; _gid=GA1.2.700300379.1648740557; _gat_UA-1460625-2=1; _gat_gtag_UA_1460625_2=1; _gat=1; __gads=ID=3f7aab506428e100:T=1644247671:S=ALNI_MY0ESK08RDMh-7IslLVK16Ruud8Hg; __gpi=UID=0000029fcfbf1e52:T=1647013809:RT=1648740558:S=ALNI_Mbnwz8R_W4WHz7DNQNBZDzQvsApJQ
+
+
+		Payload:
+		Form-Data:
+
+		Code: VIC
+		ReportType: BCTT
+		ReportTermType: 1
+		Unit: 1000000000
+		Page: 1
+		PageSize: 4
+		__RequestVerificationToken: adMS9gKy5_ugeDlh3_Ff0bLzeCCP7L0JKNBsdulAoR5GNifDnVygmL-z3QNUaXFLBPBoPauMJGUv8M_Sm1uckABuu4xL3KZLcgTgw47pkMo1

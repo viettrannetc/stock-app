@@ -950,7 +950,6 @@ namespace DotNetCoreSqlDb.Controllers
             return result;
         }
 
-
         public async Task<PatternResponseModel> TimDay2V1(string code, DateTime ngay, int soPhienGd, int trungbinhGd)
         {
             var result = new PatternResponseModel();
@@ -1063,6 +1062,107 @@ namespace DotNetCoreSqlDb.Controllers
                         }
                     });
                 }
+
+                if (patternOnsymbol.Details.Any())
+                {
+                    result.TimDay2.Items.Add(patternOnsymbol);
+                }
+            });
+
+            result.TimDay2.Items = result.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
+
+            return result;
+        }
+
+        public async Task<PatternResponseModel> Canslim(string code, DateTime ngay)
+        {
+            var result = new PatternResponseModel();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+
+            var startFrom = ngay.AddDays(-180);
+
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+                    .Where(ss =>
+                        stockCodes.Contains(ss.StockSymbol)
+                        && ss.Date >= startFrom
+                        )
+                    .OrderByDescending(ss => ss.Date)
+                    .ToListAsync();
+
+            if (historiesInPeriodOfTimeByStockCode.FirstOrDefault() != null && historiesInPeriodOfTimeByStockCode.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
+            {
+                var newPackages = new List<StockSymbolHistory>();
+                var from = DateTime.Now.WithoutHours();
+                var to = DateTime.Now.WithoutHours().AddDays(1);
+
+                var service = new Service();
+                await service.GetV(newPackages, symbols, from, to, from, 0);
+
+                historiesInPeriodOfTimeByStockCode.AddRange(newPackages);
+            }
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var orderedHistoryByStockCode = historiesInPeriodOfTimeByStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(s => s.Date)
+                    .ToList();
+
+                var latestDate = orderedHistoryByStockCode.OrderByDescending(h => h.Date).FirstOrDefault();
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(orderedHistoryByStockCode);
+
+                if (biCanhCao) return;
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var historiesInPeriodOfTime = historiesInPeriodOfTimeByStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .ToList();
+
+                var histories = historiesInPeriodOfTime
+                    .OrderBy(s => s.Date)
+                    .ToList();
+
+                var C = string.Empty; //Current quartery earning per share => EPS (Tỉ suất lợi nhuận trên cổ phần) của quý hiện tại so với những quý cùng kì của ngoái
+                var A = string.Empty; //Annual earnings gorwth - tăng trường lợi nhuận hàng năm trong 3 năm gần nhất - tăng trường doanh thu, lợi nhuận sau thuế, eps, trên mỗi cổ phiếu
+                var N = string.Empty; //New products
+                var S = string.Empty; //Share outstanding - số lượng cổ phiếu trôi nổi trên thị trường, cung mạnh thì giá giảm, cầu mạnh thì giá tăng
+                var L = string.Empty; //Leading industry
+                var I = string.Empty; //inutition - bảo kê bởi những tay to - họ dựa vô ROA, ROE tốt để mua khi cp giá rẻ, trend line
+                var M = string.Empty; //Marking direction - xu thế thị trường,khi thị trường tăng -> 3/4 cp tăng
+
+
+                //if (t1)
+                //{
+                //    patternOnsymbol.Details.Add(new PatternDetailsResponseModel
+                //    {
+                //        ConditionMatchAt = currentDateToCheck,
+                //        MoreInformation = new
+                //        {
+                //            Text = @$"{history.StockSymbol}: Đỉnh 1 {dinh1.Date.ToShortDateString()}: {dinh1.C}, Đáy 1 {day1.Date.ToShortDateString()}: {day1.C},
+                //                        Đáy 2 {day2.Date.ToShortDateString()}: {day2.C},
+                //                        Giá đóng cửa hum nay ({history.C}) cao hơn giá đóng của đáy 2 {day2.C}",
+                //            TodayOpening = history.O,
+                //            TodayClosing = history.C,
+                //            TodayLowest = history.L,
+                //            TodayTrading = history.V,
+                //            Previous1stLowest = day1.C,
+                //            Previous1stLowestDate = day1.Date,
+                //            Previous2ndLowest = day2.C,
+                //            Previous2ndLowestDate = day2.Date,
+                //            AverageNumberOfTradingInPreviousTimes = avarageOfLastXXPhien,
+                //            RealityExpectation = string.Empty,
+                //            ShouldBuy = true
+                //        }
+                //    });
+                //}
 
                 if (patternOnsymbol.Details.Any())
                 {
