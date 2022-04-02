@@ -1,6 +1,6 @@
 ﻿namespace DotNetCoreSqlDb.Models.Database.Finance
 {
-    public class BCTT
+    public class CTKH
     {
     }
 }

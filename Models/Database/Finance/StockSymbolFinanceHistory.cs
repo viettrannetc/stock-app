@@ -8,69 +8,48 @@ namespace DotNetCoreSqlDb.Models
     {
         public int ID { get; set; }
         public string StockSymbol { get; set; }
-    }
-
-
-    [Serializable]
-    public class StockSymbolFinanceYearHistory
-    {
-        public int ID { get; set; }
-        public int StockSymbolFinanceHistoryId { get; set; }
-        public int Year { get; set; }
-
-    }
-
-    [Serializable]
-    public class StockSymbolFinanceQuarterHistory
-    {
-        public int ID { get; set; }
-        public int StockSymbolFinanceHistoryId { get; set; }
+        public int YearPeriod { get; set; }
         public int Quarter { get; set; }
+        public string TermCode { get; set; }
+        public string PeriodBegin { get; set; }
 
     }
 
-
     [Serializable]
-    public class StockSymbolBCTT
+    public class StockSymbolDetail
     {
         public int ID { get; set; }
-        public int QuarterHistoryId { get; set; }
-        public int YearHistoryId { get; set; }
+        public int StockSymbolFinanceHistoryId { get; set; }
+        public string Name { get; set; }
+        public string NameEn { get; set; }
+        public string ReportComponentName { get; set; }
+        public string ReportComponentNameEn { get; set; }
+        public decimal Value { get; set; }
     }
 
     [Serializable]
-    public class StockSymbolKQKD
+    public class StockSymbolKQKD : StockSymbolDetail
     {
-        public int ID { get; set; }
-        public int StockSymbolBCTTId { get; set; }
     }
 
     [Serializable]
-    public class StockSymbolCDKT
+    public class StockSymbolCDKT : StockSymbolDetail
     {
-        public int ID { get; set; }
-        public int StockSymbolBCTTId { get; set; }
     }
 
     [Serializable]
-    public class StockSymbolCSTC
+    public class StockSymbolCSTC : StockSymbolDetail
     {
-        public int ID { get; set; }
-        public int StockSymbolBCTTId { get; set; }
     }
 
     [Serializable]
-    public class StockSymbolLCTT
+    public class StockSymbolLCTT : StockSymbolDetail
     {
-        public int ID { get; set; }
-        public int StockSymbolBCTTId { get; set; }
     }
 
     [Serializable]
-    public class StockSymbolCTKH
+    public class StockSymbolCTKH : StockSymbolDetail
     {
-        public int ID { get; set; }
-        public int StockSymbolBCTTId { get; set; }
     }
 }
 

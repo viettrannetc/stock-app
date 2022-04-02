@@ -26,7 +26,7 @@ namespace DotNetCoreSqlDb.Models.Business
         //public PatternSellAndBuyBySymbolResponseModel BuyAndSell { get; set; }
         public PatternTimDay2BySymbolResponseModel TimDay2 { get; set; }
         public PatternTimTrendGiamBySymbolResponseModel TimTrendGiam { get; set; }
-                public PatternTimDay2BySymbolResponseModel GiamSau { get; set; }
+        public PatternTimDay2BySymbolResponseModel GiamSau { get; set; }
     }
 
     //public class PatternTimDay2BySymbolResponseModel : PatternDetailResponseModel
@@ -107,7 +107,7 @@ namespace DotNetCoreSqlDb.Models.Business
             }
         }
 
-        public List<string> SymbolCodes { get { return Items.Select(i => i.StockCode).ToList(); } }
+        public string SymbolCodes { get { return string.Join(",", Items.Select(i => i.StockCode)); } }
         public List<PatternBySymbolResponseModel> Items { get; set; }
     }
 
