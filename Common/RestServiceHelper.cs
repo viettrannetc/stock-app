@@ -1,4 +1,4 @@
-﻿using Flurl.Http;
+﻿//using Flurl.Http;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using RestSharp;
@@ -122,7 +122,7 @@ namespace DotNetCoreSqlDb.Common
         }
 
 
-        public async Task<string> HexecuteVietStock(string address = "https://finance.vietstock.vn/data/financeinfo")
+        public async Task<string> HexecuteVietStock(string address = "https://api.vietstock.vn/data/financeinfo")
         {
 
             var url = new Uri(address);
@@ -140,6 +140,18 @@ namespace DotNetCoreSqlDb.Common
 
             using (var client = new HttpClient())
             {
+                client.DefaultRequestHeaders.Add("Host", "finance.vietstock.vn");
+                //client.DefaultRequestHeaders.Add("Content-Length", "232");
+
+                //client.DefaultRequestHeaders.Add("Accept", "*/*");                    
+                //client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));                    
+
+                client.DefaultRequestHeaders.Add("User-Agent", " Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.82 Safari/537.36");
+                //client.DefaultRequestHeaders.Add("ContentType", "application/x-www-form-urlencoded");
+                //client.DefaultRequestHeaders.Add("Cookie", "_ga=GA1.2.713551826.1644247671; _ga=GA1.3.713551826.1644247671; dable_uid=43391554.1574785018857; dable_uid=43391554.1574785018857; AnonymousNotification=; language=vi-VN; Theme=Light; __gpi=UID=0000029fcfbf1e52:T=1647013809:RT=1647013809:S=ALNI_Mbnwz8R_W4WHz7DNQNBZDzQvsApJQ; ASP.NET_SessionId=m2egsnbcyuymr34zuoimieoo; __RequestVerificationToken=dNglG8kMDq09oaBufe3gxwAnLFhdRZGm0z13QEVZCEwzLmYZOoNuv2Am4tFL9_UOI5E3cJsN2C_MqWI75j6fZK0rhjuxNZHWN79YE3unhOI1; _gid=GA1.2.356828925.1648475526; vts_usr_lg=AA697487B6A84B1DFD5FBB731685026911EAED6A5739CF8D4B9E08AB9C0C39632E17B55D78783AD457047EA32EDDA6A072FB7E9BBE17EB11541DC9601607B128DB2F97013084ABB915F322D3BC20A2494DB4AC985AAAAA9025C809895DA74DCDDBBF6CF1B7241F5CEB8CF1BF16CE374D08435787C5CA97E8E0C5C53C810F0C85; vst_usr_lg_token=uUHaeIUDf0m7PjoQ5xSvaA==; finance_viewedstock=HUT,GIC,CIG,PVD,XMD,CEO,DGW,; _gat_gtag_UA_1460625_2=1; __gads=ID=3f7aab506428e100-22a2e49c64d1002e:T=1644247671:RT=1648483910:S=ALNI_MbD-QRlvz3Mc2X-6temXksp2u17ig; _gat=1");
+                client.DefaultRequestHeaders.Add("__RequestVerificationToken", "xBn41_m3HO3gTm8p86LFvL667WRKMSx7TwBWZyQT9ZWzNkj9psjXFRybyk9a-W6N550n80WLix3hAFgDyZkAzHHcxTarL8HNnt4QMZsVTC-rF_vN4laUzXRMIjGhGR-C0");
+
+
                 using (var content = new MultipartFormDataContent("Upload----" + DateTime.Now.ToString(CultureInfo.InvariantCulture)))
                 {
                     //content.Add(new StringContent("Code"), "VIC");
@@ -159,58 +171,21 @@ namespace DotNetCoreSqlDb.Common
                     content.Add(new StringContent("4"), "PageSize");
                     content.Add(new StringContent("xBn41_m3HO3gTm8p86LFvL667WRKMSx7TwBWZyQT9ZWzNkj9psjXFRybyk9a-W6N550n80WLix3hAFgDyZkAzHHcxTarL8HNnt4QMZsVTC-rF_vN4laUzXRMIjGhGR-C0"), "__RequestVerificationToken");
 
+                    //content.Add(new StringContent("application/x-www-form-urlencoded"), "ContentType");
 
-                    //content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded; charset=UTF-8");
-                    content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+                    //content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded;charset=UTF-8");
 
-                    content.Headers.Add("Content-Length", "232");
 
-                    client.DefaultRequestHeaders.Add("Host", "finance.vietstock.vn");
-                    //client.DefaultRequestHeaders.Add("Content-Length", "232");
+                    //content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+                    content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
 
-                    //client.DefaultRequestHeaders.Add("Accept", "*/*");                    
-                    //client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));                    
-
-                    client.DefaultRequestHeaders.Add("User-Agent", " Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.82 Safari/537.36");
-                    client.DefaultRequestHeaders.Add("ContentType", "application/x-www-form-urlencoded");
-                    client.DefaultRequestHeaders.Add("Cookie", "_ga=GA1.2.713551826.1644247671; _ga=GA1.3.713551826.1644247671; dable_uid=43391554.1574785018857; dable_uid=43391554.1574785018857; AnonymousNotification=; language=vi-VN; Theme=Light; __gpi=UID=0000029fcfbf1e52:T=1647013809:RT=1647013809:S=ALNI_Mbnwz8R_W4WHz7DNQNBZDzQvsApJQ; ASP.NET_SessionId=m2egsnbcyuymr34zuoimieoo; __RequestVerificationToken=dNglG8kMDq09oaBufe3gxwAnLFhdRZGm0z13QEVZCEwzLmYZOoNuv2Am4tFL9_UOI5E3cJsN2C_MqWI75j6fZK0rhjuxNZHWN79YE3unhOI1; _gid=GA1.2.356828925.1648475526; vts_usr_lg=AA697487B6A84B1DFD5FBB731685026911EAED6A5739CF8D4B9E08AB9C0C39632E17B55D78783AD457047EA32EDDA6A072FB7E9BBE17EB11541DC9601607B128DB2F97013084ABB915F322D3BC20A2494DB4AC985AAAAA9025C809895DA74DCDDBBF6CF1B7241F5CEB8CF1BF16CE374D08435787C5CA97E8E0C5C53C810F0C85; vst_usr_lg_token=uUHaeIUDf0m7PjoQ5xSvaA==; finance_viewedstock=HUT,GIC,CIG,PVD,XMD,CEO,DGW,; _gat_gtag_UA_1460625_2=1; __gads=ID=3f7aab506428e100-22a2e49c64d1002e:T=1644247671:RT=1648483910:S=ALNI_MbD-QRlvz3Mc2X-6temXksp2u17ig; _gat=1");
-                    client.DefaultRequestHeaders.Add("Cookie", "ASP.NET_SessionId=nlxiru2jduvdpozmrv0x5knf; language=vi-VN");
-
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-                    //content.Headers.Add("Host", "finance.vietstock.vn");
-
-                    //Host: finance.vietstock.vn
-                    //Connection: keep-alive
-                    //Content-Length: 211
-                    //sec-ch-ua: " Not A;Brand";v="99", "Chromium";v="99", "Google Chrome";v="99"
-                    //Accept: */*
-                    //Content-Type: application/x-www-form-urlencoded; charset=UTF-8
-                    //X-Requested-With: XMLHttpRequest
-                    //sec-ch-ua-mobile: ?0
-                    //User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.84 Safari/537.36
-                    //sec-ch-ua-platform: "Windows"
-                    //Origin: https://finance.vietstock.vn
-                    //Sec-Fetch-Site: same-origin
-                    //Sec-Fetch-Mode: cors
-                    //Sec-Fetch-Dest: empty
-                    //Referer: https://finance.vietstock.vn/VIC/tai-chinh.htm
-                    //Accept-Encoding: gzip, deflate, br
-                    //Accept-Language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,vi;q=0.6
-                    //Cookie: _ga=GA1.2.713551826.1644247671; _ga=GA1.3.713551826.1644247671; dable_uid=43391554.1574785018857; dable_uid=43391554.1574785018857; AnonymousNotification=; language=vi-VN; Theme=Light; vst_usr_lg_token=uUHaeIUDf0m7PjoQ5xSvaA==; ASP.NET_SessionId=ce3tpeln1dungqdakvkkxr1j; finance_viewedstock=VIC,; __RequestVerificationToken=3O6qgFI53obG1YivhA3U8WJQnqQozWGEK9uadZeSUgf0FEdo0g26G676b6ADkfpafbAObn4CD2rafhnz5O_uS9H5xo7tC4nHnrux6QVUfnI1; _gid=GA1.2.700300379.1648740557; _gat_UA-1460625-2=1; _gat_gtag_UA_1460625_2=1; _gat=1; __gads=ID=3f7aab506428e100:T=1644247671:S=ALNI_MY0ESK08RDMh-7IslLVK16Ruud8Hg; __gpi=UID=0000029fcfbf1e52:T=1647013809:RT=1648740558:S=ALNI_Mbnwz8R_W4WHz7DNQNBZDzQvsApJQ
+                    content.Headers.ContentType.CharSet = "UTF-8";
+                    content.Headers.ContentLength = 232;
+                    //content.Headers.ContentType.("application/x-www-form-urlencoded; charset=UTF-8");
 
                     try
                     {
-                        using (var message = await client.PostAsync(address, content))
+                        using (var message = await client.PostAsync(url, content))
                         {
                             var input = await message.Content.ReadAsStringAsync();
 
@@ -287,31 +262,98 @@ namespace DotNetCoreSqlDb.Common
             //Console.WriteLine(response.Content);
         }
 
-        public async Task HexecuteVietStockFlurl(string address = "https://finance.vietstock.vn/data/financeinfo")
+        //public async Task<String> HexecuteVietStockFlurl(string address = "https://api.vietstock.vn/data/financeinfo")
+        //{
+
+        //    var content = new MultipartFormDataContent("Upload----" + DateTime.Now.ToString(CultureInfo.InvariantCulture));
+
+        //    //content.Add(new StringContent("Code"), "VIC");
+        //    //content.Add(new StringContent("ReportType"), "BCTT");
+        //    //content.Add(new StringContent("ReportTermType"), "1");
+        //    //content.Add(new StringContent("Unit"), "1000000000");
+        //    //content.Add(new StringContent("Page"), "1");
+        //    //content.Add(new StringContent("PageSize"), "4");
+        //    //content.Add(new StringContent("__RequestVerificationToken"), "xBn41_m3HO3gTm8p86LFvL667WRKMSx7TwBWZyQT9ZWzNkj9psjXFRybyk9a-W6N550n80WLix3hAFgDyZkAzHHcxTarL8HNnt4QMZsVTC-rF_vN4laUzXRMIjGhGR-C0");
+
+
+        //    content.Add(new StringContent("VIC"), "Code");
+        //    content.Add(new StringContent("BCTT"), "ReportType");
+        //    content.Add(new StringContent("1"), "ReportTermType");
+        //    content.Add(new StringContent("1000000000"), "Unit");
+        //    content.Add(new StringContent("1"), "Page");
+        //    content.Add(new StringContent("4"), "PageSize");
+        //    content.Add(new StringContent("xBn41_m3HO3gTm8p86LFvL667WRKMSx7TwBWZyQT9ZWzNkj9psjXFRybyk9a-W6N550n80WLix3hAFgDyZkAzHHcxTarL8HNnt4QMZsVTC-rF_vN4laUzXRMIjGhGR-C0"), "__RequestVerificationToken");
+
+
+        //    var resp = await address
+        //        .WithHeader("Host", "finance.vietstock.vn")
+        //        //client.DefaultRequestHeaders.Add("Content-Length", "232");
+
+        //        //client.DefaultRequestHeaders.Add("Accept", "*/*");                    
+        //        //client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));                    
+        //        //.WithHeader("User-Agent", " Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.82 Safari/537.36")
+
+
+        //        //.WithCookies("_ga=GA1.2.713551826.1644247671; _ga=GA1.3.713551826.1644247671; dable_uid=43391554.1574785018857; dable_uid=43391554.1574785018857; AnonymousNotification=; language=vi-VN; Theme=Light; __gpi=UID=0000029fcfbf1e52:T=1647013809:RT=1647013809:S=ALNI_Mbnwz8R_W4WHz7DNQNBZDzQvsApJQ; ASP.NET_SessionId=m2egsnbcyuymr34zuoimieoo; __RequestVerificationToken=dNglG8kMDq09oaBufe3gxwAnLFhdRZGm0z13QEVZCEwzLmYZOoNuv2Am4tFL9_UOI5E3cJsN2C_MqWI75j6fZK0rhjuxNZHWN79YE3unhOI1; _gid=GA1.2.356828925.1648475526; vts_usr_lg=AA697487B6A84B1DFD5FBB731685026911EAED6A5739CF8D4B9E08AB9C0C39632E17B55D78783AD457047EA32EDDA6A072FB7E9BBE17EB11541DC9601607B128DB2F97013084ABB915F322D3BC20A2494DB4AC985AAAAA9025C809895DA74DCDDBBF6CF1B7241F5CEB8CF1BF16CE374D08435787C5CA97E8E0C5C53C810F0C85; vst_usr_lg_token=uUHaeIUDf0m7PjoQ5xSvaA==; finance_viewedstock=HUT,GIC,CIG,PVD,XMD,CEO,DGW,; _gat_gtag_UA_1460625_2=1; __gads=ID=3f7aab506428e100-22a2e49c64d1002e:T=1644247671:RT=1648483910:S=ALNI_MbD-QRlvz3Mc2X-6temXksp2u17ig; _gat=1")
+
+
+        //        .PostUrlEncodedAsync(content);
+
+        //    //    var resp = await address
+
+        //    //    .WithHeader("Host", "finance.vietstock.vn")
+        //    ////client.DefaultRequestHeaders.Add("Content-Length", "232");
+
+        //    ////client.DefaultRequestHeaders.Add("Accept", "*/*");                    
+        //    ////client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));                    
+        //    //.WithHeader("User-Agent", " Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.82 Safari/537.36")
+
+
+        //    //    .WithCookies("_ga=GA1.2.713551826.1644247671; _ga=GA1.3.713551826.1644247671; dable_uid=43391554.1574785018857; dable_uid=43391554.1574785018857; AnonymousNotification=; language=vi-VN; Theme=Light; __gpi=UID=0000029fcfbf1e52:T=1647013809:RT=1647013809:S=ALNI_Mbnwz8R_W4WHz7DNQNBZDzQvsApJQ; ASP.NET_SessionId=m2egsnbcyuymr34zuoimieoo; __RequestVerificationToken=dNglG8kMDq09oaBufe3gxwAnLFhdRZGm0z13QEVZCEwzLmYZOoNuv2Am4tFL9_UOI5E3cJsN2C_MqWI75j6fZK0rhjuxNZHWN79YE3unhOI1; _gid=GA1.2.356828925.1648475526; vts_usr_lg=AA697487B6A84B1DFD5FBB731685026911EAED6A5739CF8D4B9E08AB9C0C39632E17B55D78783AD457047EA32EDDA6A072FB7E9BBE17EB11541DC9601607B128DB2F97013084ABB915F322D3BC20A2494DB4AC985AAAAA9025C809895DA74DCDDBBF6CF1B7241F5CEB8CF1BF16CE374D08435787C5CA97E8E0C5C53C810F0C85; vst_usr_lg_token=uUHaeIUDf0m7PjoQ5xSvaA==; finance_viewedstock=HUT,GIC,CIG,PVD,XMD,CEO,DGW,; _gat_gtag_UA_1460625_2=1; __gads=ID=3f7aab506428e100-22a2e49c64d1002e:T=1644247671:RT=1648483910:S=ALNI_MbD-QRlvz3Mc2X-6temXksp2u17ig; _gat=1")
+        //    //    .PostMultipartAsync(mp => mp
+        //    //    .AddString("Code", "VIC")
+        //    //    .AddString("ReportType", "BCTT")
+        //    //    .AddString("ReportTermType", "1")
+        //    //    .AddString("Unit", "1000000000")
+        //    //    .AddString("Page", "1")
+        //    //    .AddString("PageSize", "4")
+        //    //    .AddString("__RequestVerificationToken", "adMS9gKy5_ugeDlh3_Ff0bLzeCCP7L0JKNBsdulAoR5GNifDnVygmL - z3QNUaXFLBPBoPauMJGUv8M_Sm1uckABuu4xL3KZLcgTgw47pkMo1"))
+        //    ;
+
+        //    var test = await resp.GetStringAsync();
+
+        //    var a = 1;
+
+        //    return test;
+        //}
+
+
+
+        public async Task<String> HexecuteVietStockPostman(string address = "https://api.vietstock.vn/data/financeinfo")
         {
-            var resp = await address
-                .WithHeader("Host", "finance.vietstock.vn")
-            //client.DefaultRequestHeaders.Add("Content-Length", "232");
+            var client = new RestClient("https://api.vietstock.vn/data/financeinfo");
+            //client.Timeout = -1;
+            var request = new RestRequest(address, Method.Post);
+            request.AddHeader("Host", "finance.vietstock.vn");
+            request.AddHeader("Content-Length", "232");
+            request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
+            request.AddHeader("Cookie", "_ga=GA1.2.713551826.1644247671; _ga=GA1.3.713551826.1644247671; dable_uid=43391554.1574785018857; dable_uid=43391554.1574785018857; AnonymousNotification=; language=vi-VN; Theme=Light; __gpi=UID=0000029fcfbf1e52:T=1647013809:RT=1647013809:S=ALNI_Mbnwz8R_W4WHz7DNQNBZDzQvsApJQ; ASP.NET_SessionId=m2egsnbcyuymr34zuoimieoo; __RequestVerificationToken=dNglG8kMDq09oaBufe3gxwAnLFhdRZGm0z13QEVZCEwzLmYZOoNuv2Am4tFL9_UOI5E3cJsN2C_MqWI75j6fZK0rhjuxNZHWN79YE3unhOI1; _gid=GA1.2.356828925.1648475526; vts_usr_lg=AA697487B6A84B1DFD5FBB731685026911EAED6A5739CF8D4B9E08AB9C0C39632E17B55D78783AD457047EA32EDDA6A072FB7E9BBE17EB11541DC9601607B128DB2F97013084ABB915F322D3BC20A2494DB4AC985AAAAA9025C809895DA74DCDDBBF6CF1B7241F5CEB8CF1BF16CE374D08435787C5CA97E8E0C5C53C810F0C85; vst_usr_lg_token=uUHaeIUDf0m7PjoQ5xSvaA==; finance_viewedstock=HUT,GIC,CIG,PVD,XMD,CEO,DGW,; _gat_gtag_UA_1460625_2=1; __gads=ID=3f7aab506428e100-22a2e49c64d1002e:T=1644247671:RT=1648483910:S=ALNI_MbD-QRlvz3Mc2X-6temXksp2u17ig; _gat=1");
+            request.AddParameter("Code", "DGW");
+            request.AddParameter("ReportType", "KQKD");
+            request.AddParameter("ReportTermType", "2");
+            request.AddParameter("Unit", "1000000000");
+            request.AddParameter("Page", "8");
+            request.AddParameter("PageSize", "9");
+            request.AddParameter("__RequestVerificationToken", "xBn41_m3HO3gTm8p86LFvL667WRKMSx7TwBWZyQT9ZWzNkj9psjXFRybyk9a-W6N550n80WLix3hAFgDyZkAzHHcxTarL8HNnt4QMZsVTC-rF_vN4laUzXRMIjGhGR-C0");
+            var response = await client.PostAsync(request);
+            
+            //Console.WriteLine(response.Content);
 
-            //client.DefaultRequestHeaders.Add("Accept", "*/*");                    
-            //client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));                    
-            .WithHeader("User-Agent", " Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.82 Safari/537.36")
-
-
-                .WithCookies("_ga=GA1.2.713551826.1644247671; _ga=GA1.3.713551826.1644247671; dable_uid=43391554.1574785018857; dable_uid=43391554.1574785018857; AnonymousNotification=; language=vi-VN; Theme=Light; __gpi=UID=0000029fcfbf1e52:T=1647013809:RT=1647013809:S=ALNI_Mbnwz8R_W4WHz7DNQNBZDzQvsApJQ; ASP.NET_SessionId=m2egsnbcyuymr34zuoimieoo; __RequestVerificationToken=dNglG8kMDq09oaBufe3gxwAnLFhdRZGm0z13QEVZCEwzLmYZOoNuv2Am4tFL9_UOI5E3cJsN2C_MqWI75j6fZK0rhjuxNZHWN79YE3unhOI1; _gid=GA1.2.356828925.1648475526; vts_usr_lg=AA697487B6A84B1DFD5FBB731685026911EAED6A5739CF8D4B9E08AB9C0C39632E17B55D78783AD457047EA32EDDA6A072FB7E9BBE17EB11541DC9601607B128DB2F97013084ABB915F322D3BC20A2494DB4AC985AAAAA9025C809895DA74DCDDBBF6CF1B7241F5CEB8CF1BF16CE374D08435787C5CA97E8E0C5C53C810F0C85; vst_usr_lg_token=uUHaeIUDf0m7PjoQ5xSvaA==; finance_viewedstock=HUT,GIC,CIG,PVD,XMD,CEO,DGW,; _gat_gtag_UA_1460625_2=1; __gads=ID=3f7aab506428e100-22a2e49c64d1002e:T=1644247671:RT=1648483910:S=ALNI_MbD-QRlvz3Mc2X-6temXksp2u17ig; _gat=1")
-                .PostMultipartAsync(mp => mp
-                .AddString("Code", "VIC")
-                .AddString("ReportType", "BCTT")
-                .AddString("ReportTermType", "1")
-                .AddString("Unit", "1000000000")
-                .AddString("Page", "1")
-                .AddString("PageSize", "4")
-                .AddString("__RequestVerificationToken", "adMS9gKy5_ugeDlh3_Ff0bLzeCCP7L0JKNBsdulAoR5GNifDnVygmL - z3QNUaXFLBPBoPauMJGUv8M_Sm1uckABuu4xL3KZLcgTgw47pkMo1"))
-                ;
-
-            var test = resp.GetStringAsync();
+            //var test = await response.Content.GetStringAsync();
 
             var a = 1;
+
+            return response.Content;
         }
     }
 }

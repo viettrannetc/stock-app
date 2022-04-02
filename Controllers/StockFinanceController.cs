@@ -43,7 +43,7 @@ namespace DotNetCoreSqlDb.Controllers
         {
             var restService = new RestServiceHelper();
 
-            return await restService.HexecuteVietStock();
+            return await restService.HexecuteVietStockPostman();
             //var symbols = await _context.StockSymbol.ToListAsync();
 
             //Parallel.ForEach(symbols, symbol =>
