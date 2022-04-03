@@ -10,46 +10,52 @@ namespace DotNetCoreSqlDb.Models
         public string StockSymbol { get; set; }
         public int YearPeriod { get; set; }
         public int Quarter { get; set; }
-        public string TermCode { get; set; }
-        public string PeriodBegin { get; set; }
-
-    }
-
-    [Serializable]
-    public class StockSymbolDetail
-    {
-        public int ID { get; set; }
-        public int StockSymbolFinanceHistoryId { get; set; }
         public string Name { get; set; }
         public string NameEn { get; set; }
-        public string ReportComponentName { get; set; }
-        public string ReportComponentNameEn { get; set; }
-        public decimal Value { get; set; }
+        public decimal? Value { get; set; }
+
+        /// <summary>
+        /// 1: KQKD
+        /// 2: CDKT
+        /// 3: CSTC
+        /// 4: LCTT
+        /// 5: CTKH
+        /// </summary>
+        public int Type { get; set; }
     }
 
-    [Serializable]
-    public class StockSymbolKQKD : StockSymbolDetail
+    public enum FinanceType
     {
+        KQKD = 1,
+        CDKT = 2,
+        CSTC = 3,
+        LCTT = 4,
+        CTKH = 5
     }
 
-    [Serializable]
-    public class StockSymbolCDKT : StockSymbolDetail
-    {
-    }
+    //[Serializable]
+    //public class StockSymbolKQKD : StockSymbolDetail
+    //{
+    //}
 
-    [Serializable]
-    public class StockSymbolCSTC : StockSymbolDetail
-    {
-    }
+    //[Serializable]
+    //public class StockSymbolCDKT : StockSymbolDetail
+    //{
+    //}
 
-    [Serializable]
-    public class StockSymbolLCTT : StockSymbolDetail
-    {
-    }
+    //[Serializable]
+    //public class StockSymbolCSTC : StockSymbolDetail
+    //{
+    //}
 
-    [Serializable]
-    public class StockSymbolCTKH : StockSymbolDetail
-    {
-    }
+    //[Serializable]
+    //public class StockSymbolLCTT : StockSymbolDetail
+    //{
+    //}
+
+    //[Serializable]
+    //public class StockSymbolCTKH : StockSymbolDetail
+    //{
+    //}
 }
 

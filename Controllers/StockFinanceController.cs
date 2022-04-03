@@ -39,96 +39,66 @@ namespace DotNetCoreSqlDb.Controllers
         }
 
 
-        public async Task<string> Pull(string code)
+        public async Task<dynamic> Pull(string code)
         {
             var restService = new RestServiceHelper();
 
-            return await restService.HexecuteVietStockPostman();
-            //var symbols = await _context.StockSymbol.ToListAsync();
+            //return await restService.HexecuteVietStockPostman();
 
-            //Parallel.ForEach(symbols, symbol =>
-            //{
-            //    var orderedHistoryByStockCode = historiesInPeriodOfTimeByStockCode
-            //        .Where(ss => ss.StockSymbol == symbol._sc_)
-            //        .OrderBy(s => s.Date)
-            //        .ToList();
+            //return await restService.HexecuteVietStockPostman("DGW", FinanceType.KQKD, "9");
 
-            //    var latestDate = orderedHistoryByStockCode.OrderByDescending(h => h.Date).FirstOrDefault();
-            //    var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(orderedHistoryByStockCode);
 
-            //    if (biCanhCao) return;
+            var symbols = await _context.StockSymbol
+                .Where(c => c._sc_ == "DGW")
+                .ToListAsync();
+            List<StockSymbolFinanceHistory> result = new List<StockSymbolFinanceHistory>();
 
-            //    var patternOnsymbol = new PatternBySymbolResponseModel();
-            //    patternOnsymbol.StockCode = symbol._sc_;
+            await GetV(result, symbols, 3);
 
-            //    var historiesInPeriodOfTime = historiesInPeriodOfTimeByStockCode
-            //        .Where(ss => ss.StockSymbol == symbol._sc_)
-            //        .ToList();
+            return result;
+        }
 
-            //    var histories = historiesInPeriodOfTime
-            //        .OrderBy(s => s.Date)
-            //        .ToList();
+        public async Task GetV(List<StockSymbolFinanceHistory> result, List<StockSymbol> allSymbols, int count)
+        {
+            var restService = new RestServiceHelper();
+            List<Task> TaskList = new List<Task>();
+            foreach (var item in allSymbols)
+            {
+                var LastTask = GetFinanceData(item, restService, result);
+                TaskList.Add(LastTask);
+            }
 
-            //    var avarageOfLastXXPhien = histories.Take(soPhienGd).Sum(h => h.V) / soPhienGd;
-            //    if (avarageOfLastXXPhien < trungbinhGd) return;
+            await Task.WhenAll(TaskList.ToArray());
 
-            //    var history = histories.FirstOrDefault(h => h.Date == ngay);
-            //    if (history == null) return;
+            var updated = result.Select(r => r.StockSymbol).ToList();
 
-            //    var currentDateToCheck = history.Date;
-            //    var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(soPhienGd).ToList();
+            var notFetchedSymbols = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
 
-            //    var lowest = previousDaysFromCurrentDay.OrderBy(h => h.C).FirstOrDefault();
-            //    if (lowest == null) return;
+            if (notFetchedSymbols.Any() && count <= 3)
+            {
+                if (notFetchedSymbols.Count() == allSymbols.Count())
+                    count++;
+                await GetV(result, notFetchedSymbols, count);
+            }
+        }
 
-            //    var secondLowest = lowest.LookingForSecondLowest(histories, history);
-            //    if (secondLowest == null) return;
+        public const string VietStock_GetDetailsBySymbolCode = "https://api.vietstock.vn/ta/history?symbol={0}&resolution={1}&from={2}&to={3}";
 
-            //    var previousDaysForHigestFromLowest = histories.Where(h => h.Date < lowest.Date).OrderByDescending(h => h.Date).Take(soPhienGd).ToList();
-            //    var highest = previousDaysForHigestFromLowest.OrderByDescending(h => h.C).FirstOrDefault();
-            //    if (highest == null) return;
-
-            //    var dk1 = highest.C * 0.85M >= lowest.C;
-            //    //var dk2 = history.C >= secondLowest.C * 1.02M;//default value when we have 2nd lowest
-            //    var dk3 = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).First().ID == secondLowest.ID;
-            //    var dk4 = lowest.C * 1.15M >= secondLowest.C;
-
-            //    if (dk1 /*&& dk2*/ && dk3 && dk4) //basically we should start buying
-            //    {
-            //        patternOnsymbol.Details.Add(new PatternDetailsResponseModel
-            //        {
-            //            ConditionMatchAt = currentDateToCheck,
-            //            MoreInformation = new
-            //            {
-            //                Text = @$"{history.StockSymbol}: Đáy 1 {lowest.Date.ToShortDateString()}: {lowest.C},
-            //                            Đáy 2 {secondLowest.Date.ToShortDateString()}: {secondLowest.C},
-            //                            Giá đóng cửa hum nay ({history.C}) cao hơn giá đóng của đáy 2 {secondLowest.C},
-            //                            Đỉnh trong vòng 30 ngày ({highest.C}) giảm 15% ({highest.C * 0.85M}) vẫn cao hơn giá đóng cửa của đáy 1 {lowest.C},
-            //                            Giữa đáy 1 và đáy 2, có giá trị cao hơn đáy 2 và giá đóng cửa ngày hum nay ít nhất 2%",
-            //                TodayOpening = history.O,
-            //                TodayClosing = history.C,
-            //                TodayLowest = history.L,
-            //                TodayTrading = history.V,
-            //                Previous1stLowest = lowest.C,
-            //                Previous1stLowestDate = lowest.Date,
-            //                Previous2ndLowest = secondLowest.C,
-            //                Previous2ndLowestDate = secondLowest.Date,
-            //                AverageNumberOfTradingInPreviousTimes = avarageOfLastXXPhien,
-            //                RealityExpectation = string.Empty,
-            //                ShouldBuy = true
-            //            }
-            //        });
-            //    }
-
-            //    if (patternOnsymbol.Details.Any())
-            //    {
-            //        result.TimDay2.Items.Add(patternOnsymbol);
-            //    }
-            //});
-
-            //result.TimDay2.Items = result.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
-
-            //return result;
+        private async Task GetFinanceData(StockSymbol item, RestServiceHelper restService, List<StockSymbolFinanceHistory> result)
+        {
+            for (int i = 1; i <= 20; i++)
+            {
+                var data1 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.KQKD, i.ToString());
+                var data2 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.CSTC, i.ToString());
+                var data3 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.CDKT, i.ToString());
+                var data4 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.LCTT, i.ToString());
+                var data5 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.CTKH, i.ToString());
+                result.AddRange(data1);
+                result.AddRange(data2);
+                result.AddRange(data3);
+                result.AddRange(data4);
+                result.AddRange(data5);
+            }
         }
 
     }
