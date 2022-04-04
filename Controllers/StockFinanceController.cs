@@ -39,7 +39,7 @@ namespace DotNetCoreSqlDb.Controllers
         }
 
 
-        public async Task<dynamic> Pull(string code)
+        public async Task<bool> Pull(string code)
         {
             var restService = new RestServiceHelper();
 
@@ -49,38 +49,45 @@ namespace DotNetCoreSqlDb.Controllers
 
 
             var symbols = await _context.StockSymbol
-                .Where(c => c._sc_ == "DGW")
+                //.Where(c => c._sc_ == "DGW")
                 .ToListAsync();
             List<StockSymbolFinanceHistory> result = new List<StockSymbolFinanceHistory>();
 
-            await GetV(result, symbols, 3);
+            //await GetV(result, symbols, 3);
 
-            return result;
-        }
-
-        public async Task GetV(List<StockSymbolFinanceHistory> result, List<StockSymbol> allSymbols, int count)
-        {
-            var restService = new RestServiceHelper();
-            List<Task> TaskList = new List<Task>();
-            foreach (var item in allSymbols)
-            {
-                var LastTask = GetFinanceData(item, restService, result);
-                TaskList.Add(LastTask);
+            foreach (var symbol in symbols) {
+                await GetFinanceData(symbol, new RestServiceHelper(), result);
             }
 
-            await Task.WhenAll(TaskList.ToArray());
+            await _context.StockSymbolFinanceHistory.AddRangeAsync(result);
+            await _context.SaveChangesAsync();
 
-            var updated = result.Select(r => r.StockSymbol).ToList();
-
-            var notFetchedSymbols = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
-
-            if (notFetchedSymbols.Any() && count <= 3)
-            {
-                if (notFetchedSymbols.Count() == allSymbols.Count())
-                    count++;
-                await GetV(result, notFetchedSymbols, count);
-            }
+            return true;
         }
+
+        //public async Task GetV(List<StockSymbolFinanceHistory> result, List<StockSymbol> allSymbols, int count)
+        //{
+        //    var restService = new RestServiceHelper();
+        //    List<Task> TaskList = new List<Task>();
+        //    foreach (var item in allSymbols)
+        //    {
+        //        var LastTask = GetFinanceData(item, restService, result);
+        //        TaskList.Add(LastTask);
+        //    }
+
+        //    await Task.WhenAll(TaskList.ToArray());
+
+        //    var updated = result.Select(r => r.StockSymbol).ToList();
+
+        //    var notFetchedSymbols = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
+
+        //    if (notFetchedSymbols.Any() && count <= 3)
+        //    {
+        //        if (notFetchedSymbols.Count() == allSymbols.Count())
+        //            count++;
+        //        await GetV(result, notFetchedSymbols, count);
+        //    }
+        //}
 
         public const string VietStock_GetDetailsBySymbolCode = "https://api.vietstock.vn/ta/history?symbol={0}&resolution={1}&from={2}&to={3}";
 

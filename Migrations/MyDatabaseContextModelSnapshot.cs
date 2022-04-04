@@ -86,99 +86,6 @@ namespace DotNetCoreSqlDb.Migrations
                     b.ToTable("StockSymbol");
                 });
 
-            modelBuilder.Entity("DotNetCoreSqlDb.Models.StockSymbolCDKT", b =>
-                {
-                    b.Property<int>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"), 1L, 1);
-
-                    b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("NameEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReportComponentName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReportComponentNameEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("StockSymbolFinanceHistoryId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Value")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("ID");
-
-                    b.ToTable("StockSymbolCDKT");
-                });
-
-            modelBuilder.Entity("DotNetCoreSqlDb.Models.StockSymbolCSTC", b =>
-                {
-                    b.Property<int>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"), 1L, 1);
-
-                    b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("NameEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReportComponentName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReportComponentNameEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("StockSymbolFinanceHistoryId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Value")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("ID");
-
-                    b.ToTable("StockSymbolCSTC");
-                });
-
-            modelBuilder.Entity("DotNetCoreSqlDb.Models.StockSymbolCTKH", b =>
-                {
-                    b.Property<int>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"), 1L, 1);
-
-                    b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("NameEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReportComponentName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReportComponentNameEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("StockSymbolFinanceHistoryId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Value")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("ID");
-
-                    b.ToTable("StockSymbolCTKH");
-                });
-
             modelBuilder.Entity("DotNetCoreSqlDb.Models.StockSymbolFinanceHistory", b =>
                 {
                     b.Property<int>("ID")
@@ -187,7 +94,10 @@ namespace DotNetCoreSqlDb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"), 1L, 1);
 
-                    b.Property<string>("PeriodBegin")
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NameEn")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Quarter")
@@ -196,8 +106,11 @@ namespace DotNetCoreSqlDb.Migrations
                     b.Property<string>("StockSymbol")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("TermCode")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("Value")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("YearPeriod")
                         .HasColumnType("int");
@@ -242,68 +155,6 @@ namespace DotNetCoreSqlDb.Migrations
                     b.HasKey("ID");
 
                     b.ToTable("StockSymbolHistory");
-                });
-
-            modelBuilder.Entity("DotNetCoreSqlDb.Models.StockSymbolKQKD", b =>
-                {
-                    b.Property<int>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"), 1L, 1);
-
-                    b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("NameEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReportComponentName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReportComponentNameEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("StockSymbolFinanceHistoryId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Value")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("ID");
-
-                    b.ToTable("StockSymbolKQKD");
-                });
-
-            modelBuilder.Entity("DotNetCoreSqlDb.Models.StockSymbolLCTT", b =>
-                {
-                    b.Property<int>("ID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"), 1L, 1);
-
-                    b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("NameEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReportComponentName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ReportComponentNameEn")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("StockSymbolFinanceHistoryId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Value")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("ID");
-
-                    b.ToTable("StockSymbolLCTT");
                 });
 
             modelBuilder.Entity("DotNetCoreSqlDb.Models.StockSymbolTradingHistory", b =>

@@ -22,10 +22,5 @@ namespace DotNetCoreSqlDb.Models
         public DbSet<StockSymbolTradingHistory> StockSymbolTradingHistory { get; set; }
 
         public DbSet<StockSymbolFinanceHistory> StockSymbolFinanceHistory { get; set; }
-        //public DbSet<StockSymbolKQKD> StockSymbolKQKD { get; set; }
-        //public DbSet<StockSymbolCDKT> StockSymbolCDKT { get; set; }
-        //public DbSet<StockSymbolCSTC> StockSymbolCSTC { get; set; }
-        //public DbSet<StockSymbolLCTT> StockSymbolLCTT { get; set; }
-        //public DbSet<StockSymbolCTKH> StockSymbolCTKH { get; set; }
     }
 }

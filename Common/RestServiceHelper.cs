@@ -159,34 +159,42 @@ namespace DotNetCoreSqlDb.Common
             List<FinanceByDetailDataModel> criterials = new List<FinanceByDetailDataModel>();
             var t1 = JsonConvert.DeserializeObject<dynamic>(jsonData[1].ToString());
 
-            switch (reportType)
+            try
             {
-                case FinanceType.KQKD:
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Kết quả kinh doanh"].ToString()));
-                    break;
-                case FinanceType.CDKT://Cân đối kế toán
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Cân đối kế toán"].ToString()));
-                    break;
-                case FinanceType.CSTC:
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Cơ cấu Chi phí"].ToString()));
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Cơ cấu Tài sản dài hạn"].ToString()));
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Cơ cấu Tài sản ngắn hạn"].ToString()));
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Dòng tiền"].ToString()));
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Hiệu quả hoạt động"].ToString()));
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Sinh lợi"].ToString())); 
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Thanh khoản"].ToString()));
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Tăng trưởng"].ToString()));
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Đòn bẩy tài chính"].ToString()));
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Định giá"].ToString()));
-                    break;
-                case FinanceType.LCTT:
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Lưu chuyển tiền tệ gián tiếp"].ToString()));
-                    break;
-                case FinanceType.CTKH: //chỉ đi theo năm
-                    criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(jsonData[1].ToString()));
-                    break;
-                default:
-                    break;
+                switch (reportType)
+                {
+                    case FinanceType.KQKD:
+                        if (t1.ContainsKey("Kết quả kinh doanh")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Kết quả kinh doanh"].ToString()));
+                        break;
+                    case FinanceType.CDKT://Cân đối kế toán
+                        if (t1.ContainsKey("Cân đối kế toán")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Cân đối kế toán"].ToString()));
+                        break;
+                    case FinanceType.CSTC:
+                        if (t1.ContainsKey("Cơ cấu Chi phí")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Cơ cấu Chi phí"].ToString()));
+                        if (t1.ContainsKey("Cơ cấu Tài sản dài hạn")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Cơ cấu Tài sản dài hạn"].ToString()));
+                        if (t1.ContainsKey("Cơ cấu Tài sản ngắn hạn")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Cơ cấu Tài sản ngắn hạn"].ToString()));
+                        if (t1.ContainsKey("Nhóm chỉ số Dòng tiền")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Dòng tiền"].ToString()));
+                        if (t1.ContainsKey("Nhóm chỉ số Hiệu quả hoạt động")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Hiệu quả hoạt động"].ToString()));
+                        if (t1.ContainsKey("Nhóm chỉ số Sinh lợi")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Sinh lợi"].ToString()));
+                        if (t1.ContainsKey("Nhóm chỉ số Thanh khoản")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Thanh khoản"].ToString()));
+                        if (t1.ContainsKey("Nhóm chỉ số Tăng trưởng")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Tăng trưởng"].ToString()));
+                        if (t1.ContainsKey("Nhóm chỉ số Đòn bẩy tài chính")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Đòn bẩy tài chính"].ToString()));
+                        if (t1.ContainsKey("Nhóm chỉ số Định giá")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Nhóm chỉ số Định giá"].ToString()));
+                        break;
+                    case FinanceType.LCTT:
+                        if (t1.ContainsKey("Lưu chuyển tiền tệ gián tiếp")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Lưu chuyển tiền tệ gián tiếp"].ToString()));
+                        break;
+                    case FinanceType.CTKH: //chỉ đi theo năm
+                        criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(jsonData[1].ToString()));
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+
+                throw new Exception($"{stockSymbol} - {reportType} - {yearInThePastFromNow} - {ex}");
             }
 
 
