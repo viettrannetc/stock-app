@@ -21,9 +21,11 @@ namespace DotNetCoreSqlDb.Models.Business
             //BuyAndSell = new PatternSellAndBuyBySymbolResponseModel();
             TimTrendGiam = new PatternTimTrendGiamBySymbolResponseModel();
             TimDay2 = new PatternTimDay2BySymbolResponseModel();
+            TimDay2Moi = new PatternTimDay2BySymbolResponseModel();
         }
 
         //public PatternSellAndBuyBySymbolResponseModel BuyAndSell { get; set; }
+        public PatternTimDay2BySymbolResponseModel TimDay2Moi { get; set; }
         public PatternTimDay2BySymbolResponseModel TimDay2 { get; set; }
         public PatternTimTrendGiamBySymbolResponseModel TimTrendGiam { get; set; }
         public PatternTimDay2BySymbolResponseModel GiamSau { get; set; }
