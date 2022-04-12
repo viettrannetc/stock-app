@@ -42,16 +42,6 @@ namespace DotNetCoreSqlDb.Controllers
             return result;
         }
 
-        /// <summary>
-        /// Example: "https://api.vietstock.vn/ta/history?symbol=VIC&resolution=D&from=1609459200&to=1644796800";
-        /// </summary>
-        /// <params>{0}: symbol code</params>
-        /// <params>{1}: resolution = D</params>
-        /// <params>{2}: from: int from php code</params>
-        /// <params>{3}: to: int from php code</params>
-        public const string VietStock_GetDetailsBySymbolCode = "https://api.vietstock.vn/ta/history?symbol={0}&resolution={1}&from={2}&to={3}";
-
-
         // GET: StockSymbolHistory/Create
         // Form Data:
         //      code: A32
