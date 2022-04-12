@@ -45,6 +45,8 @@ namespace DotNetCoreSqlDb.Controllers
             result.TimTrendGiam = (await TimTrendGiam(code, false, ngay, soPhienGd, trungbinhGd)).TimTrendGiam;
             result.GiamSau = (await FollowUpSymbolsGoingDown(code, ngay)).TimDay2;
 
+            result.Canslim = (await Canslim(code, 2022, 1)).Canslim;
+            result.TangDotBien = await FollowUpPriceInDayMarkTangDotBien(code, 0.7M, ngay, soPhienGd, trungbinhGd);
             return result;
         }
 
@@ -938,7 +940,6 @@ namespace DotNetCoreSqlDb.Controllers
                 ? await _context.StockSymbol.ToListAsync()
                 : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
 
-
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
             var histories = await _context.StockSymbolFinanceHistory.ToListAsync();
@@ -952,19 +953,31 @@ namespace DotNetCoreSqlDb.Controllers
                     .ToList();
 
                 var C = string.Empty; //Current quartery earning per share => EPS (Tỉ suất lợi nhuận trên cổ phần) của quý hiện tại so với những quý cùng kì của ngoái hoặc 4 quý gần nhất
-                var A = string.Empty; //Annual earnings gorwth - tăng trường lợi nhuận hàng năm trong 3 năm gần nhất - tăng trường doanh thu, lợi nhuận sau thuế, eps, trên mỗi cổ phiếu
-                var N = string.Empty; //New products        - doanh nghiệp có ra mắt sản phẩm mới hay ko, cần đọc tài liệu (tài liệu gì, phần nào?)
-                var S = string.Empty; //Share outstanding   - số lượng cổ phiếu trôi nổi trên thị trường nhiều hay ít (<35% thì ok), cung mạnh thì giá giảm, cầu mạnh thì giá tăng
-                var L = string.Empty; //Leading industry    - dẫn đầu ngành hay ko, lọt top 10 ko?
-                var I = string.Empty; //inutition           - bảo kê bởi những tay to - họ dựa vô ROA, ROE tốt để mua khi cp giá rẻ, trend line, tay to là doanh nghiệp lớn hoặc doanh nghiệp nước ngoài
-                var M = string.Empty; //Marking direction   - xu thế thị trường,khi thị trường tăng -> 3/4 cp tăng, cái này phải đọc tài liệu và tìm hiểu thị trường
+                var A = string.Empty; //Annual earnings gorwth  - tăng trường lợi nhuận hàng năm trong 3 năm gần nhất - tăng trường doanh thu, lợi nhuận sau thuế, eps, trên mỗi cổ phiếu
+                var N = string.Empty; //New products            - doanh nghiệp có ra mắt sản phẩm mới hay ko, cần đọc tài liệu (tài liệu gì, phần nào?)
+                var S = string.Empty; //Share outstanding       - số lượng cổ phiếu trôi nổi trên thị trường nhiều hay ít (<35% thì ok), cung mạnh thì giá giảm, cầu mạnh thì giá tăng
+                var L = string.Empty; //Leading industry        - dẫn đầu ngành hay ko, lọt top 10 ko?
+                var I = string.Empty; //inutition               - bảo kê bởi những tay to - họ dựa vô ROA, ROE tốt để mua khi cp giá rẻ, trend line, tay to là doanh nghiệp lớn hoặc doanh nghiệp nước ngoài
+                var M = string.Empty; //Marking direction       - xu thế thị trường,khi thị trường tăng -> 3/4 cp tăng, cái này phải đọc tài liệu và tìm hiểu thị trường
 
+                var yearAndQuarter = new Dictionary<int, int>();
+                var timeline = orderedHistoryByStockCode.Select(h => new StockSymbolFinanceHistory { YearPeriod = h.YearPeriod, Quarter = h.Quarter }).Distinct().OrderBy(s => s.YearPeriod).ThenBy(s => s.Quarter).ToList();
+                var currentIndex = timeline.IndexOf(new StockSymbolFinanceHistory { YearPeriod = year, Quarter = quarter });
 
-                var last4Q = orderedHistoryByStockCode.OrderByDescending(s => s.YearPeriod).ThenByDescending(s => s.Quarter).Take(4).ToList();
+                var expectedRange = timeline.Skip(currentIndex).Take(4).ToList();
+                var last4Q = new List<StockSymbolFinanceHistory>();
+                foreach (var item in expectedRange)
+                {
+                    last4Q.AddRange(orderedHistoryByStockCode.Where(h => h.Quarter == item.Quarter && h.YearPeriod == item.YearPeriod).ToList());
+                }
 
-                var quartersInCheckingYear = orderedHistoryByStockCode.Count(h => h.YearPeriod == year);
-                var last3Y = orderedHistoryByStockCode.OrderByDescending(s => s.YearPeriod).ThenByDescending(s => s.Quarter).Skip(quartersInCheckingYear).Take(4 * 3).ToList();
-                var last5Y = orderedHistoryByStockCode.OrderByDescending(s => s.YearPeriod).ThenByDescending(s => s.Quarter).Skip(quartersInCheckingYear).Take(4 * 5).ToList();
+                var last3Y = new List<StockSymbolFinanceHistory>();
+                currentIndex = timeline.IndexOf(new StockSymbolFinanceHistory { YearPeriod = year, Quarter = 1 });
+                expectedRange = timeline.Skip(currentIndex).Take(4 * 3).ToList();
+                foreach (var item in expectedRange)
+                {
+                    last3Y.AddRange(orderedHistoryByStockCode.Where(h => h.Quarter == item.Quarter && h.YearPeriod == item.YearPeriod).ToList());
+                }
 
                 var hasNewProduct = false;
                 var cpTroiNoiByPercentage = 0;
@@ -972,64 +985,88 @@ namespace DotNetCoreSqlDb.Controllers
                 var hasBackup = false;
                 var isGoodMarketingDirection = false;
 
+                var EPSString = "Trailing EPS";
+                var eps1stQ = last4Q.OrderByDescending(q => q.YearPeriod).ThenByDescending(q => q.Quarter).FirstOrDefault(q => q.NameEn == EPSString);
+                var eps2ndQ = last4Q.OrderByDescending(q => q.YearPeriod).ThenByDescending(q => q.Quarter).Where(q => q.ID != eps1stQ.ID).FirstOrDefault(q => q.NameEn == EPSString);
+                var eps3rdQ = last4Q.OrderByDescending(q => q.YearPeriod).ThenByDescending(q => q.Quarter).Where(q => q.ID != eps1stQ.ID && q.ID != eps2ndQ.ID).FirstOrDefault(q => q.NameEn == EPSString);
+                var eps4thQ = last4Q.OrderByDescending(q => q.YearPeriod).ThenByDescending(q => q.Quarter).Where(q => q.ID != eps1stQ.ID && q.ID != eps2ndQ.ID && q.ID != eps3rdQ.ID).FirstOrDefault(q => q.NameEn == EPSString);
+                var hasC = eps1stQ.Value > eps2ndQ.Value
+                    && eps2ndQ.Value > eps3rdQ.Value
+                    && eps3rdQ.Value > eps4thQ.Value;
 
+                var years = last3Y.Select(q => q.YearPeriod).OrderByDescending(q => q).Distinct().ToList();
+
+                string doanhThuThuan = "3. Net revenue";
+                decimal tangTruongDoanhThu1stY = 0;
+                decimal tangTruongDoanhThu2ndY = 0;
+                decimal tangTruongDoanhThu3rdY = 0;
+                for (int i = 0; i < years.Count; i++)
+                {
+                    if (i == 0)
+                        tangTruongDoanhThu1stY = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(doanhThuThuan)).Sum(h => h.Value ?? 0);
+                    if (i == 1)
+                        tangTruongDoanhThu2ndY = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(doanhThuThuan)).Sum(h => h.Value ?? 0);
+                    if (i == 2)
+                        tangTruongDoanhThu3rdY = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(doanhThuThuan)).Sum(h => h.Value ?? 0);
+                }
+
+                string roe = "ROE"; //Tỷ suất lợi nhuận trên vốn chủ sở hữu bình quân (ROEA)
+                decimal tangTruongLoiNhuan1stY = 0;
+                decimal tangTruongLoiNhuan2ndY = 0;
+                decimal tangTruongLoiNhuan3rdY = 0;
+                for (int i = 0; i < years.Count; i++)
+                {
+                    if (i == 0)
+                        tangTruongLoiNhuan1stY = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(roe)).Sum(h => h.Value ?? 0);
+                    if (i == 1)
+                        tangTruongLoiNhuan2ndY = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(roe)).Sum(h => h.Value ?? 0);
+                    if (i == 2)
+                        tangTruongLoiNhuan3rdY = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(roe)).Sum(h => h.Value ?? 0);
+                }
+
+                string profit = "Profit after tax for shareholders of the parent company"; //Lợi nhuận sau thuế của cổ đông Công ty mẹ
+                decimal tangTruongLoiNhuanSauThue1stY = 0;
+                decimal tangTruongLoiNhuanSauThue2ndY = 0;
+                decimal tangTruongLoiNhuanSauThue3rdY = 0;
+                for (int i = 0; i < years.Count; i++)
+                {
+                    if (i == 0)
+                        tangTruongLoiNhuanSauThue1stY = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(profit)).Sum(h => h.Value ?? 0);
+                    if (i == 1)
+                        tangTruongLoiNhuanSauThue2ndY = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(profit)).Sum(h => h.Value ?? 0);
+                    if (i == 2)
+                        tangTruongLoiNhuanSauThue3rdY = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(profit)).Sum(h => h.Value ?? 0);
+                }
+
+                var dk1 = hasC;
+                var dk2 = tangTruongDoanhThu1stY > tangTruongDoanhThu2ndY && tangTruongDoanhThu2ndY > tangTruongDoanhThu3rdY;
+                var dk3 = tangTruongLoiNhuan1stY > tangTruongLoiNhuan2ndY && tangTruongLoiNhuan2ndY > tangTruongLoiNhuan3rdY;
+                var dk4 = tangTruongLoiNhuanSauThue1stY > tangTruongLoiNhuanSauThue2ndY && tangTruongLoiNhuanSauThue2ndY > tangTruongLoiNhuanSauThue3rdY;
+
+                if (dk1 && dk2 && dk3 && dk4) //Start following
+                {
+                    var patternOnsymbol = new PatternBySymbolResponseModel();
+                    patternOnsymbol.StockCode = symbol._sc_;
+                    patternOnsymbol.Details.Add(new PatternDetailsResponseModel
+                    {
+                        MoreInformation = new
+                        {
+                            TangTruongEPSQuy = $"{eps1stQ} > {eps2ndQ} > {eps3rdQ} > {eps4thQ}",
+                            TangTruongDoanhThuNam = $"{tangTruongDoanhThu1stY} > {tangTruongDoanhThu2ndY} > {tangTruongDoanhThu3rdY}",
+                            TangTruongLoiNhuanNam = $"{tangTruongLoiNhuan1stY} > {tangTruongLoiNhuan2ndY} > {tangTruongLoiNhuan3rdY}",
+                            TangTruongLoiNhuanSauThueNam = $"{tangTruongLoiNhuanSauThue1stY} > {tangTruongLoiNhuanSauThue2ndY} > {tangTruongLoiNhuanSauThue3rdY}",
+                            RealityExpectation = string.Empty,
+                            ShouldBuy = true
+                        }
+                    });
+
+                    result.Canslim.Items.Add(patternOnsymbol);
+                }
             });
 
-            result.TimDay2.Items = result.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
+            result.Canslim.Items = result.Canslim.Items.OrderBy(s => s.StockCode).ToList();
 
             return result;
         }
-
-        //public async Task<PatternResponseModel> Canslim(string code, int year, int quarter)
-        //{
-        //    var result = new PatternResponseModel();
-
-        //    var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
-
-        //    var symbols = string.IsNullOrWhiteSpace(code)
-        //        ? await _context.StockSymbol.ToListAsync()
-        //        : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
-
-
-        //    var stockCodes = symbols.Select(s => s._sc_).ToList();
-
-        //    var histories = await _context.StockSymbolFinanceHistory.ToListAsync();
-
-        //    Parallel.ForEach(symbols, symbol =>
-        //    {
-        //        var orderedHistoryByStockCode = histories
-        //            .Where(ss => ss.StockSymbol == symbol._sc_)
-        //            .OrderBy(s => s.YearPeriod)
-        //            .ThenBy(s => s.Quarter)
-        //            .ToList();
-
-        //        var C = string.Empty; //Current quartery earning per share => EPS (Tỉ suất lợi nhuận trên cổ phần) của quý hiện tại so với những quý cùng kì của ngoái hoặc 4 quý gần nhất
-        //        var A = string.Empty; //Annual earnings gorwth - tăng trường lợi nhuận hàng năm trong 3 năm gần nhất - tăng trường doanh thu, lợi nhuận sau thuế, eps, trên mỗi cổ phiếu
-        //        var N = string.Empty; //New products        - doanh nghiệp có ra mắt sản phẩm mới hay ko, cần đọc tài liệu (tài liệu gì, phần nào?)
-        //        var S = string.Empty; //Share outstanding   - số lượng cổ phiếu trôi nổi trên thị trường nhiều hay ít (<35% thì ok), cung mạnh thì giá giảm, cầu mạnh thì giá tăng
-        //        var L = string.Empty; //Leading industry    - dẫn đầu ngành hay ko, lọt top 10 ko?
-        //        var I = string.Empty; //inutition           - bảo kê bởi những tay to - họ dựa vô ROA, ROE tốt để mua khi cp giá rẻ, trend line, tay to là doanh nghiệp lớn hoặc doanh nghiệp nước ngoài
-        //        var M = string.Empty; //Marking direction   - xu thế thị trường,khi thị trường tăng -> 3/4 cp tăng, cái này phải đọc tài liệu và tìm hiểu thị trường
-
-
-        //        var last4Q = orderedHistoryByStockCode.OrderByDescending(s => s.YearPeriod).ThenByDescending(s => s.Quarter).Take(4).ToList();
-
-        //        var quartersInCheckingYear = orderedHistoryByStockCode.Count(h => h.YearPeriod == year);
-        //        var last3Y = orderedHistoryByStockCode.OrderByDescending(s => s.YearPeriod).ThenByDescending(s => s.Quarter).Skip(quartersInCheckingYear).Take(4 * 3).ToList();
-        //        var last5Y = orderedHistoryByStockCode.OrderByDescending(s => s.YearPeriod).ThenByDescending(s => s.Quarter).Skip(quartersInCheckingYear).Take(4 * 5).ToList();
-
-        //        var hasNewProduct = false;
-        //        var cpTroiNoiByPercentage = 0;
-        //        var isInTop10Industry = false;
-        //        var hasBackup = false;
-        //        var isGoodMarketingDirection = false;
-
-
-        //    });
-
-        //    result.TimDay2.Items = result.TimDay2.Items.OrderBy(s => s.StockCode).ToList();
-
-        //    return result;
-        //}
     }
 }

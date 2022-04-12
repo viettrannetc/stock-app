@@ -22,6 +22,8 @@ namespace DotNetCoreSqlDb.Models.Business
             TimTrendGiam = new PatternTimTrendGiamBySymbolResponseModel();
             TimDay2 = new PatternTimDay2BySymbolResponseModel();
             TimDay2Moi = new PatternTimDay2BySymbolResponseModel();
+            Canslim = new PatternTimDay2BySymbolResponseModel();
+            TangDotBien = new List<string>();
         }
 
         //public PatternSellAndBuyBySymbolResponseModel BuyAndSell { get; set; }
@@ -29,60 +31,9 @@ namespace DotNetCoreSqlDb.Models.Business
         public PatternTimDay2BySymbolResponseModel TimDay2 { get; set; }
         public PatternTimTrendGiamBySymbolResponseModel TimTrendGiam { get; set; }
         public PatternTimDay2BySymbolResponseModel GiamSau { get; set; }
+        public PatternTimDay2BySymbolResponseModel Canslim { get; set; }
+        public List<String> TangDotBien { get; set; }
     }
-
-    //public class PatternTimDay2BySymbolResponseModel : PatternDetailResponseModel
-    //{
-    //    public PatternTimDay2BySymbolResponseModel()
-    //    {
-    //        FailedItems = new List<PatternIsFailedBySymbolResponseModel>();
-    //    }
-
-    //    //public List<PatternBySymbolResponseModel> Symbols { get; set; }
-    //    //public List<string> SymbolCodes { get; set; }
-    //    public List<PatternIsFailedBySymbolResponseModel> FailedItems { get; set; }
-    //}
-
-    //public class PatternSellAndBuyBySymbolResponseModel
-    //{
-    //    public PatternSellAndBuyBySymbolResponseModel()
-    //    {
-    //        Buy = new PatternSellAndBuyBySymbolDetailResponseModel();
-    //        Sell = new PatternSellAndBuyBySymbolDetailResponseModel();
-    //    }
-
-    //    public PatternSellAndBuyBySymbolDetailResponseModel Buy { get; set; }
-    //    public PatternSellAndBuyBySymbolDetailResponseModel Sell { get; set; }
-    //}
-
-    //public class PatternSellAndBuyBySymbolDetailResponseModel : PatternDetailResponseModel
-    //{
-    //    public PatternSellAndBuyBySymbolDetailResponseModel()
-    //    {
-    //        Items = new List<PatternBySymbolResponseModel>();
-    //    }
-    //    //public decimal SuccessRate
-    //    //{
-    //    //    get
-    //    //    {
-    //    //        if (Items.Any())
-    //    //        {
-    //    //            var details = Items.SelectMany(i => i.Details).ToList();
-    //    //            var availableDetails = details.Where(d => !string.IsNullOrEmpty(d.MoreInformation.RealityExpectation));
-    //    //            var count = availableDetails.Count();
-    //    //            if (count > 0)
-    //    //            {
-    //    //                var successNumber = availableDetails.Count(d => d.MoreInformation.RealityExpectation == "true");
-    //    //                return (decimal)successNumber / (decimal)count;
-    //    //            }
-    //    //        }
-    //    //        return 0;
-    //    //    }
-    //    //}
-
-    //    //public List<string> SymbolCodes { get { return Items.Select(i => i.StockCode).ToList(); } }
-    //    //public List<PatternBySymbolResponseModel> Items { get; set; }
-    //}
 
     public class PatternDetailResponseModel
     {
@@ -112,8 +63,6 @@ namespace DotNetCoreSqlDb.Models.Business
         public string SymbolCodes { get { return string.Join(",", Items.Select(i => i.StockCode)); } }
         public List<PatternBySymbolResponseModel> Items { get; set; }
     }
-
-
 
     public class PatternIsFailedBySymbolResponseModel
     {
