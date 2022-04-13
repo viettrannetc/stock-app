@@ -942,14 +942,16 @@ namespace DotNetCoreSqlDb.Controllers
 
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
-            var histories = await _context.StockSymbolFinanceHistory.ToListAsync();
+            var histories = await _context.StockSymbolFinanceHistory
+                .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - 4))
+                .ToListAsync();
 
             Parallel.ForEach(symbols, symbol =>
             {
                 var orderedHistoryByStockCode = histories
                     .Where(ss => ss.StockSymbol == symbol._sc_)
-                    .OrderBy(s => s.YearPeriod)
-                    .ThenBy(s => s.Quarter)
+                    .OrderByDescending(s => s.YearPeriod)
+                    .ThenByDescending(s => s.Quarter)
                     .ToList();
 
                 var C = string.Empty; //Current quartery earning per share => EPS (Tỉ suất lợi nhuận trên cổ phần) của quý hiện tại so với những quý cùng kì của ngoái hoặc 4 quý gần nhất
@@ -960,9 +962,26 @@ namespace DotNetCoreSqlDb.Controllers
                 var I = string.Empty; //inutition               - bảo kê bởi những tay to - họ dựa vô ROA, ROE tốt để mua khi cp giá rẻ, trend line, tay to là doanh nghiệp lớn hoặc doanh nghiệp nước ngoài
                 var M = string.Empty; //Marking direction       - xu thế thị trường,khi thị trường tăng -> 3/4 cp tăng, cái này phải đọc tài liệu và tìm hiểu thị trường
 
+                var hasNewProduct = false;
+                var cpTroiNoiByPercentage = 0;
+                var isInTop10Industry = false;
+                var hasBackup = false;
+                var isGoodMarketingDirection = false;
+
                 var yearAndQuarter = new Dictionary<int, int>();
-                var timeline = orderedHistoryByStockCode.Select(h => new StockSymbolFinanceHistory { YearPeriod = h.YearPeriod, Quarter = h.Quarter }).Distinct().OrderBy(s => s.YearPeriod).ThenBy(s => s.Quarter).ToList();
-                var currentIndex = timeline.IndexOf(new StockSymbolFinanceHistory { YearPeriod = year, Quarter = quarter });
+                var timeline = new List<StockSymbolFinanceHistory>();
+                //orderedHistoryByStockCode.Select(h => new StockSymbolFinanceHistory { YearPeriod = h.YearPeriod, Quarter = h.Quarter }).Distinct().OrderBy(s => s.YearPeriod).ThenBy(s => s.Quarter).ToList();
+
+                foreach (var stock in orderedHistoryByStockCode)
+                {
+                    if (!timeline.Any(t => t.YearPeriod == stock.YearPeriod && t.Quarter == stock.Quarter))
+                        timeline.Add(new StockSymbolFinanceHistory { Quarter = stock.Quarter, YearPeriod = stock.YearPeriod });
+                }
+
+                var currentItem = timeline.FirstOrDefault(t => t.YearPeriod == year && t.Quarter == quarter);
+                var currentIndex = currentItem == null
+                    ? 0
+                    : timeline.IndexOf(currentItem);
 
                 var expectedRange = timeline.Skip(currentIndex).Take(4).ToList();
                 var last4Q = new List<StockSymbolFinanceHistory>();
@@ -970,29 +989,41 @@ namespace DotNetCoreSqlDb.Controllers
                 {
                     last4Q.AddRange(orderedHistoryByStockCode.Where(h => h.Quarter == item.Quarter && h.YearPeriod == item.YearPeriod).ToList());
                 }
+                var EPSString = "Trailing EPS";
+
+                decimal eps1stQValue = 0;
+                decimal eps2ndQValue = 0;
+                decimal eps3rdQValue = 0;
+                decimal eps4thQValue = 0;
+                for (int i = 0; i < timeline.Count(); i++)
+                {
+                    if (i == 0)
+                        eps1stQValue = last4Q.Where(h => h.YearPeriod == timeline[i].YearPeriod && h.Quarter == timeline[i].Quarter && h.NameEn.Contains(EPSString)).Sum(h => h.Value ?? 0);
+                    if (i == 1)
+                        eps2ndQValue = last4Q.Where(h => h.YearPeriod == timeline[i].YearPeriod && h.Quarter == timeline[i].Quarter && h.NameEn.Contains(EPSString)).Sum(h => h.Value ?? 0);
+                    if (i == 2)
+                        eps3rdQValue = last4Q.Where(h => h.YearPeriod == timeline[i].YearPeriod && h.Quarter == timeline[i].Quarter && h.NameEn.Contains(EPSString)).Sum(h => h.Value ?? 0);
+                    if (i == 3)
+                        eps4thQValue = last4Q.Where(h => h.YearPeriod == timeline[i].YearPeriod && h.Quarter == timeline[i].Quarter && h.NameEn.Contains(EPSString)).Sum(h => h.Value ?? 0);
+                }
+
+                var hasC =
+                       eps1stQValue >= eps2ndQValue
+                    && eps2ndQValue >= eps3rdQValue
+                    && eps3rdQValue >= eps4thQValue;
+
 
                 var last3Y = new List<StockSymbolFinanceHistory>();
-                currentIndex = timeline.IndexOf(new StockSymbolFinanceHistory { YearPeriod = year, Quarter = 1 });
+                currentItem = timeline.FirstOrDefault(t => t.YearPeriod == year && t.Quarter == 1);
+                currentIndex = currentItem == null
+                    ? 0
+                    : timeline.IndexOf(currentItem);
+
                 expectedRange = timeline.Skip(currentIndex).Take(4 * 3).ToList();
                 foreach (var item in expectedRange)
                 {
                     last3Y.AddRange(orderedHistoryByStockCode.Where(h => h.Quarter == item.Quarter && h.YearPeriod == item.YearPeriod).ToList());
                 }
-
-                var hasNewProduct = false;
-                var cpTroiNoiByPercentage = 0;
-                var isInTop10Industry = false;
-                var hasBackup = false;
-                var isGoodMarketingDirection = false;
-
-                var EPSString = "Trailing EPS";
-                var eps1stQ = last4Q.OrderByDescending(q => q.YearPeriod).ThenByDescending(q => q.Quarter).FirstOrDefault(q => q.NameEn == EPSString);
-                var eps2ndQ = last4Q.OrderByDescending(q => q.YearPeriod).ThenByDescending(q => q.Quarter).Where(q => q.ID != eps1stQ.ID).FirstOrDefault(q => q.NameEn == EPSString);
-                var eps3rdQ = last4Q.OrderByDescending(q => q.YearPeriod).ThenByDescending(q => q.Quarter).Where(q => q.ID != eps1stQ.ID && q.ID != eps2ndQ.ID).FirstOrDefault(q => q.NameEn == EPSString);
-                var eps4thQ = last4Q.OrderByDescending(q => q.YearPeriod).ThenByDescending(q => q.Quarter).Where(q => q.ID != eps1stQ.ID && q.ID != eps2ndQ.ID && q.ID != eps3rdQ.ID).FirstOrDefault(q => q.NameEn == EPSString);
-                var hasC = eps1stQ.Value > eps2ndQ.Value
-                    && eps2ndQ.Value > eps3rdQ.Value
-                    && eps3rdQ.Value > eps4thQ.Value;
 
                 var years = last3Y.Select(q => q.YearPeriod).OrderByDescending(q => q).Distinct().ToList();
 
@@ -1051,7 +1082,7 @@ namespace DotNetCoreSqlDb.Controllers
                     {
                         MoreInformation = new
                         {
-                            TangTruongEPSQuy = $"{eps1stQ} > {eps2ndQ} > {eps3rdQ} > {eps4thQ}",
+                            TangTruongEPSQuy = $"{eps1stQValue} > {eps2ndQValue} > {eps3rdQValue} > {eps4thQValue}",
                             TangTruongDoanhThuNam = $"{tangTruongDoanhThu1stY} > {tangTruongDoanhThu2ndY} > {tangTruongDoanhThu3rdY}",
                             TangTruongLoiNhuanNam = $"{tangTruongLoiNhuan1stY} > {tangTruongLoiNhuan2ndY} > {tangTruongLoiNhuan3rdY}",
                             TangTruongLoiNhuanSauThueNam = $"{tangTruongLoiNhuanSauThue1stY} > {tangTruongLoiNhuanSauThue2ndY} > {tangTruongLoiNhuanSauThue3rdY}",

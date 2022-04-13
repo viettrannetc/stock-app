@@ -94,8 +94,6 @@ namespace DotNetCoreSqlDb.Controllers
             return true;
         }
 
-
-
         public const string KLGDMBFinance = "https://api-finance-t19.24hmoney.vn/v2/web/stock/transaction-detail-by-price?symbol={0}";
 
         private async Task GetFinanceData(StockSymbol item, RestServiceHelper restService, List<KLGDMuaBan> result)
@@ -117,6 +115,55 @@ namespace DotNetCoreSqlDb.Controllers
             };
 
             result.Add(history);
+        }
+
+        public async Task<List<string>> KLGDTrongNgay(decimal minRate, int soPhienGd, int trungbinhGd)
+        {
+            var restService = new RestServiceHelper();
+
+            var symbols = await _context.StockSymbol.ToListAsync();
+            List<KLGDMuaBan> result = new List<KLGDMuaBan>();
+
+            foreach (var symbol in symbols)
+            {
+                await GetFinanceData(symbol, new RestServiceHelper(), result);
+            }
+            var lstDotBien = new List<string>();
+            var ngay = DateTime.Today.WithoutHours();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= ngay.AddDays(-10))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var historiesInPeriodOfTime = historiesInPeriodOfTimeByStockCode
+                   .Where(ss => ss.StockSymbol == symbol._sc_)
+                   .OrderBy(s => s.Date)
+                   .ToList();
+
+                var latestDate = historiesInPeriodOfTime.OrderByDescending(h => h.Date).FirstOrDefault();
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(historiesInPeriodOfTime);
+
+                if (biCanhCao) return;
+
+                var avarageOfLastXXPhien = historiesInPeriodOfTime.Take(soPhienGd).Sum(h => h.V) / soPhienGd;
+                if (avarageOfLastXXPhien < trungbinhGd) return;
+
+                var historiesInPeriodByStockCode = result
+                    .Where(ss => ss.StockSymbol == symbol._sc_ && ss.TotalVol > 0)
+                    .FirstOrDefault();
+
+                if (historiesInPeriodByStockCode != null)
+                {
+                    var realVol = Math.Round((decimal)historiesInPeriodByStockCode.TotalBuy / (decimal)historiesInPeriodByStockCode.TotalVol, 2);
+                    if (realVol > minRate)
+                        lstDotBien.Add($"{symbol._sc_} - {realVol}");
+                }
+            });
+
+            return lstDotBien;
         }
     }
 }
