@@ -193,7 +193,6 @@ namespace DotNetCoreSqlDb.Common
             }
             catch (Exception ex)
             {
-
                 throw new Exception($"{stockSymbol} - {reportType} - {yearInThePastFromNow} - {ex}");
             }
 
@@ -204,8 +203,27 @@ namespace DotNetCoreSqlDb.Common
                 var quarter = reportType == FinanceType.CTKH
                     ? 4
                     : int.Parse(time.TermCode[1].ToString());
+
                 foreach (var item in criterials)
                 {
+                    var quarterValue = quarter == 1
+                            ? item.Value4
+                            : quarter == 2
+                                ? item.Value3
+                                : quarter == 3
+                                    ? item.Value2
+                                    : item.Value1;
+
+                    var yearValue = lstTimeModel.IndexOf(time) == 0
+                        ? item.Value1
+                        : lstTimeModel.IndexOf(time) == 1
+                            ? item.Value2
+                            : lstTimeModel.IndexOf(time) == 2
+                                ? item.Value3
+                                : lstTimeModel.IndexOf(time) == 3
+                                    ? item.Value4
+                                    : 0;
+
                     var d = new StockSymbolFinanceHistory
                     {
                         YearPeriod = year,
@@ -214,13 +232,9 @@ namespace DotNetCoreSqlDb.Common
                         NameEn = item.NameEn,
                         StockSymbol = stockSymbol,
                         Type = (int)reportType,
-                        Value = quarter == 1
-                            ? item.Value4
-                            : quarter == 2
-                                ? item.Value3
-                                : quarter == 3
-                                    ? item.Value2
-                                    : item.Value1
+                        Value = reportType == FinanceType.CTKH
+                            ? yearValue
+                            : quarterValue
                     };
 
                     result.Add(d);
@@ -231,5 +245,98 @@ namespace DotNetCoreSqlDb.Common
         }
 
 
+        public async Task<List<StockSymbolFinanceHistory>> HexecuteVietStockPostmanYearly(
+            string stockSymbol,
+            FinanceType reportType,
+            string yearInThePastFromNow,
+            string address = "https://api.vietstock.vn/data/financeinfo")
+        {
+            var result = new List<StockSymbolFinanceHistory>();
+
+            var client = new RestClient(address);
+            var request = new RestRequest(address, Method.Post);
+            request.AddHeader("Host", "finance.vietstock.vn");
+            request.AddHeader("Content-Length", "208");
+            request.AddHeader("Content-Type", "application/x-www-form-urlencoded");
+            request.AddHeader("Cookie", "_ga=GA1.2.713551826.1644247671; _ga=GA1.3.713551826.1644247671; dable_uid=43391554.1574785018857; dable_uid=43391554.1574785018857; AnonymousNotification=; language=vi-VN; Theme=Light; __gpi=UID=0000029fcfbf1e52:T=1647013809:RT=1647013809:S=ALNI_Mbnwz8R_W4WHz7DNQNBZDzQvsApJQ; ASP.NET_SessionId=m2egsnbcyuymr34zuoimieoo; __RequestVerificationToken=dNglG8kMDq09oaBufe3gxwAnLFhdRZGm0z13QEVZCEwzLmYZOoNuv2Am4tFL9_UOI5E3cJsN2C_MqWI75j6fZK0rhjuxNZHWN79YE3unhOI1; _gid=GA1.2.356828925.1648475526; vts_usr_lg=AA697487B6A84B1DFD5FBB731685026911EAED6A5739CF8D4B9E08AB9C0C39632E17B55D78783AD457047EA32EDDA6A072FB7E9BBE17EB11541DC9601607B128DB2F97013084ABB915F322D3BC20A2494DB4AC985AAAAA9025C809895DA74DCDDBBF6CF1B7241F5CEB8CF1BF16CE374D08435787C5CA97E8E0C5C53C810F0C85; vst_usr_lg_token=uUHaeIUDf0m7PjoQ5xSvaA==; finance_viewedstock=HUT,GIC,CIG,PVD,XMD,CEO,DGW,; _gat_gtag_UA_1460625_2=1; __gads=ID=3f7aab506428e100-22a2e49c64d1002e:T=1644247671:RT=1648483910:S=ALNI_MbD-QRlvz3Mc2X-6temXksp2u17ig; _gat=1");
+            request.AddParameter("Code", stockSymbol);
+            request.AddParameter("ReportType", reportType.ToString());
+            request.AddParameter("ReportTermType", "1");
+            request.AddParameter("Unit", "1000000");
+            request.AddParameter("Page", yearInThePastFromNow);
+            request.AddParameter("PageSize", "1");
+            request.AddParameter("__RequestVerificationToken", "xBn41_m3HO3gTm8p86LFvL667WRKMSx7TwBWZyQT9ZWzNkj9psjXFRybyk9a-W6N550n80WLix3hAFgDyZkAzHHcxTarL8HNnt4QMZsVTC-rF_vN4laUzXRMIjGhGR-C0");
+            var response = await client.PostAsync(request);
+
+            var test = response.Content;
+
+            var jsonData = JsonConvert.DeserializeObject<List<dynamic>>(test);
+
+            List<FinanceByTimeModel> lstTimeModel = JsonConvert.DeserializeObject<List<FinanceByTimeModel>>(jsonData[0].ToString());
+
+            if (!lstTimeModel.Any()) return result;
+
+            List<FinanceByDetailDataModel> criterials = new List<FinanceByDetailDataModel>();
+            var t1 = JsonConvert.DeserializeObject<dynamic>(jsonData[1].ToString());
+
+            try
+            {
+                switch (reportType)
+                {
+                    case FinanceType.BCTQ:
+                        if (t1.ContainsKey("Kết quả kinh doanh")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Kết quả kinh doanh"].ToString()));
+                        if (t1.ContainsKey("Cân đối kế toán")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Cân đối kế toán"].ToString()));
+                        if (t1.ContainsKey("Chỉ số tài chính")) criterials.AddRange(JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Chỉ số tài chính"].ToString()));
+                        break;
+                    case FinanceType.LCTT:
+                        if (t1.ContainsKey("Lưu chuyển tiền tệ gián tiếp"))
+                        {
+                            var parsedData = (List<FinanceByDetailDataModel>)JsonConvert.DeserializeObject<List<FinanceByDetailDataModel>>(t1["Lưu chuyển tiền tệ gián tiếp"].ToString());
+                            var expected = parsedData.Where(c => c.NameEn == "Net cash flows from operating activities");
+                            criterials.AddRange(expected);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"{stockSymbol} - {reportType} - {yearInThePastFromNow} - {ex}");
+            }
+
+
+            foreach (FinanceByTimeModel time in lstTimeModel)
+            {
+                var year = time.YearPeriod;
+
+                foreach (var item in criterials)
+                {
+                    var yearValue = lstTimeModel.IndexOf(time) == 0
+                        ? item.Value4
+                        : lstTimeModel.IndexOf(time) == 1
+                            ? item.Value3
+                            : lstTimeModel.IndexOf(time) == 2
+                                ? item.Value2
+                                : lstTimeModel.IndexOf(time) == 3
+                                    ? item.Value1
+                                    : 0;
+
+                    var d = new StockSymbolFinanceHistory
+                    {
+                        YearPeriod = year,
+                        Name = item.Name,
+                        NameEn = item.NameEn,
+                        StockSymbol = stockSymbol,
+                        Type = (int)reportType,
+                        Value = yearValue
+                    };
+
+                    result.Add(d);
+                }
+            }
+
+            return result;
+        }
     }
 }

@@ -23,6 +23,7 @@ namespace DotNetCoreSqlDb.Models.Business
             TimDay2 = new PatternTimDay2BySymbolResponseModel();
             TimDay2Moi = new PatternTimDay2BySymbolResponseModel();
             Canslim = new PatternTimDay2BySymbolResponseModel();
+            NhanDinhHDKD = new PatternTimDay2BySymbolResponseModel();
             TangDotBien = new List<string>();
         }
 
@@ -32,6 +33,7 @@ namespace DotNetCoreSqlDb.Models.Business
         public PatternTimTrendGiamBySymbolResponseModel TimTrendGiam { get; set; }
         public PatternTimDay2BySymbolResponseModel GiamSau { get; set; }
         public PatternTimDay2BySymbolResponseModel Canslim { get; set; }
+        public PatternTimDay2BySymbolResponseModel NhanDinhHDKD { get; set; }
         public List<String> TangDotBien { get; set; }
     }
 

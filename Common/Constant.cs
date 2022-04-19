@@ -38,5 +38,26 @@ namespace DotNetCoreSqlDb.Common
 
         public const string CT23 = "Có đáy 1";
         public const string CT24 = "Có đáy 2";
+
+        public static class NameEn
+        {
+            public const string doanhThuThuan = "Net revenue";
+            public const string loiNhuanGop = "Gross profit";
+            public const string lnthuanTuHdKinhDoanh = "Operating profit";
+            public const string lnstTuThuNhapDoanhNghiep = "Profit after tax";
+            public const string lnstTuTCDCtyMe = "Net profit";
+            public const string tsNganHan = "Current assets";
+            public const string tongTs = "Total assets";
+            public const string NoPhaiTra = "Liabilities";
+            public const string NoNganHan = "Short -term liabilities";
+            public const string VonChuSoHuu = "Owner's equity";
+            public const string EPS4QuyGanNhat = "Trailing EPS";
+            public const string BVPSCoBan = "Book value per share";
+            public const string PECoBan = "P/E";
+            public const string Ros = "ROS";
+            public const string Roea = "ROEA";
+            public const string RoAA = "ROAA";
+            public const string LuuChuyenTienThuanTuHDKD = "Net cash flows from operating activities";
+        }
     }
 }

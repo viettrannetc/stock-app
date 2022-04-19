@@ -51,18 +51,18 @@ namespace DotNetCoreSqlDb.Controllers
         public async Task<string> Create()
         {
             var restService = new RestServiceHelper();
-            var huyNiemYet = new List<string>();
-            huyNiemYet.Add("KSK");
-            huyNiemYet.Add("TRT");
-            huyNiemYet.Add("ABR");
-            huyNiemYet.Add("GTN");
-            huyNiemYet.Add("FUCTVGF2");
+            //var huyNiemYet = new List<string>();
+            //huyNiemYet.Add("KSK");
+            //huyNiemYet.Add("TRT");
+            //huyNiemYet.Add("ABR");
+            //huyNiemYet.Add("GTN");
+            //huyNiemYet.Add("FUCTVGF2");
 
             var allSymbols = await _context.StockSymbol
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
 
-            allSymbols = allSymbols.Where(s => !huyNiemYet.Contains(s._sc_)).ToList();
+            //allSymbols = allSymbols.Where(s => !huyNiemYet.Contains(s._sc_)).ToList();
 
             var result = new List<StockSymbolHistory>();
             var t1 = _context.StockSymbolHistory.Where(c => c.StockSymbol == "A32").OrderByDescending(r => r.Date).FirstOrDefault();

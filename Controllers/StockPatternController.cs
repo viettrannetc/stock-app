@@ -45,7 +45,7 @@ namespace DotNetCoreSqlDb.Controllers
             result.TimTrendGiam = (await TimTrendGiam(code, false, ngay, soPhienGd, trungbinhGd)).TimTrendGiam;
             result.GiamSau = (await FollowUpSymbolsGoingDown(code, ngay)).TimDay2;
 
-            result.Canslim = (await Canslim(code, 2022, 1)).Canslim;
+            //result.Canslim = (await Canslim(code, 2022, 1)).Canslim;
             result.TangDotBien = await FollowUpPriceInDayMarkTangDotBien(code, 0.7M, ngay, soPhienGd, trungbinhGd);
             return result;
         }
@@ -970,8 +970,8 @@ namespace DotNetCoreSqlDb.Controllers
 
                 var yearAndQuarter = new Dictionary<int, int>();
                 var timeline = new List<StockSymbolFinanceHistory>();
-                //orderedHistoryByStockCode.Select(h => new StockSymbolFinanceHistory { YearPeriod = h.YearPeriod, Quarter = h.Quarter }).Distinct().OrderBy(s => s.YearPeriod).ThenBy(s => s.Quarter).ToList();
 
+                #region "C" character
                 foreach (var stock in orderedHistoryByStockCode)
                 {
                     if (!timeline.Any(t => t.YearPeriod == stock.YearPeriod && t.Quarter == stock.Quarter))
@@ -989,8 +989,8 @@ namespace DotNetCoreSqlDb.Controllers
                 {
                     last4Q.AddRange(orderedHistoryByStockCode.Where(h => h.Quarter == item.Quarter && h.YearPeriod == item.YearPeriod).ToList());
                 }
-                var EPSString = "Trailing EPS";
 
+                var EPSString = "Trailing EPS";
                 decimal eps1stQValue = 0;
                 decimal eps2ndQValue = 0;
                 decimal eps3rdQValue = 0;
@@ -1005,13 +1005,15 @@ namespace DotNetCoreSqlDb.Controllers
                         eps3rdQValue = last4Q.Where(h => h.YearPeriod == timeline[i].YearPeriod && h.Quarter == timeline[i].Quarter && h.NameEn.Contains(EPSString)).Sum(h => h.Value ?? 0);
                     if (i == 3)
                         eps4thQValue = last4Q.Where(h => h.YearPeriod == timeline[i].YearPeriod && h.Quarter == timeline[i].Quarter && h.NameEn.Contains(EPSString)).Sum(h => h.Value ?? 0);
+
+                    if (i > 3) break;
                 }
 
                 var hasC =
                        eps1stQValue >= eps2ndQValue
                     && eps2ndQValue >= eps3rdQValue
                     && eps3rdQValue >= eps4thQValue;
-
+                #endregion
 
                 var last3Y = new List<StockSymbolFinanceHistory>();
                 currentItem = timeline.FirstOrDefault(t => t.YearPeriod == year && t.Quarter == 1);
@@ -1019,6 +1021,7 @@ namespace DotNetCoreSqlDb.Controllers
                     ? 0
                     : timeline.IndexOf(currentItem);
 
+                #region "A" character
                 expectedRange = timeline.Skip(currentIndex).Take(4 * 3).ToList();
                 foreach (var item in expectedRange)
                 {
@@ -1068,13 +1071,54 @@ namespace DotNetCoreSqlDb.Controllers
                     if (i == 2)
                         tangTruongLoiNhuanSauThue3rdY = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(profit)).Sum(h => h.Value ?? 0);
                 }
+                #endregion
+
+                #region good PEG
+                var hasGoodPEG = false;
+                string peString = "P/E";
+
+                //TODO: PE lấy ngày đang xét
+                var pe = last4Q.Where(h => h.YearPeriod == timeline[0].YearPeriod && h.NameEn.Contains(peString)).Sum(h => h.Value ?? 0) / (last4Q.Any() ? last4Q.Select(l => l.Quarter).Distinct().Count() : 1);
+
+                var growth = (Math.Round((decimal)tangTruongLoiNhuanSauThue1stY / (decimal)tangTruongLoiNhuanSauThue2ndY, 2) - 1) * 100;
+                hasGoodPEG = pe / growth > 0 && pe / growth < 1.35M;
+                #endregion
+
+
+                #region tang trưởng bền vững theo chỉ tiêu kế hoạch
+
+                decimal growthByCTKHNam1 = 0;
+                decimal growthByCTKHNam2 = 0;
+                decimal growthByCTKHNam3 = 0;
+                string totalRevenue = "Total revenue"; //
+                for (int i = 0; i < years.Count; i++)
+                {
+                    if (i == 0)
+                        growthByCTKHNam1 = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(totalRevenue)).Sum(h => h.Value ?? 0);
+                    if (i == 1)
+                        growthByCTKHNam2 = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(totalRevenue)).Sum(h => h.Value ?? 0);
+                    if (i == 2)
+                        growthByCTKHNam3 = last3Y.Where(h => h.YearPeriod == years[i] && h.NameEn.Contains(totalRevenue)).Sum(h => h.Value ?? 0);
+                }
+
+                decimal growthByPercentWithCTKH1 = growthByCTKHNam2 > 0
+                    ? (Math.Round((decimal)growthByCTKHNam1 / (decimal)growthByCTKHNam2, 2) - 1) * 100
+                    : 0;
+                decimal growthByPercentWithCTKH2 = growthByCTKHNam3 > 0
+                    ? (Math.Round((decimal)growthByCTKHNam2 / (decimal)growthByCTKHNam3, 2) - 1) * 100
+                    : 0;
+
+
+                #endregion
 
                 var dk1 = hasC;
-                var dk2 = tangTruongDoanhThu1stY > tangTruongDoanhThu2ndY && tangTruongDoanhThu2ndY > tangTruongDoanhThu3rdY;
-                var dk3 = tangTruongLoiNhuan1stY > tangTruongLoiNhuan2ndY && tangTruongLoiNhuan2ndY > tangTruongLoiNhuan3rdY;
-                var dk4 = tangTruongLoiNhuanSauThue1stY > tangTruongLoiNhuanSauThue2ndY && tangTruongLoiNhuanSauThue2ndY > tangTruongLoiNhuanSauThue3rdY;
+                var dk2 = tangTruongDoanhThu1stY >= tangTruongDoanhThu2ndY && tangTruongDoanhThu2ndY >= tangTruongDoanhThu3rdY;
+                var dk3 = tangTruongLoiNhuan1stY >= tangTruongLoiNhuan2ndY && tangTruongLoiNhuan2ndY >= tangTruongLoiNhuan3rdY;
+                var dk4 = tangTruongLoiNhuanSauThue1stY >= tangTruongLoiNhuanSauThue2ndY && tangTruongLoiNhuanSauThue2ndY >= tangTruongLoiNhuanSauThue3rdY;
+                var dk5 = hasGoodPEG;
+                var dk6 = growthByPercentWithCTKH1 >= growthByPercentWithCTKH2;
 
-                if (dk1 && dk2 && dk3 && dk4) //Start following
+                if (dk1 && dk2 && dk3 && dk4 && dk5) //Start following
                 {
                     var patternOnsymbol = new PatternBySymbolResponseModel();
                     patternOnsymbol.StockCode = symbol._sc_;
@@ -1086,6 +1130,7 @@ namespace DotNetCoreSqlDb.Controllers
                             TangTruongDoanhThuNam = $"{tangTruongDoanhThu1stY} > {tangTruongDoanhThu2ndY} > {tangTruongDoanhThu3rdY}",
                             TangTruongLoiNhuanNam = $"{tangTruongLoiNhuan1stY} > {tangTruongLoiNhuan2ndY} > {tangTruongLoiNhuan3rdY}",
                             TangTruongLoiNhuanSauThueNam = $"{tangTruongLoiNhuanSauThue1stY} > {tangTruongLoiNhuanSauThue2ndY} > {tangTruongLoiNhuanSauThue3rdY}",
+                            TangTruongLoiNhuanBenVungTheoCTKH = $"Năm ngoái: {growthByPercentWithCTKH1} vs Năm trước nữa: {growthByPercentWithCTKH2}",
                             RealityExpectation = string.Empty,
                             ShouldBuy = true
                         }
@@ -1096,6 +1141,291 @@ namespace DotNetCoreSqlDb.Controllers
             });
 
             result.Canslim.Items = result.Canslim.Items.OrderBy(s => s.StockCode).ToList();
+
+            return result;
+        }
+
+        public async Task<PatternDetailsResponseModel> RSI(string code,
+            int maCanhBaoMua,
+            int maCanhBaoBan,
+            int rsi,
+            DateTime ngay, int soPhienGd, int trungbinhGd)
+        {
+            var result = new PatternDetailsResponseModel();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var maxRangeList = new List<int> { maCanhBaoBan, maCanhBaoMua, rsi, soPhienGd };
+            var maxRange = maxRangeList.Max() + 5;//TODO: tại sao 5 ? vì mình cần lấy rsi + 1, cần lấy rsi ngày hum wa xem có phải điểm mua là ngày hum nay ko
+
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date <= ngay)
+                .OrderByDescending(ss => ss.Date)
+                .Take(maxRange)
+                .ToListAsync();
+
+            //if (historiesInPeriodOfTimeByStockCode.FirstOrDefault() != null && historiesInPeriodOfTimeByStockCode.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
+            //{
+            //    var newPackages = new List<StockSymbolHistory>();
+            //    var from = DateTime.Now.WithoutHours();
+            //    var to = DateTime.Now.WithoutHours().AddDays(1);
+
+            //    var service = new Service();
+            //    await service.GetV(newPackages, symbols, from, to, from, 0);
+
+            //    historiesInPeriodOfTimeByStockCode.AddRange(newPackages);
+            //}
+
+            var lstNhacMua = new List<string>();
+            var lstNhacBan = new List<string>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var histories = historiesInPeriodOfTimeByStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .ToList();
+
+                var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
+
+                if (biCanhCao) return;
+
+                var avarageOfLastXXPhien = histories.Take(soPhienGd).Sum(h => h.V) / soPhienGd;
+                if (avarageOfLastXXPhien < trungbinhGd) return;
+
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
+                if (yesterday == null) return;
+
+                var rsiToday = history.RSI(histories, rsi);
+                var rsiYesterday = history.RSI(histories, rsi);
+
+                var diemNhacMua = history.MA(histories, maCanhBaoMua);
+                var diemCanhBaoBan = history.MA(histories, maCanhBaoBan);
+
+                var dk1 = rsiYesterday < diemNhacMua && rsiToday > diemNhacMua;
+
+                var dk2 = rsiToday > diemCanhBaoBan || rsiToday < diemNhacMua;
+
+                if (dk1) lstNhacMua.Add(code);
+                if (dk2) lstNhacBan.Add(code);
+            });
+
+            if (lstNhacMua.Any() || lstNhacBan.Any())
+                result.ConditionMatchAt = ngay;
+
+            result.MoreInformation = new
+            {
+                NhacMua = string.Join(", ", lstNhacMua),
+                NhacBan = string.Join(", ", lstNhacBan),
+            };
+
+            return result;
+        }
+
+        public async Task<PatternResponseModel> PhanTichDoanhNghiepTheoNam(string code, int year)
+        {
+            var result = new PatternResponseModel();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var unexpectedBusiness = new List<string>() { "Tài chính và bảo hiểm" };
+            //var t1 = await _context.StockSymbol.Where(s => !unexpectedBusiness.Contains(s._in_)).ToListAsync();
+
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => !unexpectedBusiness.Contains(s._in_)).ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_) && !unexpectedBusiness.Contains(s._in_)).ToListAsync();
+
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var histories = await _context.StockSymbolFinanceYearlyHistory
+                .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - 10))
+                .ToListAsync();
+
+            var today = await _context.StockSymbolHistory.OrderByDescending(d => d.Date).FirstAsync();
+
+            var TodayData = await _context.StockSymbolHistory
+                .Where(f => stockCodes.Contains(f.StockSymbol) && f.Date == today.Date)
+                .ToListAsync();
+
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= today.Date.AddDays(-10))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var historiesInPeriodOfTime = historiesInPeriodOfTimeByStockCode
+                   .Where(ss => ss.StockSymbol == symbol._sc_)
+                   .OrderBy(s => s.Date)
+                   .ToList();
+
+                var latestDate = historiesInPeriodOfTime.OrderByDescending(h => h.Date).FirstOrDefault();
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(historiesInPeriodOfTime);
+
+                if (biCanhCao) return;
+
+                var avarageOfLastXXPhien = historiesInPeriodOfTime.Take(30).Sum(h => h.V) / 30;
+                if (avarageOfLastXXPhien < 1000) return;
+
+
+
+                var orderedHistoryByStockCode = histories
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(s => s.YearPeriod)
+                    .ToList();
+                decimal stockToday = TodayData.FirstOrDefault(t => t.StockSymbol == symbol._sc_)?.C ?? 0;
+                if (!orderedHistoryByStockCode.Any() || stockToday <= 0) return;
+
+                var groupedByYear = orderedHistoryByStockCode.GroupBy(g => g.YearPeriod).ToDictionary(g => g.Key, g => g.ToList());
+
+                var lstData = new List<StockSymbolFinanceYearlyHistoryModel>();
+                foreach (var item in groupedByYear)
+                {
+                    var previousYear = groupedByYear.ContainsKey(item.Key - 1) ? groupedByYear[item.Key - 1] : null;
+                    if (previousYear == null) continue;
+
+                    var noDaiHanYearly = item.Value.Where(y => y.NameEn == ConstantData.NameEn.tongTs).Sum(y => y.Value ?? 0)
+                        - item.Value.Where(y => y.NameEn == ConstantData.NameEn.NoNganHan).Sum(y => y.Value ?? 0)
+                        - item.Value.Where(y => y.NameEn == ConstantData.NameEn.VonChuSoHuu).Sum(y => y.Value ?? 0);
+
+                    decimal roic = noDaiHanYearly + item.Value.Where(y => y.NameEn == ConstantData.NameEn.VonChuSoHuu).Sum(y => y.Value ?? 0) != 0
+                            ? item.Value.Where(y => y.NameEn == ConstantData.NameEn.lnstTuThuNhapDoanhNghiep).Sum(y => y.Value ?? 0)
+                            / (noDaiHanYearly + item.Value.Where(y => y.NameEn == ConstantData.NameEn.VonChuSoHuu).Sum(y => y.Value ?? 0))
+                            : 1;
+
+                    decimal roe =
+                            item.Value.Where(y => y.NameEn == ConstantData.NameEn.VonChuSoHuu).Sum(y => y.Value ?? 0) != 0
+                            ? item.Value.Where(y => y.NameEn == ConstantData.NameEn.lnthuanTuHdKinhDoanh).Sum(y => y.Value ?? 0)
+                              / item.Value.Where(y => y.NameEn == ConstantData.NameEn.VonChuSoHuu).Sum(y => y.Value ?? 0)
+                            : 0;
+
+                    decimal salesGrowth =
+                            previousYear.Where(y => y.NameEn == ConstantData.NameEn.doanhThuThuan).Sum(y => y.Value ?? 0) != 0
+                            ? item.Value.Where(y => y.NameEn == ConstantData.NameEn.doanhThuThuan).Sum(y => y.Value ?? 0)
+                              / previousYear.Where(y => y.NameEn == ConstantData.NameEn.doanhThuThuan).Sum(y => y.Value ?? 0)
+                              - 1
+                            : 0;
+
+                    decimal epsGrowth =
+                            previousYear.Where(y => y.NameEn == ConstantData.NameEn.EPS4QuyGanNhat).Sum(y => y.Value ?? 0) != 0
+                            ? item.Value.Where(y => y.NameEn == ConstantData.NameEn.EPS4QuyGanNhat).Sum(y => y.Value ?? 0)
+                              / previousYear.Where(y => y.NameEn == ConstantData.NameEn.EPS4QuyGanNhat).Sum(y => y.Value ?? 0)
+                              - 1
+                            : 0;
+
+                    decimal bvpsGrowth =
+                            previousYear.Where(y => y.NameEn == ConstantData.NameEn.BVPSCoBan).Sum(y => y.Value ?? 0) != 0
+                            ? item.Value.Where(y => y.NameEn == ConstantData.NameEn.BVPSCoBan).Sum(y => y.Value ?? 0)
+                              / previousYear.Where(y => y.NameEn == ConstantData.NameEn.BVPSCoBan).Sum(y => y.Value ?? 0)
+                              - 1
+                            : 0;
+
+                    decimal cashGrowth =
+                            previousYear.Where(y => y.NameEn == ConstantData.NameEn.LuuChuyenTienThuanTuHDKD).Sum(y => y.Value ?? 0) != 0
+                            ? item.Value.Where(y => y.NameEn == ConstantData.NameEn.LuuChuyenTienThuanTuHDKD).Sum(y => y.Value ?? 0)
+                              / previousYear.Where(y => y.NameEn == ConstantData.NameEn.LuuChuyenTienThuanTuHDKD).Sum(y => y.Value ?? 0)
+                              - 1
+                            : 0;
+
+                    lstData.Add(new StockSymbolFinanceYearlyHistoryModel
+                    {
+                        Year = item.Key,
+                        bvpsGrowth = bvpsGrowth,
+                        cashGrowth = cashGrowth,
+                        epsGrowth = epsGrowth,
+                        roe = roe,
+                        roic = roic,
+                        saleGrowth = salesGrowth,
+                        PECoBan = item.Value.Where(y => y.NameEn == ConstantData.NameEn.PECoBan).Sum(y => y.Value ?? 0)
+                    });
+                }
+                if (!lstData.Any()) return;
+                decimal croic = lstData.Sum(d => d.roic) / lstData.Count();
+                decimal croe = lstData.Sum(d => d.roe) / lstData.Count();
+                decimal csalesGrowhrate = lstData.Sum(d => d.saleGrowth) / lstData.Count();
+                decimal cepsGrowhrate = lstData.Sum(d => d.epsGrowth) / lstData.Count();
+                decimal cbvpsGrowhrate = lstData.Sum(d => d.bvpsGrowth) / lstData.Count();
+                decimal ccashGrowhrate = lstData.Sum(d => d.cashGrowth) / lstData.Count();
+                var lastYear = groupedByYear.OrderByDescending(d => d.Key).First();
+                var noDaiHan = lastYear.Value.Where(y => y.NameEn == ConstantData.NameEn.tongTs).Sum(y => y.Value ?? 0)
+                        - lastYear.Value.Where(y => y.NameEn == ConstantData.NameEn.NoNganHan).Sum(y => y.Value ?? 0)
+                        - lastYear.Value.Where(y => y.NameEn == ConstantData.NameEn.VonChuSoHuu).Sum(y => y.Value ?? 0);
+                decimal ctimeToPayTheDept = noDaiHan != 0
+                        ? lastYear.Value.Where(y => y.NameEn == ConstantData.NameEn.lnstTuThuNhapDoanhNghiep).Sum(y => y.Value ?? 0) / noDaiHan
+                        : 0;
+
+                decimal chiSoTangTruong = croic;// (croe + croic + cepsGrowhrate) / 3;
+                decimal PETrungBinhHangNam = lstData.Sum(d => d.PECoBan) / lstData.Count();
+                decimal PETrungBinhMinMax = (lstData.Min(d => d.PECoBan) + lstData.Max(d => d.PECoBan)) / 2;
+                decimal ChiSoTangTruongX2 = chiSoTangTruong * 2 * 100;
+                decimal expectedPE = Math.Min(PETrungBinhMinMax, ChiSoTangTruongX2);
+                decimal tileLoiNhuanToiThieu = 0.15M;
+
+
+                decimal MOSPrice50 =
+                    (lastYear.Value.Where(y => y.NameEn == ConstantData.NameEn.EPS4QuyGanNhat).Sum(y => y.Value ?? 0) * expectedPE
+                    * (decimal)Math.Pow((double)(1M + chiSoTangTruong) / (double)(1M + tileLoiNhuanToiThieu), 10))
+                    * 0.5M;
+
+                decimal MOSPrice80 =
+                    (lastYear.Value.Where(y => y.NameEn == ConstantData.NameEn.EPS4QuyGanNhat).Sum(y => y.Value ?? 0) * expectedPE
+                    * (decimal)Math.Pow((double)(1M + chiSoTangTruong) / (double)(1M + tileLoiNhuanToiThieu), 10))
+                    * 0.8M;
+
+
+                var dk1 = croic > 0.1M;
+                var dk2 = croe > 0.1M;
+                var dk3 = csalesGrowhrate > 0.1M;
+                var dk4 = cepsGrowhrate > 0.1M;
+                var dk5 = cbvpsGrowhrate > 0.1M;
+                var dk6 = ccashGrowhrate > 0.01M;
+                var dk7 = ctimeToPayTheDept <= 10;
+                var dk8 = stockToday < MOSPrice50
+                    || stockToday > MOSPrice50 && stockToday <= MOSPrice50 * 1.2M;
+
+                if (dk1
+                    && dk2 && dk4 && dk7
+                    && dk8) //Start following
+                {
+                    var patternOnsymbol = new PatternBySymbolResponseModel();
+                    patternOnsymbol.StockCode = symbol._sc_;
+                    var text = (MOSPrice50 > stockToday)
+                        ? $"MOSPrice50 > Giá hum nay {Math.Round(MOSPrice50 / stockToday, 2) - 1}%"
+                        : $"MOSPrice50 < Giá hum nay {1 - Math.Round(MOSPrice50 / stockToday, 2)}%";
+                    patternOnsymbol.Details.Add(new PatternDetailsResponseModel
+                    {
+                        MoreInformation = new
+                        {
+                            Text = $"{text}",
+                            ROIC = $"{croic}",
+                            ROE = $"{croe}",
+                            SALES = $"{csalesGrowhrate}",
+                            EPS = $"{cepsGrowhrate}",
+                            BVPS = $"{cbvpsGrowhrate}",
+                            CASH = $"{ccashGrowhrate}",
+                            DeptTime = $"{ctimeToPayTheDept}",
+                            Price = $"{stockToday}",
+                            MOSPrice50 = $"{MOSPrice50}",
+                            RealityExpectation = string.Empty,
+                            ShouldBuy = true
+                        }
+                    });
+
+                    result.NhanDinhHDKD.Items.Add(patternOnsymbol);
+                }
+            });
+
+            result.NhanDinhHDKD.Items = result.NhanDinhHDKD.Items.OrderBy(s => s.StockCode).ToList();
 
             return result;
         }

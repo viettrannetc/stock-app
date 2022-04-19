@@ -23,6 +23,7 @@ namespace DotNetCoreSqlDb.Models
         public DbSet<StockSymbolTradingHistory> StockSymbolTradingHistory { get; set; }
 
         public DbSet<StockSymbolFinanceHistory> StockSymbolFinanceHistory { get; set; }
+        public DbSet<StockSymbolFinanceYearlyHistory> StockSymbolFinanceYearlyHistory { get; set; }
 
         /// <summary>
         /// https://api-finance-t19.24hmoney.vn/v2/web/stock/transaction-detail-by-price?symbol=ACB

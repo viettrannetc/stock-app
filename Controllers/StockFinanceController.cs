@@ -39,11 +39,19 @@ namespace DotNetCoreSqlDb.Controllers
             return false;
         }
 
-
-        public async Task<bool> Pull(string code)
+        public async Task<bool> Pull(string code, bool isQuarter)
         {
-            var restService = new RestServiceHelper();
+            return isQuarter
+                ? await PullByQuarter(code)
+                : await PullByYearly(code);
+        }
 
+
+        /// <summary>
+        /// Pull data by quarter
+        /// </summary>
+        private async Task<bool> PullByQuarter(string code)
+        {
             var symbols = await _context.StockSymbol.ToListAsync();
             List<StockSymbolFinanceHistory> result = new List<StockSymbolFinanceHistory>();
 
@@ -52,15 +60,75 @@ namespace DotNetCoreSqlDb.Controllers
                 await GetFinanceData(symbol, new RestServiceHelper(), result);
             }
 
-            await _context.StockSymbolFinanceHistory.AddRangeAsync(result);
-            await _context.SaveChangesAsync();
-
+            if (result.Any())
+            {
+                await _context.StockSymbolFinanceHistory.AddRangeAsync(result);
+                await _context.SaveChangesAsync();
+            }
             return true;
+        }
+
+        /// <summary>
+        /// Pull data by quarter
+        /// </summary>
+        public async Task<bool> PullByYearly(string code)
+        {
+            var symbols = await _context.StockSymbol
+                //.Where(s => s._sc_ == code)
+                .ToListAsync();
+            List<StockSymbolFinanceYearlyHistory> result = new List<StockSymbolFinanceYearlyHistory>();
+
+            foreach (var symbol in symbols)
+            {
+                await GetFinanceDataYearly(symbol, new RestServiceHelper(), result);
+            }
+
+            if (result.Any())
+            {
+                await _context.StockSymbolFinanceYearlyHistory.AddRangeAsync(result);
+                await _context.SaveChangesAsync();
+            }
+            return true;
+        }
+
+        private async Task GetFinanceDataYearly(StockSymbol stock, RestServiceHelper restService, List<StockSymbolFinanceYearlyHistory> result)
+        {
+            for (int i = 1; i <= 10; i++)
+            {
+                var data1 = await restService.HexecuteVietStockPostmanYearly(stock._sc_, FinanceType.BCTQ, i.ToString());
+                var data2 = await restService.HexecuteVietStockPostmanYearly(stock._sc_, FinanceType.LCTT, i.ToString());
+
+                foreach (var item in data1)
+                {
+                    if (!result.Any(r => r.StockSymbol == item.StockSymbol && r.YearPeriod == item.YearPeriod && r.NameEn == item.NameEn))
+                        result.Add(new StockSymbolFinanceYearlyHistory()
+                        {
+                            NameEn = item.NameEn,
+                            StockSymbol = item.StockSymbol,
+                            Type = item.Type,
+                            Value = item.Value,
+                            YearPeriod = item.YearPeriod
+                        });
+                }
+
+                foreach (var item in data2)
+                {
+                    if (!result.Any(r => r.StockSymbol == item.StockSymbol && r.YearPeriod == item.YearPeriod && r.NameEn == item.NameEn))
+                        result.Add(new StockSymbolFinanceYearlyHistory()
+                        {
+                            NameEn = item.NameEn,
+                            StockSymbol = item.StockSymbol,
+                            Type = item.Type,
+                            Value = item.Value,
+                            YearPeriod = item.YearPeriod
+                        });
+                }
+            }
         }
 
         private async Task GetFinanceData(StockSymbol item, RestServiceHelper restService, List<StockSymbolFinanceHistory> result)
         {
-            for (int i = 1; i <= 20; i++)
+            for (int i = 1; i <= 4; i++)
             {
                 var data1 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.KQKD, i.ToString());
                 var data2 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.CSTC, i.ToString());
@@ -74,6 +142,20 @@ namespace DotNetCoreSqlDb.Controllers
                 result.AddRange(data5);
             }
         }
+
+        //private async Task GetFinanceData(StockSymbol item, RestServiceHelper restService, List<StockSymbolFinanceHistory> result, int i)
+        //{
+        //    var data1 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.KQKD, i.ToString());
+        //    var data2 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.CSTC, i.ToString());
+        //    var data3 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.CDKT, i.ToString());
+        //    var data4 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.LCTT, i.ToString());
+        //    var data5 = await restService.HexecuteVietStockPostman(item._sc_, FinanceType.CTKH, i.ToString());
+        //    result.AddRange(data1);
+        //    result.AddRange(data2);
+        //    result.AddRange(data3);
+        //    result.AddRange(data4);
+        //    result.AddRange(data5);
+        //}
 
 
         public async Task<bool> KLGD()

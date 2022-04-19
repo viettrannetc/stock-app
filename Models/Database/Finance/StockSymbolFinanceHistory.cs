@@ -30,7 +30,8 @@ namespace DotNetCoreSqlDb.Models
         CDKT = 2,
         CSTC = 3,
         LCTT = 4,
-        CTKH = 5
+        CTKH = 5,
+        BCTQ = 6
     }
 
     //[Serializable]

@@ -470,6 +470,32 @@ namespace DotNetCoreSqlDb.Common
             //}
             //return false;
         }
+
+
+        public static decimal RSI(this StockSymbolHistory history, List<StockSymbolHistory> histories, int rsi)
+        {
+            //var history = histories.FirstOrDefault(h => h.Date == today.da);
+            //if (history == null) return 0;
+
+            var rsiDays = histories.Where(h => h.Date <= history.Date).OrderByDescending(h => h.Date).Take(rsi + 1).ToList();
+
+            decimal gainValues = 0;
+            decimal lossValues = 0;
+
+            for (int i = 0; i < rsi; i++)
+            {
+                var differentValue = histories[i].C - histories[i + 1].C;
+
+                if (differentValue > 0) gainValues += differentValue;
+                if (differentValue < 0) lossValues += differentValue;
+            }
+            
+            var rs = (gainValues / lossValues) *(-1);
+
+            var rsiValue = 100 - 100 / (rs + 1);
+
+            return rsiValue;
+        }
     }
 
 }

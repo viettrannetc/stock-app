@@ -16,7 +16,7 @@ namespace DotNetCoreSqlDb.Models
         /// Time int - perhaps we won't use this - we had Date column
         /// </summary>
         public int T { get; set; }
-
+        public decimal PE { get; set; }
         public string StockSymbol { get; set; }
 
         public DateTime Date { get; set; }
