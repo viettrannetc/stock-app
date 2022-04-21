@@ -51,6 +51,7 @@ namespace DotNetCoreSqlDb.Common
                             requestModel.to.ConvertToPhpInt()
                             );
             var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
+            if (allSharePointsObjects == null) return;
 
             var numberOfT = allSharePointsObjects.t.Count();
 

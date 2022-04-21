@@ -43,7 +43,7 @@ namespace DotNetCoreSqlDb.Controllers
             result.TimDay2Moi = td2m.TimDay2;
 
             result.TimTrendGiam = (await TimTrendGiam(code, false, ngay, soPhienGd, trungbinhGd)).TimTrendGiam;
-            result.GiamSau = (await FollowUpSymbolsGoingDown(code, ngay)).TimDay2;
+            //result.GiamSau = (await FollowUpSymbolsGoingDown(code, ngay)).TimDay2;
 
             //result.Canslim = (await Canslim(code, 2022, 1)).Canslim;
             result.TangDotBien = await FollowUpPriceInDayMarkTangDotBien(code, 0.7M, ngay, soPhienGd, trungbinhGd);
