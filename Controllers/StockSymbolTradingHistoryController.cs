@@ -14,6 +14,9 @@ using Newtonsoft.Json;
 
 namespace DotNetCoreSqlDb.Controllers
 {
+    /// <summary>
+    /// Cái này không xài nữa vì lượng data mỗi ngày quá lớn, ko chứa nổi
+    /// </summary>
     public class StockSymbolTradingHistoryController : Controller
     {
         private readonly MyDatabaseContext _context;
