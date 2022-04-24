@@ -1,4 +1,6 @@
-﻿namespace DotNetCoreSqlDb.Models.Database.Finance
+﻿using System;
+
+namespace DotNetCoreSqlDb.Models.Database.Finance
 {
     [Serializable]
     public class KLGDMuaBan

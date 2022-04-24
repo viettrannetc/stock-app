@@ -45,7 +45,7 @@ namespace DotNetCoreSqlDb.Common
             public const string loiNhuanGop = "Gross profit";
             public const string lnthuanTuHdKinhDoanh = "Operating profit";
             public const string lnstTuThuNhapDoanhNghiep = "Profit after tax";
-            public const string lnstTuTCDCtyMe = "Net profit";
+            public static List<string> lnstTuTCDCtyMe = new List<string> { "Net profit", "XV. Net profit atttributable to the equity holders of the Bank (XIII-XIV)" };
             public const string tsNganHan = "Current assets";
             public const string tongTs = "Total assets";
             public const string NoPhaiTra = "Liabilities";
