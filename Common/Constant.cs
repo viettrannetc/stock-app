@@ -48,7 +48,13 @@ namespace DotNetCoreSqlDb.Common
             /// <summary>
             /// Normal, Bank, HAC
             /// </summary>
-            public static List<string> lnstTuTCDCtyMe = new List<string> { "Net profit", "XV. Net profit atttributable to the equity holders of the Bank (XIII-XIV)", "Profit after tax for shareholders of parent company" };
+            public static List<string> lnstTuTCDCtyMe = new List<string> {
+                "Net profit",
+                "XV. Net profit atttributable to the equity holders of the Bank (XIII-XIV)",
+                "Profit after tax for shareholders of parent company",
+                "XV. Net profit atttributable to the equity holders of the Bank ",
+                "11.1. Profit after tax for shareholders of the parents company",
+            };
             public const string tsNganHan = "Current assets";
             public const string tongTs = "Total assets";
             public const string NoPhaiTra = "Liabilities";
