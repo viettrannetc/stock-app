@@ -14,6 +14,7 @@ namespace DotNetCoreSqlDb.Models.Business
         public decimal cashGrowth { get; set; }
         public decimal timeToPayDept { get; set; }
         public decimal PECoBan { get; set; }
+        public decimal LNSTGrowth { get; set; }
     }
 }
 
