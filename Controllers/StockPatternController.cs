@@ -1688,13 +1688,13 @@ namespace DotNetCoreSqlDb.Controllers
             var symbols = string.IsNullOrWhiteSpace(code)
                 //? await _context.StockSymbol.Where(s => !unexpectedBusiness.Contains(s._in_)).ToListAsync()
                 //: await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_) && !unexpectedBusiness.Contains(s._in_)).ToListAsync();
-                ? await _context.StockSymbol.ToListAsync()
+                ? await _context.StockSymbol.Where(s => s._sc_.Length <= 3).ToListAsync()
                 : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
 
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
             var stockSymbolFinanceYearlyHistories = await _context.StockSymbolFinanceYearlyHistory
-                .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - range))
+                .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - range - 1))
                 .ToListAsync();
 
             var stockSymbolHistoryToday = await _context.StockSymbolHistory
@@ -1713,6 +1713,8 @@ namespace DotNetCoreSqlDb.Controllers
 
             Parallel.ForEach(symbols, symbol =>
             {
+                if (symbol._vhtt_ <= 3000) return;
+
                 var stockSymbolHistoryInRangeBySockCode = stockSymbolHistoryInRange
                    .Where(ss => ss.StockSymbol == symbol._sc_)
                    .OrderBy(s => s.Date)
@@ -1732,19 +1734,22 @@ namespace DotNetCoreSqlDb.Controllers
                 decimal stockToday = stockSymbolHistoryToday.FirstOrDefault(t => t.StockSymbol == symbol._sc_)?.C ?? 0;
                 if (!stockSymbolFinanceYearlyHistoryByStockCode.Any() || stockToday <= 0) return;
 
+                
 
                 var lnstNamDau = stockSymbolFinanceYearlyHistoryByStockCode
-                    .First(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn))
-                    .Value ?? 0;
+                    .FirstOrDefault(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn) && d.Value.HasValue)
+                    ?.Value ?? 0;
 
                 var lnstNamCuoi = stockSymbolFinanceYearlyHistoryByStockCode.OrderByDescending(d => d.YearPeriod)
-                    .First(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn))
-                    .Value ?? 0;
+                    .FirstOrDefault(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn))
+                    ?.Value ?? 0;
 
-                decimal soLanTangLNST = lnstNamCuoi / lnstNamDau;
-                var soNamKiemTra = stockSymbolFinanceYearlyHistoryByStockCode.Count();
+                if (lnstNamDau ==0 || lnstNamCuoi == 0) return;
 
-                double lnstTangTruongTrungBinhThucTe = lnstNamCuoi.NthRoot(soNamKiemTra) - 1;
+                var soLanTangLNST = (double)(lnstNamCuoi / lnstNamDau);
+                var soNamKiemTra = stockSymbolFinanceYearlyHistoryByStockCode.Select(d => d.YearPeriod).Distinct().Count();
+
+                double lnstTangTruongTrungBinhThucTe = soLanTangLNST.NthRoot(soNamKiemTra -1) - 1;
 
 
                 var groupedByYear = stockSymbolFinanceYearlyHistoryByStockCode.GroupBy(g => g.YearPeriod).ToDictionary(g => g.Key, g => g.ToList());
