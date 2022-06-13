@@ -13,6 +13,9 @@ using System.Collections.Concurrent;
 using DotNetCoreSqlDb.Models.Business.Report;
 using DotNetCoreSqlDb.Models.Business.Report.Implementation;
 using System.Text;
+using DotNetCoreSqlDb.Models.Prediction;
+using Newtonsoft.Json;
+using Skender.Stock.Indicators;
 
 namespace DotNetCoreSqlDb.Controllers
 {
@@ -31,7 +34,6 @@ namespace DotNetCoreSqlDb.Controllers
             return View(await _context.StockSymbol.ToListAsync());
         }
 
-
         public async Task<PatternResponseModel> All(string code, DateTime ngay, int soPhienGd, int trungbinhGd)
         {
             var result = new PatternResponseModel();
@@ -43,7 +45,7 @@ namespace DotNetCoreSqlDb.Controllers
             result.TimDay2Moi = td2m.TimDay2;
 
             result.TimTrendGiam = (await TimTrendGiam(code, false, ngay, soPhienGd, trungbinhGd)).TimTrendGiam;
-            //result.GiamSau = (await FollowUpSymbolsGoingDown(code, ngay)).TimDay2;
+            result.GiamSau = (await FollowUpSymbolsGoingDown(code, ngay)).TimDay2;
 
             //result.Canslim = (await Canslim(code, 2022, 1)).Canslim;
             result.TangDotBien = await FollowUpPriceInDayMarkTangDotBien(code, 0.7M, ngay, soPhienGd, trungbinhGd);
@@ -719,7 +721,7 @@ namespace DotNetCoreSqlDb.Controllers
 
         }
 
-        public async Task<PatternResponseModel> FollowUpSymbolsGoingDown(string code, DateTime dateTime)
+        public async Task<PatternResponseModel> FollowUpSymbolsGoingDown(string code, DateTime dateTime, int expectedLowerPercentage = 40)
         {
             var result = new PatternResponseModel();
 
@@ -736,7 +738,7 @@ namespace DotNetCoreSqlDb.Controllers
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
 
-            int expectedLowerPercentage = 20;
+            //int expectedLowerPercentage = 40;
 
             Parallel.ForEach(symbols, symbol =>
             {
@@ -766,7 +768,7 @@ namespace DotNetCoreSqlDb.Controllers
                     if (history.VOL(histories, -20) < 100000) return;
 
                     var currentDateToCheck = history.Date;
-                    var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(5).ToList();
+                    var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(2).ToList();
 
                     var lowest = previousDaysFromCurrentDay.OrderBy(h => h.C).FirstOrDefault();
                     if (lowest == null) return;
@@ -1145,93 +1147,7 @@ namespace DotNetCoreSqlDb.Controllers
             return result;
         }
 
-        public async Task<PatternDetailsResponseModel> RSI(string code,
-            int maCanhBaoMua,
-            int maCanhBaoBan,
-            int rsi,
-            DateTime ngay, int soPhienGd, int trungbinhGd)
-        {
-            var result = new PatternDetailsResponseModel();
 
-            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
-            var symbols = string.IsNullOrWhiteSpace(code)
-                ? await _context.StockSymbol.ToListAsync()
-                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
-            var stockCodes = symbols.Select(s => s._sc_).ToList();
-
-            var maxRangeList = new List<int> { maCanhBaoBan, maCanhBaoMua, rsi, soPhienGd };
-            var maxRange = maxRangeList.Max() + 5;//TODO: tại sao 5 ? vì mình cần lấy rsi + 1, cần lấy rsi ngày hum wa xem có phải điểm mua là ngày hum nay ko
-
-            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
-                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date <= ngay)
-                .OrderByDescending(ss => ss.Date)
-                .Take(maxRange)
-                .ToListAsync();
-
-            //if (historiesInPeriodOfTimeByStockCode.FirstOrDefault() != null && historiesInPeriodOfTimeByStockCode.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
-            //{
-            //    var newPackages = new List<StockSymbolHistory>();
-            //    var from = DateTime.Now.WithoutHours();
-            //    var to = DateTime.Now.WithoutHours().AddDays(1);
-
-            //    var service = new Service();
-            //    await service.GetV(newPackages, symbols, from, to, from, 0);
-
-            //    historiesInPeriodOfTimeByStockCode.AddRange(newPackages);
-            //}
-
-            var lstNhacMua = new List<string>();
-            var lstNhacBan = new List<string>();
-
-            Parallel.ForEach(symbols, symbol =>
-            {
-                var histories = historiesInPeriodOfTimeByStockCode
-                    .Where(ss => ss.StockSymbol == symbol._sc_)
-                    .ToList();
-
-                var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
-                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
-
-                if (biCanhCao) return;
-
-                var avarageOfLastXXPhien = histories.Take(soPhienGd).Sum(h => h.V) / soPhienGd;
-                if (avarageOfLastXXPhien < trungbinhGd) return;
-
-
-                var patternOnsymbol = new PatternBySymbolResponseModel();
-                patternOnsymbol.StockCode = symbol._sc_;
-
-                var history = histories.FirstOrDefault(h => h.Date == ngay);
-                if (history == null) return;
-
-                var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
-                if (yesterday == null) return;
-
-                var rsiToday = history.RSI(histories, rsi);
-                var rsiYesterday = history.RSI(histories, rsi);
-
-                var diemNhacMua = history.MA(histories, maCanhBaoMua);
-                var diemCanhBaoBan = history.MA(histories, maCanhBaoBan);
-
-                var dk1 = rsiYesterday < diemNhacMua && rsiToday > diemNhacMua;
-
-                var dk2 = rsiToday > diemCanhBaoBan || rsiToday < diemNhacMua;
-
-                if (dk1) lstNhacMua.Add(code);
-                if (dk2) lstNhacBan.Add(code);
-            });
-
-            if (lstNhacMua.Any() || lstNhacBan.Any())
-                result.ConditionMatchAt = ngay;
-
-            result.MoreInformation = new
-            {
-                NhacMua = string.Join(", ", lstNhacMua),
-                NhacBan = string.Join(", ", lstNhacBan),
-            };
-
-            return result;
-        }
 
         /// <summary>
         /// Condition
@@ -1677,167 +1593,6 @@ namespace DotNetCoreSqlDb.Controllers
         /// <param name="code"></param>
         /// <param name="year"></param>
         /// <returns></returns>
-        public async Task<PatternResponseModel> PhanTichDoanhNghiepTheoNamV2(string code, int year, int range, double tangtruong)
-        {
-            var result = new PatternResponseModel();
-
-            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
-            var today = await _context.StockSymbolHistory.OrderByDescending(d => d.Date).FirstAsync();
-
-            var symbols = string.IsNullOrWhiteSpace(code)
-                ? await _context.StockSymbol.Where(s => s._sc_.Length <= 3).ToListAsync()
-                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
-
-            var stockCodes = symbols.Select(s => s._sc_).ToList();
-
-            var stockSymbolFinanceYearlyHistories = await _context.StockSymbolFinanceYearlyHistory
-                .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - range - 1))
-                .ToListAsync();
-
-            var stockSymbolHistoryToday = await _context.StockSymbolHistory
-                .Where(f => stockCodes.Contains(f.StockSymbol) && f.Date == today.Date)
-                .ToListAsync();
-
-            var stockSymbolHistoryInRange = await _context.StockSymbolHistory
-                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= today.Date.AddDays(-10))
-                .OrderByDescending(ss => ss.Date)
-                .ToListAsync();
-
-            //var quarterlyData = new List<string> { "P/E", "Profit after tax for shareholders of parent company" };
-            var stockSymbolFinanceQuarterlyHistories = await _context.StockSymbolFinanceHistory
-                .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod == (year - 1) && ConstantData.NameEn.lnstTuTCDCtyMe.Contains(f.NameEn))
-                .ToListAsync();
-
-            Parallel.ForEach(symbols, async symbol =>
-            {
-                if (symbol._vhtt_ <= 3000) return;
-
-                var stockSymbolHistoryInRangeBySockCode = stockSymbolHistoryInRange
-                   .Where(ss => ss.StockSymbol == symbol._sc_)
-                   .OrderBy(s => s.Date)
-                   .ToList();
-
-                var latestDate = stockSymbolHistoryInRangeBySockCode.OrderByDescending(h => h.Date).FirstOrDefault();
-                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(stockSymbolHistoryInRangeBySockCode);
-                if (biCanhCao) return;
-
-                var avarageOfLastXXPhien = stockSymbolHistoryInRangeBySockCode.Take(30).Sum(h => h.V) / 30;
-                if (avarageOfLastXXPhien < 1000) return;
-
-                var stockSymbolFinanceYearlyHistoryByStockCode = stockSymbolFinanceYearlyHistories
-                    .Where(ss => ss.StockSymbol == symbol._sc_)
-                    .OrderBy(s => s.YearPeriod)
-                    .ToList();
-
-                var stockToday = stockSymbolHistoryToday.FirstOrDefault(t => t.StockSymbol == symbol._sc_);
-                decimal stockTodayPrice = stockToday?.C ?? 0;
-
-                if (!stockSymbolFinanceYearlyHistoryByStockCode.Any() || stockTodayPrice <= 0) return;
-
-
-
-                var lnstNamDau = stockSymbolFinanceYearlyHistoryByStockCode
-                    .FirstOrDefault(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn) && d.Value.HasValue)
-                    ?.Value ?? 0;
-
-                var lnstNamCuoi = stockSymbolFinanceYearlyHistoryByStockCode.OrderByDescending(d => d.YearPeriod)
-                    .FirstOrDefault(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn))
-                    ?.Value ?? 0;
-
-                if (lnstNamDau == 0 || lnstNamCuoi == 0) return;
-
-                var soLanTangLNST = (double)(lnstNamCuoi / lnstNamDau);
-                var soNamKiemTra = stockSymbolFinanceYearlyHistoryByStockCode.Select(d => d.YearPeriod).Distinct().Count();
-
-                double lnstTangTruongTrungBinhThucTe = soLanTangLNST.NthRoot(soNamKiemTra - 1) - 1;
-
-
-                var groupedByYear = stockSymbolFinanceYearlyHistoryByStockCode.GroupBy(g => g.YearPeriod).ToDictionary(g => g.Key, g => g.ToList());
-
-                var lstData = new List<StockSymbolFinanceYearlyHistoryModel>();
-
-                var quarterly = stockSymbolFinanceQuarterlyHistories
-                    .Where(ss => ss.StockSymbol == symbol._sc_)
-                    .OrderBy(s => s.Quarter)
-                    .ToList();
-                if (!quarterly.Any()) return;
-
-                decimal pe4QuyTruoc = quarterly.Any(q => q.NameEn == quarterlyData[0])
-                    ? quarterly.Where(q => q.NameEn == quarterlyData[0]).Sum(d => d.Value ?? 0) / quarterly.Count(q => q.NameEn == quarterlyData[0])
-                    : 0;
-
-                var t1 = quarterly.Where(q => q.NameEn == quarterlyData[1]).ToList();
-                decimal lnst4QuyTruoc = t1.Sum(d => d.Value ?? 0);
-
-                if (pe4QuyTruoc == 0 || lnst4QuyTruoc == 0) return; //cổ phiếu nhỏ lẻ
-
-                foreach (var item in groupedByYear)
-                {
-                    var previousYear = groupedByYear.ContainsKey(item.Key - 1) ? groupedByYear[item.Key - 1] : null;
-                    if (previousYear == null) continue;
-
-                    decimal lnstGrowth = previousYear.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0) != 0
-                            ? item.Value.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0)
-                              / previousYear.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0)
-                              - 1
-                            : 0;
-
-                    lstData.Add(new StockSymbolFinanceYearlyHistoryModel
-                    {
-                        Year = item.Key,
-                        PECoBan = item.Value.Where(y => y.NameEn == ConstantData.NameEn.PECoBan).Sum(y => y.Value ?? 0),
-                        LNSTGrowth = lnstGrowth
-                    });
-                }
-                if (!lstData.Any()) return;
-
-
-                decimal lnstGrowhrate = lstData.Sum(d => d.LNSTGrowth) / lstData.Count();
-                //decimal peToday = symbol._vhtt_ / lnst4QuyTruoc;
-
-                var dk1 = lnstTangTruongTrungBinhThucTe >= tangtruong;
-
-                var dataOfDK2 = await PhanTichTungDoanhNghiepTheoNam(symbol, year, 4, tangtruong, stockToday, stockSymbolFinanceYearlyHistoryByStockCode,
-                    stockSymbolFinanceQuarterlyHistories);
-
-                if (dk1) //Start following
-                {
-                    var patternOnsymbol = new PatternBySymbolResponseModel();
-                    patternOnsymbol.StockCode = symbol._sc_;
-                    //var text = $"{symbol._sc_} - LNST TB {range} năm: {Math.Round(lnstGrowhrate, 2)}, P/E hôm nay thấp hơn P/E 4 quý gần nhất * LNST là {Math.Round(peToday / pe4QuyTruoc * (1 + lnstGrowhrate), 2)}%)";
-                    patternOnsymbol.Details.Add(new PatternDetailsResponseModel
-                    {
-                        MoreInformation = new
-                        {
-                            LNSTSoSach = lnstGrowhrate,
-                            LNSTThucTe = lnstTangTruongTrungBinhThucTe,
-                            RealityExpectation = string.Empty,
-                            ShouldBuy = true
-                        }
-                    });
-
-                    result.NhanDinhHDKD.Items.Add(patternOnsymbol);
-                }
-            });
-
-            result.NhanDinhHDKD.Items = result.NhanDinhHDKD.Items.OrderBy(s => s.StockCode).ToList();
-
-            return result;
-        }
-
-
-        /// <summary>
-        /// Condition đơn giản
-        /// - trong x nam
-        ///     + Khong phải CP đang bị giao dịch 1 tuần/1 lần
-        ///     + Trung bình giao dịch trong 30 phiên lần nhất > 100K
-        ///     + Tăng trường lợi nhuận sau thuế trung bình trong x năm >= Y (số đầu vào - ví dụ 0.15 = 15%)
-        ///         + Được tính bằng căn bậc N (số năm tính) của X (LNST năm cuối cùng / LNST năm đầu tiên)
-        ///     + P/E <= 15% trung bình trong x năm
-        /// </summary>
-        /// <param name="code"></param>
-        /// <param name="year"></param>
-        /// <returns></returns>
         public async Task<PatternResponseModel> PhanTichDoanhNghiepTheoNamNoiDung(string code, int year, int range, double tangtruong,
             List<StockSymbol> symbols,
             List<StockSymbolFinanceYearlyHistory> stockSymbolFinanceYearlyHistories,
@@ -1983,6 +1738,168 @@ namespace DotNetCoreSqlDb.Controllers
             return result;
         }
 
+        /// <summary>
+        /// Condition đơn giản
+        /// - trong x nam
+        ///     + Khong phải CP đang bị giao dịch 1 tuần/1 lần
+        ///     + Trung bình giao dịch trong 30 phiên lần nhất > 100K
+        ///     + Tăng trường lợi nhuận sau thuế trung bình trong x năm >= Y (số đầu vào - ví dụ 0.15 = 15%)
+        ///         + Được tính bằng căn bậc N (số năm tính) của X (LNST năm cuối cùng / LNST năm đầu tiên)
+        ///     + P/E <= 15% trung bình trong x năm
+        /// </summary>
+        /// <param name="code"></param>
+        /// <param name="year"></param>
+        /// <returns></returns>
+        public async Task<PatternResponseModel> PhanTichDoanhNghiepTheoNamV2(string code, int year, int range, double tangtruong)
+        {
+            var result = new PatternResponseModel();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var today = await _context.StockSymbolHistory.OrderByDescending(d => d.Date).FirstAsync();
+
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length <= 3).ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var stockSymbolFinanceYearlyHistories = await _context.StockSymbolFinanceYearlyHistory
+                .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - range - 1))
+                .ToListAsync();
+
+            var stockSymbolHistoryToday = await _context.StockSymbolHistory
+                .Where(f => stockCodes.Contains(f.StockSymbol) && f.Date == today.Date)
+                .ToListAsync();
+
+            var stockSymbolHistoryInRange = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= today.Date.AddDays(-10))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            //var quarterlyData = new List<string> { "P/E", "Profit after tax for shareholders of parent company" };
+            var stockSymbolFinanceQuarterlyLastYear = await _context.StockSymbolFinanceHistory
+                .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod == (year - 1) && ConstantData.NameEn.lnstTuTCDCtyMe.Contains(f.NameEn))
+                .ToListAsync();
+
+            Parallel.ForEach(symbols, async symbol =>
+            {
+                if (symbol._vhtt_ <= 3000) return;
+
+                var stockSymbolHistoryInRangeBySockCode = stockSymbolHistoryInRange
+                   .Where(ss => ss.StockSymbol == symbol._sc_)
+                   .OrderBy(s => s.Date)
+                   .ToList();
+
+                var latestDate = stockSymbolHistoryInRangeBySockCode.OrderByDescending(h => h.Date).FirstOrDefault();
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(stockSymbolHistoryInRangeBySockCode);
+                if (biCanhCao) return;
+
+                var avarageOfLastXXPhien = stockSymbolHistoryInRangeBySockCode.Take(30).Sum(h => h.V) / 30;
+                if (avarageOfLastXXPhien < 100000) return;
+
+                var stockSymbolFinanceYearlyHistoryByStockCode = stockSymbolFinanceYearlyHistories
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(s => s.YearPeriod)
+                    .ToList();
+
+                var stockToday = stockSymbolHistoryToday.FirstOrDefault(t => t.StockSymbol == symbol._sc_);
+                decimal stockTodayPrice = stockToday?.C ?? 0;
+
+                if (!stockSymbolFinanceYearlyHistoryByStockCode.Any() || stockTodayPrice <= 0) return;
+
+
+
+                var lnstNamDau = stockSymbolFinanceYearlyHistoryByStockCode
+                    .FirstOrDefault(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn) && d.Value.HasValue)
+                    ?.Value ?? 0;
+
+                var lnstNamCuoi = stockSymbolFinanceYearlyHistoryByStockCode.OrderByDescending(d => d.YearPeriod)
+                    .FirstOrDefault(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn))
+                    ?.Value ?? 0;
+
+                if (lnstNamDau == 0 || lnstNamCuoi == 0) return;
+
+                var soLanTangLNST = (double)(lnstNamCuoi / lnstNamDau);
+                var soNamKiemTra = stockSymbolFinanceYearlyHistoryByStockCode.Select(d => d.YearPeriod).Distinct().Count();
+
+                double lnstTangTruongTrungBinhThucTe = soLanTangLNST.NthRoot(soNamKiemTra - 1) - 1;
+
+
+                var groupedByYear = stockSymbolFinanceYearlyHistoryByStockCode.GroupBy(g => g.YearPeriod).ToDictionary(g => g.Key, g => g.ToList());
+
+                var lstData = new List<StockSymbolFinanceYearlyHistoryModel>();
+
+                var quarterly = stockSymbolFinanceQuarterlyLastYear
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(s => s.Quarter)
+                    .ToList();
+                if (!quarterly.Any()) return;
+
+                //decimal pe4QuyTruoc = quarterly.Any(q => q.NameEn == quarterlyData[0])
+                //    ? quarterly.Where(q => q.NameEn == quarterlyData[0]).Sum(d => d.Value ?? 0) / quarterly.Count(q => q.NameEn == quarterlyData[0])
+                //    : 0;
+
+                //var t1 = quarterly.Where(q => q.NameEn == quarterlyData[1]).ToList();
+                //decimal lnst4QuyTruoc = t1.Sum(d => d.Value ?? 0);
+
+                //if (pe4QuyTruoc == 0 || lnst4QuyTruoc == 0) return; //cổ phiếu nhỏ lẻ
+
+                foreach (var item in groupedByYear)
+                {
+                    var previousYear = groupedByYear.ContainsKey(item.Key - 1) ? groupedByYear[item.Key - 1] : null;
+                    if (previousYear == null) continue;
+
+                    decimal lnstGrowth = previousYear.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0) != 0
+                            ? item.Value.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0)
+                              / previousYear.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0)
+                              - 1
+                            : 0;
+
+                    lstData.Add(new StockSymbolFinanceYearlyHistoryModel
+                    {
+                        Year = item.Key,
+                        PECoBan = item.Value.Where(y => y.NameEn == ConstantData.NameEn.PECoBan).Sum(y => y.Value ?? 0),
+                        LNSTGrowth = lnstGrowth
+                    });
+                }
+                if (!lstData.Any()) return;
+
+
+                decimal lnstGrowhrate = lstData.Sum(d => d.LNSTGrowth) / lstData.Count();
+                //decimal peToday = symbol._vhtt_ / lnst4QuyTruoc;
+
+                var dk1 = lnstTangTruongTrungBinhThucTe >= tangtruong;
+
+                var dataOfDK2 = await PhanTichTungDoanhNghiepTheoNam(symbol, year, 4, tangtruong, stockToday, stockSymbolFinanceYearlyHistoryByStockCode, stockSymbolFinanceQuarterlyLastYear);
+                var dk2 = dataOfDK2 != null && dataOfDK2.NhanDinhHDKD != null && dataOfDK2.NhanDinhHDKD.Items.Any();
+
+                if (dk1 && dk2) //Start following
+                {
+                    var patternOnsymbol = new PatternBySymbolResponseModel();
+                    patternOnsymbol.StockCode = symbol._sc_;
+                    //var text = $"{symbol._sc_} - LNST TB {range} năm: {Math.Round(lnstGrowhrate, 2)}, P/E hôm nay thấp hơn P/E 4 quý gần nhất * LNST là {Math.Round(peToday / pe4QuyTruoc * (1 + lnstGrowhrate), 2)}%)";
+                    patternOnsymbol.Details.Add(new PatternDetailsResponseModel
+                    {
+                        MoreInformation = new
+                        {
+                            LNSTSoSach10Nam = lnstGrowhrate,
+                            LNSTThucTe10Nam = lnstTangTruongTrungBinhThucTe,
+                            LNSTThucTe4Nam = dataOfDK2.NhanDinhHDKD.Items.First().Details.First().MoreInformation.LNSTThucTe,
+                            PEToday = dataOfDK2.NhanDinhHDKD.Items.First().Details.First().MoreInformation.PEToday,
+                            PE4Nam = dataOfDK2.NhanDinhHDKD.Items.First().Details.First().MoreInformation.PE4Nam,
+                            RealityExpectation = string.Empty,
+                            ShouldBuy = true
+                        }
+                    });
+
+                    result.NhanDinhHDKD.Items.Add(patternOnsymbol);
+                }
+            });
+
+            result.NhanDinhHDKD.Items = result.NhanDinhHDKD.Items.OrderBy(s => s.StockCode).ToList();
+
+            return result;
+        }
 
         /// <summary>
         /// Condition đơn giản
@@ -1997,27 +1914,11 @@ namespace DotNetCoreSqlDb.Controllers
         /// <param name="year"></param>
         /// <returns></returns>
         private async Task<PatternResponseModel> PhanTichTungDoanhNghiepTheoNam(StockSymbol symbol, int year, int range, double tangtruong,
-            //List<StockSymbolFinanceYearlyHistory> stockSymbolFinanceYearlyHistories,
-            //List<StockSymbolHistory> stockSymbolHistoryToday,
             StockSymbolHistory stockSymbolHistoryToday,
-            //List<StockSymbolHistory> stockSymbolHistoryInRangeBySockCode,
             List<StockSymbolFinanceYearlyHistory> stockSymbolFinanceYearlyHistoryByStockCodeAllYears,
             List<StockSymbolFinanceHistory> stockSymbolFinanceQuarterlyHistoriesByStockCodeAllYears)
         {
             var result = new PatternResponseModel();
-            //var quarterlyData = new List<string> { "P/E", "Profit after tax for shareholders of parent company" };
-
-            //var stockSymbolHistoryInRangeBySockCode = stockSymbolHistoryInRange
-            //   .Where(ss => ss.StockSymbol == symbol._sc_)
-            //   .OrderBy(s => s.Date)
-            //   .ToList();
-
-            //var stockSymbolFinanceYearlyHistoryByStockCode = stockSymbolFinanceYearlyHistories
-            //    .Where(ss => ss.StockSymbol == symbol._sc_)
-            //    .OrderBy(s => s.YearPeriod)
-            //    .ToList();
-            //decimal stockToday = stockSymbolHistoryToday.FirstOrDefault(t => t.StockSymbol == symbol._sc_)?.C ?? 0;
-            //if (!stockSymbolFinanceYearlyHistoryByStockCode.Any() || stockToday <= 0) return;
 
             var stockSymbolFinanceYearlyHistoryByStockCode = stockSymbolFinanceYearlyHistoryByStockCodeAllYears.Where(y => y.YearPeriod >= (year - range - 1)).ToList();
             var stockSymbolFinanceQuarterlyHistories = stockSymbolFinanceQuarterlyHistoriesByStockCodeAllYears.Where(y => y.YearPeriod >= (year - range - 1)).ToList();
@@ -2084,6 +1985,8 @@ namespace DotNetCoreSqlDb.Controllers
                     {
                         //LNSTSoSach = lnstGrowhrate,
                         LNSTThucTe = lnstTangTruongTrungBinhThucTe,
+                        PEToday = peToday,
+                        PE4Nam = peTrungBinhHangNam,
                         RealityExpectation = string.Empty,
                         ShouldBuy = true
                     }
@@ -2096,5 +1999,1380 @@ namespace DotNetCoreSqlDb.Controllers
 
             return result;
         }
+
+
+
+
+
+
+
+
+
+
+
+
+        public async Task<PredictionResultModel> Prediction(string name)
+        {
+            var result = new PredictionResultModel();
+            string path = @"C:\Projects\Test\Stock-app\Data\Json\Prediction\Prediction.json";
+            var data = new List<PredictionModel>();
+            using (StreamReader r = new StreamReader(path))
+            {
+                string json = await r.ReadToEndAsync();
+                data = JsonConvert.DeserializeObject<List<PredictionModel>>(json);
+            }
+
+            //TODO: apply filter by name
+
+            var minDate = data.SelectMany(d => d.Prediction).OrderBy(d => d.Ngay).First().Ngay;
+
+            foreach (var username in data)
+                foreach (var prediction in username.Prediction)
+                {
+                    foreach (var item in prediction.DuLieu)
+                    {
+                        var code = item.Split('-')[0];
+                        var suggestedPrice = item.Split('-')[1];
+
+                        prediction.DuLieuDuocPhanTich.Add(new PredictionDataModel { Code = code, SuggestedPrice = decimal.Parse(suggestedPrice) });
+                    }
+                }
+
+
+            var selectedCodes = data.SelectMany(d => d.Prediction).SelectMany(d => d.DuLieuDuocPhanTich).Select(d => d.Code).Distinct().ToList();
+
+            var codeHistories = await _context.StockSymbolHistory.Where(h => selectedCodes.Contains(h.StockSymbol) && h.Date >= minDate).ToListAsync();
+
+            Parallel.ForEach(data, symbol =>
+            {
+                foreach (var predictionData in symbol.Prediction)
+                {
+                    foreach (var duLieu in predictionData.DuLieuDuocPhanTich)
+                    {
+                        var dataInRange = codeHistories.Where(h => h.StockSymbol == duLieu.Code && h.Date >= predictionData.Ngay)
+                            .OrderBy(h => h.Date)
+                            .Take(4)
+                            .ToList();
+
+                        if (!dataInRange.Any()) continue;
+
+                        var isTheSuggestedPriceOk = dataInRange[0].L <= duLieu.SuggestedPrice * 1000;
+                        if (isTheSuggestedPriceOk)
+                        {
+                            if (dataInRange.Last().C >= duLieu.SuggestedPrice * 1000 * 1.01M)
+                                result.Details.Add(new PredictionResultDetailsModel { Code = duLieu.Code, Ngay = predictionData.Ngay, Result = true, Username = symbol.Name });
+                            else
+                                result.Details.Add(new PredictionResultDetailsModel { Code = duLieu.Code, Ngay = predictionData.Ngay, Username = symbol.Name });
+                        }
+                    }
+                }
+            });
+
+            result.Rate = Math.Round((decimal)((decimal)result.Details.Count(d => d.Result) / (decimal)result.Details.Count()), 2);
+
+
+            return result;
+        }
+
+
+
+
+
+
+        public async Task<PatternDetailsResponseModel> RSI(string code,
+            int maCanhBaoMua,
+            int maCanhBaoBan,
+            DateTime ngay)
+        {
+            var result = new PatternDetailsResponseModel();
+            int rsi = 14;
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            //var maxRangeList = new List<int> { maCanhBaoBan, maCanhBaoMua, rsi, soPhienGd };
+            //var maxRange = maxRangeList.Max() + 5;//TODO: tại sao 5 ? vì mình cần lấy rsi + 1, cần lấy rsi ngày hum wa xem có phải điểm mua là ngày hum nay ko
+
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date <= ngay)
+                .OrderByDescending(ss => ss.Date)
+                //.Take(14) //tinh rsi 14
+                .ToListAsync();
+
+            var lstNhacMua = new List<string>();
+            var lstNhacBan = new List<string>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var histories = historiesInPeriodOfTimeByStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .ToList();
+
+                var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
+
+                //var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
+                //if (biCanhCao) return;
+
+                //var avarageOfLastXXPhien = histories.Take(soPhienGd).Sum(h => h.V) / soPhienGd;
+                //if (avarageOfLastXXPhien < trungbinhGd) return;
+
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
+                if (yesterday == null) return;
+
+                var rsiToday = history.RSI(histories, rsi);
+                var rsiYesterday = history.RSI(histories, rsi);
+
+                var diemNhacMua = history.MA(histories, maCanhBaoMua);
+                var diemCanhBaoBan = history.MA(histories, maCanhBaoBan);
+
+                var dk1 = rsiYesterday < diemNhacMua && rsiToday > diemNhacMua;
+
+                var dk2 = rsiToday > diemCanhBaoBan || rsiToday < diemNhacMua;
+
+                if (dk1) lstNhacMua.Add(code);
+                if (dk2) lstNhacBan.Add(code);
+            });
+
+            if (lstNhacMua.Any() || lstNhacBan.Any())
+                result.ConditionMatchAt = ngay;
+
+            result.MoreInformation = new
+            {
+                NhacMua = string.Join(", ", lstNhacMua),
+                NhacBan = string.Join(", ", lstNhacBan),
+            };
+
+            return result;
+        }
+
+        public async Task<PatternDetailsResponseModel> MACD(string code,
+            int maCanhBaoMua,
+            int maCanhBaoBan,
+            int rsi,
+            DateTime ngay, int soPhienGd, int trungbinhGd)
+        {
+            var result = new PatternDetailsResponseModel();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var maxRangeList = new List<int> { maCanhBaoBan, maCanhBaoMua, rsi, soPhienGd };
+            var maxRange = maxRangeList.Max() + 5;//TODO: tại sao 5 ? vì mình cần lấy rsi + 1, cần lấy rsi ngày hum wa xem có phải điểm mua là ngày hum nay ko
+
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date <= ngay)
+                .OrderByDescending(ss => ss.Date)
+                .Take(maxRange)
+                .ToListAsync();
+
+            //if (historiesInPeriodOfTimeByStockCode.FirstOrDefault() != null && historiesInPeriodOfTimeByStockCode.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
+            //{
+            //    var newPackages = new List<StockSymbolHistory>();
+            //    var from = DateTime.Now.WithoutHours();
+            //    var to = DateTime.Now.WithoutHours().AddDays(1);
+
+            //    var service = new Service();
+            //    await service.GetV(newPackages, symbols, from, to, from, 0);
+
+            //    historiesInPeriodOfTimeByStockCode.AddRange(newPackages);
+            //}
+
+            var lstNhacMua = new List<string>();
+            var lstNhacBan = new List<string>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var histories = historiesInPeriodOfTimeByStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .ToList();
+
+                var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
+
+                if (biCanhCao) return;
+
+                var avarageOfLastXXPhien = histories.Take(soPhienGd).Sum(h => h.V) / soPhienGd;
+                if (avarageOfLastXXPhien < trungbinhGd) return;
+
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
+                if (yesterday == null) return;
+
+                var rsiToday = history.RSI(histories, rsi);
+                var rsiYesterday = history.RSI(histories, rsi);
+
+                var diemNhacMua = history.MA(histories, maCanhBaoMua);
+                var diemCanhBaoBan = history.MA(histories, maCanhBaoBan);
+
+                var dk1 = rsiYesterday < diemNhacMua && rsiToday > diemNhacMua;
+
+                var dk2 = rsiToday > diemCanhBaoBan || rsiToday < diemNhacMua;
+
+                if (dk1) lstNhacMua.Add(code);
+                if (dk2) lstNhacBan.Add(code);
+            });
+
+            if (lstNhacMua.Any() || lstNhacBan.Any())
+                result.ConditionMatchAt = ngay;
+
+            result.MoreInformation = new
+            {
+                NhacMua = string.Join(", ", lstNhacMua),
+                NhacBan = string.Join(", ", lstNhacBan),
+            };
+
+            return result;
+        }
+
+
+        public async Task<PatternDetailsResponseModel> Stoch(string code,
+            int maCanhBaoMua,
+            int maCanhBaoBan,
+            int rsi,
+            DateTime ngay, int soPhienGd, int trungbinhGd)
+        {
+            var result = new PatternDetailsResponseModel();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var maxRangeList = new List<int> { maCanhBaoBan, maCanhBaoMua, rsi, soPhienGd };
+            var maxRange = maxRangeList.Max() + 5;//TODO: tại sao 5 ? vì mình cần lấy rsi + 1, cần lấy rsi ngày hum wa xem có phải điểm mua là ngày hum nay ko
+
+            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date <= ngay)
+                .OrderByDescending(ss => ss.Date)
+                .Take(maxRange)
+                .ToListAsync();
+
+            //if (historiesInPeriodOfTimeByStockCode.FirstOrDefault() != null && historiesInPeriodOfTimeByStockCode.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
+            //{
+            //    var newPackages = new List<StockSymbolHistory>();
+            //    var from = DateTime.Now.WithoutHours();
+            //    var to = DateTime.Now.WithoutHours().AddDays(1);
+
+            //    var service = new Service();
+            //    await service.GetV(newPackages, symbols, from, to, from, 0);
+
+            //    historiesInPeriodOfTimeByStockCode.AddRange(newPackages);
+            //}
+
+            var lstNhacMua = new List<string>();
+            var lstNhacBan = new List<string>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var histories = historiesInPeriodOfTimeByStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .ToList();
+
+                var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
+
+                if (biCanhCao) return;
+
+                var avarageOfLastXXPhien = histories.Take(soPhienGd).Sum(h => h.V) / soPhienGd;
+                if (avarageOfLastXXPhien < trungbinhGd) return;
+
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
+                if (yesterday == null) return;
+
+                var rsiToday = history.RSI(histories, rsi);
+                var rsiYesterday = history.RSI(histories, rsi);
+
+                var diemNhacMua = history.MA(histories, maCanhBaoMua);
+                var diemCanhBaoBan = history.MA(histories, maCanhBaoBan);
+
+                var dk1 = rsiYesterday < diemNhacMua && rsiToday > diemNhacMua;
+
+                var dk2 = rsiToday > diemCanhBaoBan || rsiToday < diemNhacMua;
+
+                if (dk1) lstNhacMua.Add(code);
+                if (dk2) lstNhacBan.Add(code);
+            });
+
+            if (lstNhacMua.Any() || lstNhacBan.Any())
+                result.ConditionMatchAt = ngay;
+
+            result.MoreInformation = new
+            {
+                NhacMua = string.Join(", ", lstNhacMua),
+                NhacBan = string.Join(", ", lstNhacBan),
+            };
+
+            return result;
+        }
+
+
+        /*
+         * Goi ý mua / bán
+         *  - Mã
+         *  - Tỉ lệ
+         *  - Chu kỳ (từ ngày nào tới ngày nào để tính tỉ lệ)
+         *  - Ngày
+         *  - Gợi ý (MUA/BÁN)
+         *      + MUA: Tổng points > 70
+         *      + Bán: Tổng points < -70
+         *  - GIÁ
+         *  - T0
+         *  - T1
+         *  - T2
+         *  - T3 (NGÀY BÁN) - dừng theo dõi T4, T5 nếu T3 lãi > 10%
+         *  - T4 (NGÀY BÁN)
+         *  - T5 (NGÀY BÁN)
+         *  - RSI
+         *  - ICHIMOKU
+         *  - MACD
+         *  - MA20
+         *  - NẾN
+         *  - BANDS
+         *  - GIÁ
+         *  - VOL
+         *  - KHÁNG CỰ
+         *  - HỖ TRỢ
+         * 
+         * 
+         * RSI: 10 points
+         *      - Tính từ hiện tại về tìm 2 điểm chạm nhau
+         *          - Đỏ cắt lên xanh
+         *              + Giá bắt đầu tăng ngắn hạn => có thể tạo xu hướng tăng ngắn hạn
+         *          - Đỏ cắt xuống xanh
+         *              + Giá bắt đầu giảm ngắn hạn => có thể tạo xu hướng giảm ngắn hạn
+         *      - Phân kì âm/dương
+         *          - Tìm từ giao điểm hiện tại (P1) quay ngược lại giao điểm trước đó (P2)
+         *              + P1 > P2 => RSI chu kì tăng
+         *              + P1 < P2 => RSI chu kì giảm
+         *              + Else: RSI chưa xuất hiện chu kỳ
+         *          - Từ P1 và P2 của RSI, tìm lên giá đóng của 2 ngày P1 và P2, gọi là C1 và C2
+         *              + P1 > P2 
+         *                  + C1 > C2 => RSI phân kỳ dương => tiếp tục xu thế
+         *                  + C1 < C2 => RSI phân kỳ âm => báo tín hiệu đảo chiều xu thế hiện tại
+         *                  + Else: RSI chưa xuất hiện chu kỳ
+         *              + Ngược lại y chang
+         *      => Báo tín hiệu mua/bán
+         *      
+         *  MACD
+         *      - Tính từ hiện tại về tìm 2 điểm chạm nhau
+         *          - Đỏ cắt lên xanh
+         *              + Giá bắt đầu tăng ngắn hạn => có thể tạo xu hướng tăng ngắn hạn
+         *          - Đỏ cắt xuống xanh
+         *              + Giá bắt đầu giảm ngắn hạn => có thể tạo xu hướng giảm ngắn hạn
+         *      - Phân kì âm/dương
+         *          - Tìm từ giao điểm hiện tại (P1) quay ngược lại giao điểm trước đó (P2)
+         *              + P1 > P2 => MACD chu kì tăng
+         *              + P1 < P2 => MACD chu kì giảm
+         *              + Else: MACD chưa xuất hiện chu kỳ
+         *          - Từ P1 và P2 của MACD, tìm lên giá đóng của 2 ngày P1 và P2, gọi là C1 và C2
+         *              + P1 > P2 
+         *                  + C1 > C2 => MACD phân kỳ dương => tiếp tục xu thế
+         *                  + C1 < C2 => MACD phân kỳ âm => báo tín hiệu đảo chiều xu thế hiện tại
+         *                  + Else: MACD chưa xuất hiện chu kỳ
+         *              + Ngược lại y chang
+         *      => Báo tín hiệu mua/bán
+         *      
+         *  Stoch
+         *      - Tính từ hiện tại về tìm 2 điểm chạm nhau
+         *          - Đỏ cắt lên xanh
+         *              + Giá bắt đầu tăng ngắn hạn => có thể tạo xu hướng tăng ngắn hạn
+         *          - Đỏ cắt xuống xanh
+         *              + Giá bắt đầu giảm ngắn hạn => có thể tạo xu hướng giảm ngắn hạn
+         *      - Phân kì âm/dương
+         *          - Tìm từ giao điểm hiện tại (P1) quay ngược lại giao điểm trước đó (P2)
+         *              + P1 > P2 => Stoch chu kì tăng
+         *              + P1 < P2 => Stoch chu kì giảm
+         *              + Else: Stoch chưa xuất hiện chu kỳ
+         *          - Từ P1 và P2 của Stoch, tìm lên giá đóng của 2 ngày P1 và P2, gọi là C1 và C2
+         *              + P1 > P2 
+         *                  + C1 > C2 => Stoch phân kỳ dương => tiếp tục xu thế
+         *                  + C1 < C2 => Stoch phân kỳ âm => báo tín hiệu đảo chiều xu thế hiện tại
+         *                  + Else: Stoch chưa xuất hiện chu kỳ
+         *              + Ngược lại y chang
+         *      => Báo tín hiệu mua/bán
+         *      
+         *  MA20
+         *      - Giá cắt xuống dưới MA20: bán
+         *      - Giá cắt lên MA 20: mua
+         *      
+         *  Bollinger bands
+         *      - Giá chạm bands trên: tín hiệu đảo chiều
+         *      - Giá chạm bands dưới: tín hiệu đảo chiều
+         *      
+         *  Ichimoku
+         *      - Giá Trong mây
+         *          - Tenkan cắt lên Kijun : tín hiệu mua trung bình
+         *          - Tenkan cắt xuống Kijun: tín hiệu bán trung bình
+         *      - Giá Trên mây
+         *          - Tenkan cắt lên Kijun : tín hiệu mua mạnh
+         *          - Tenkan cắt xuống Kijun: tín hiệu bán nhẹ
+         *      - Giá dưới mây: N/A
+         *          - Stoch từ 80 trở xuống 
+         *      - 
+         *      
+         *  Giá
+         *      - Giá tăng: mua
+         *      - Giá giảm: bán
+         *      
+         *  Vol
+         *      - >= MA 20: vol to
+         *      - <= MA 20: vol bé
+         *      
+         *  Giá vs Vol
+         *      - Giá tăng - vol tăng: mua => tiep tuc xu hướng mua
+         *      - Giá giảm - vol tăng: bán => tiep tuc xu hướng bán
+         *      - Giá tăng - vol giảm: giữ hàng => xu hướng đang yếu đi và cbi đảo chiều
+         *      - Giá giảm - vol giảm: giữ hàng => xu hướng đang yếu đi và cbi đảo chiều
+         *      - Giá tăng đột biến - vol giữ nguyên: bẫy, trừ khi cp đã tăng giảm hết biên độ, hết hàng và trần/sàn
+         *      - Giá giữ nguyên - vol đột biến: báo hiệu xu hướng có thể đảo chiều tức xu hướng tăng có thể đảo chiều sang giảm - xu hướng giảm có thể đảo chiều sang tăng.
+         *      - giá giữ nguyên, vol giữ nguyên: Thường xuất hiện trong chu kỳ điều chỉnh của cả xu hướng tăng và xu hướng giảm. Sau đó cổ phiếu cần dành phần lớn thời gian để đi ngang với khối lượng nhỏ trước khi tăng tốc mạnh. Thời gian tích lũy càng lâu thì rủi ro mua càng thấp và đà tăng giá sẽ càng mạnh.
+         *      
+         *  Kháng cự: bán
+         *      
+         */
+
+
+        public async Task<List<string>> RSITest(string code, DateTime ngay, DateTime ngayCuoi)
+        {
+            var result = new PatternDetailsResponseModel();
+            int rsi = 14;
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10) //calculate T
+                    )
+                //&& ss.Date >= ngayCuoi.AddDays(-30)) //caculate SRI
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var result1 = new List<string>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var historiesInPeriodOfTime = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+
+                for (int i = 14; i < historiesInPeriodOfTime.Count - 1; i++)
+                {
+                    if (i == 14)
+                    {
+                        var tuple = historiesInPeriodOfTime[i].RSIDetail(historiesInPeriodOfTime, 14);
+                        if (tuple == null)
+                        {
+                            historiesInPeriodOfTime[i].RSIAvgG = 0;
+                            historiesInPeriodOfTime[i].RSIAvgL = 0;
+                            historiesInPeriodOfTime[i].RSI = 0;
+                        }
+                        else
+                        {
+                            historiesInPeriodOfTime[i].RSIAvgG = tuple.Item1;
+                            historiesInPeriodOfTime[i].RSIAvgL = tuple.Item2;
+                            historiesInPeriodOfTime[i].RSI = tuple.Item3;
+                        }
+                    }
+                    else
+                    {
+                        var gain = historiesInPeriodOfTime[i].C - historiesInPeriodOfTime[i - 1].C;
+                        var totalG = (historiesInPeriodOfTime[i - 1].RSIAvgG * 13 + (gain < 0 ? 0 : gain)) / 14;
+                        var totalL = (historiesInPeriodOfTime[i - 1].RSIAvgL * 13 + (gain < 0 ? gain * (-1) : 0)) / 14;
+
+                        historiesInPeriodOfTime[i].RSIAvgG = totalG;
+                        historiesInPeriodOfTime[i].RSIAvgL = totalL;
+                        historiesInPeriodOfTime[i].RSI = 100 - 100 / ((totalG / totalL) + 1);
+                    }
+                }
+
+                //foreach (var item in historiesInPeriodOfTime)
+                //{
+
+                //}
+
+                var histories = historiesInPeriodOfTime
+                    .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoi)
+                    .OrderByDescending(h => h.Date)
+                    .ToList();
+
+                var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
+
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
+                if (biCanhCao) return;
+
+                var avarageOfLastXXPhien = histories.Take(30).Sum(h => h.V) / 30;
+                if (avarageOfLastXXPhien < 100000) return;
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
+                if (yesterday == null) return;
+
+                for (int i = 0; i < histories.Count - 1; i++)
+                {
+                    var checkingDay = histories[i];
+                    if (!checkingDay.TangGia()) continue;
+
+                    //Giả định ngày trước đó là đáy
+                    var dayGiaDinh = histories[i + 1];
+
+                    //Kiem tra đáy giả định: trong vòng 2 tuần (10 phiên) không có cây nào trước đó thấp hơn nó)
+                    var isDayGiaDinhDung = histories.Where(h => dayGiaDinh.Date > h.Date).Take(10).Any(h => h.C < dayGiaDinh.C);
+
+                    if (isDayGiaDinhDung == false) continue;
+
+                    if (dayGiaDinh.C <= checkingDay.C)
+                    {
+                        //var rsiOfPreviousDay = dayGiaDinh.RSI; // (historiesInPeriodOfTime, rsi);
+                        //var price = dayGiaDinh.C;
+
+                        var j = i + 1 + 1;
+
+                        decimal minPrice = 0;//tìm đáy theo giá, chỉ so sánh với giá thấp nhất trước đó
+
+                        while (j < histories.Count && j < i + 1 + 1 + 20)
+                        {
+                            var ngaySoSanhVoiDayGiaDinh = histories[j];
+                            //var jPrice = ngaySoSanhVoiDayGiaDinh.C;
+                            //var jRsi = ngaySoSanhVoiDayGiaDinh.RSI;// (historiesInPeriodOfTime, rsi);
+
+                            if (minPrice >= ngaySoSanhVoiDayGiaDinh.C)
+                            {
+                                j++;
+                                continue;
+                            }
+
+                            minPrice = ngaySoSanhVoiDayGiaDinh.C;
+
+                            var dateSoSanh = ngaySoSanhVoiDayGiaDinh.Date;
+                            var dateDaygiaDinh = dayGiaDinh.Date;
+
+
+                            if (ngaySoSanhVoiDayGiaDinh.C >= dayGiaDinh.C && ngaySoSanhVoiDayGiaDinh.RSI < dayGiaDinh.RSI)
+                            {
+                                var tileChinhXac = 0;
+                                var tPlus = historiesInPeriodOfTime.Where(h => h.Date > checkingDay.Date)
+                                    .OrderBy(h => h.Date)
+                                    .Take(5)
+                                    .ToList();
+
+                                if (tPlus.Any(t => t.C > checkingDay.C * 1.01M))
+                                    result1.Add($"{symbol._sc_} - Đúng - T3-5 lời ít nhất 1% - Điểm nhắc: {checkingDay.Date.ToShortDateString()} RSI {checkingDay.RSI.ToString("N2")} - Giá {checkingDay.C.ToString("N2")} - Điểm tín hiệu: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.C.ToString("N2")}");
+                                else
+                                    result1.Add($"{symbol._sc_} - Sai  - T3-5 lỗ             - Điểm nhắc: {checkingDay.Date.ToShortDateString()} RSI {checkingDay.RSI.ToString("N2")} - Giá {checkingDay.C.ToString("N2")} - Điểm tín hiệu: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.C.ToString("N2")}");
+                            }
+
+                            j++;
+                        }
+
+                    }
+                }
+            });
+
+
+            return result1;
+        }
+
+        public async Task<List<string>> RSITestV1(string code, DateTime ngay, DateTime ngayCuoi, int KC2D, int SoPhienKT)
+        {
+            var result = new PatternDetailsResponseModel();
+            int rsi = 14;
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.ToListAsync()
+                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10) //calculate T
+                    )
+                //&& ss.Date >= ngayCuoi.AddDays(-30)) //caculate SRI
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var result1 = new List<string>();
+            decimal tong = 0;
+            decimal dung = 0;
+            decimal sai = 0;
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var historiesInPeriodOfTime = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+
+                var histories = historiesInPeriodOfTime
+                    .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoi)
+                    .OrderByDescending(h => h.Date)
+                    .ToList();
+
+                var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
+
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
+                if (biCanhCao) return;
+
+                var avarageOfLastXXPhien = histories.Take(30).Sum(h => h.V) / 30;
+                if (avarageOfLastXXPhien < 100000) return;
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
+                if (yesterday == null) return;
+
+                for (int i = 0; i < histories.Count - 1; i++)
+                {
+                    var buyingDate = histories[i];
+
+                    //Giả định ngày trước đó là đáy
+                    var dayGiaDinh = histories[i + 1];
+
+                    //trước đây đáy phải là 1 cây giảm:
+                    if (i + 1 + 1 <= histories.Count - 1)
+                    {
+                        var cayTruocCayDayGiaDinh = histories[i + 1 + 1];
+                        if (cayTruocCayDayGiaDinh.TangGia()) continue;
+                    }
+
+                    //Kiem tra đáy giả định: trong vòng 14 phiên trước không có cây nào trước đó thấp hơn nó
+                    var rsi14Period = histories.Where(h => h.Date < dayGiaDinh.Date).Take(SoPhienKT).ToList();
+                    if (rsi14Period.Count < SoPhienKT) continue;
+
+                    var nhungNgaySoSanhVoiDayGiaDinh = rsi14Period.OrderByDescending(h => h.Date).Skip(KC2D).ToList();
+
+                    var ngaySoSanhVoiDayGiaDinh = nhungNgaySoSanhVoiDayGiaDinh.Where(h => h.NenBot == nhungNgaySoSanhVoiDayGiaDinh.Min(f => f.NenBot)).OrderBy(h => h.RSI).First();
+
+                    var isDayGiaDinhDung = ngaySoSanhVoiDayGiaDinh.NenBot > dayGiaDinh.NenBot;
+                    if (isDayGiaDinhDung == false) continue;
+
+                    var isRSIIncreasing = ngaySoSanhVoiDayGiaDinh.RSI < dayGiaDinh.RSI;
+
+                    //TODO: giữa 2 điểm so sánh, ko có 1 điểm nào xen ngang vô cả
+                    var middlePoints = histories.Where(h => h.Date > ngaySoSanhVoiDayGiaDinh.Date && h.Date < dayGiaDinh.Date).ToList();
+                    if (middlePoints.Count < 2) continue; //ở giữa ít nhất 2 điểm
+
+                    var trendLine = new Line();
+                    trendLine.x1 = 0;  //x là trục tung - trục đối xứng
+                    trendLine.y1 = ngaySoSanhVoiDayGiaDinh.RSI;   //
+                    trendLine.x2 = (decimal)((dayGiaDinh.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    trendLine.y2 = dayGiaDinh.RSI;
+                    var crossLine = new Line();
+                    crossLine.x1 = (decimal)((middlePoints.OrderByDescending(h => h.RSI).First().Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    crossLine.y1 = middlePoints.OrderByDescending(h => h.RSI).First().RSI;
+                    crossLine.x2 = (decimal)((middlePoints.OrderByDescending(h => h.RSI).Last().Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    crossLine.y2 = middlePoints.OrderByDescending(h => h.RSI).Last().RSI;
+
+                    //var trendLine = new Line();
+                    //trendLine.x1 = 0;  //x là trục tung - trục đối xứng
+                    //trendLine.y1 = ngaySoSanhVoiDayGiaDinh.NenBot;   //
+                    //trendLine.x2 = (decimal)((dayGiaDinh.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    //trendLine.y2 = dayGiaDinh.NenBot;
+
+                    //var crossLine = new Line();
+                    //var point1 = middlePoints.OrderByDescending(h => h.NenBot).First();
+                    //var point2 = middlePoints.OrderByDescending(h => h.NenBot).Last();
+                    //crossLine.x1 = (decimal)((point1.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    //crossLine.y1 = point1.NenBot;
+                    //crossLine.x2 = (decimal)((point2.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    //crossLine.y2 = point2.NenBot;
+
+                    var point = trendLine.FindIntersection(crossLine);
+
+                    if (isRSIIncreasing && point == null)
+                    {
+                        var tileChinhXac = 0;
+                        var tPlus = historiesInPeriodOfTime.Where(h => h.Date >= buyingDate.Date)
+                            .OrderBy(h => h.Date)
+                            .Skip(3)
+                            .Take(3)
+                            .ToList();
+
+                        if (tPlus.Any(t => t.C > buyingDate.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                        {
+                            dung++;
+                            result1.Add($"{symbol._sc_} - Đúng - T3-5 lời ít nhất 1% - Điểm nhắc để ngày mai mua: {dayGiaDinh.Date.ToShortDateString()} RSI {dayGiaDinh.RSI.ToString("N2")} - Giá {dayGiaDinh.NenBot.ToString("N2")} - Điểm tín hiệu: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.NenBot.ToString("N2")}");
+                        }
+                        else
+                        {
+                            sai++;
+                            result1.Add($"{symbol._sc_} - Sai  - T3-5 lỗ             - Điểm nhắc để ngày mai mua: {dayGiaDinh.Date.ToShortDateString()} RSI {dayGiaDinh.RSI.ToString("N2")} - Giá {dayGiaDinh.NenBot.ToString("N2")} - Điểm tín hiệu: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.NenBot.ToString("N2")}");
+                        }
+                    }
+                }
+            });
+
+            tong = dung + sai;
+            var tile = Math.Round(dung / tong, 2);
+            result1.Add($"Tỉ lệ: {tile}");
+            return result1;
+        }
+
+
+        public async Task<List<Tuple<string, decimal, List<string>>>> RSITestRSI(string code, DateTime ngay, DateTime ngayCuoi, int KC2D, int SoPhienKT, int ma20vol)
+        {
+            var result = new PatternDetailsResponseModel();
+            int rsi = 14;
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s.BiChanGiaoDich == false && s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10) //calculate T
+                    && ss.Date >= ngayCuoi.AddDays(-30)) //caculate SRI
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var result1 = new List<string>();
+                decimal tong = 0;
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var historiesInPeriodOfTime = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+
+                var histories = historiesInPeriodOfTime
+                    .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoi)
+                    .OrderByDescending(h => h.Date)
+                    .ToList();
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
+                if (yesterday == null) return;
+
+                for (int i = 0; i < histories.Count - 1; i++)
+                {
+                    var buyingDate = histories[i];
+
+                    //Giả định ngày trước đó là đáy
+                    var dayGiaDinh = histories[i + 1];
+
+                    //trước đây đáy phải là 1 cây giảm:
+                    if (i + 1 + 1 <= histories.Count - 1)
+                    {
+                        var cayTruocCayDayGiaDinh = histories[i + 1 + 1];
+                        if (cayTruocCayDayGiaDinh.TangGia()) continue;
+                    }
+
+                    //Kiem tra đáy giả định: trong vòng 14 phiên trước không có cây nào trước đó thấp hơn nó
+                    var rsi14Period = histories.Where(h => h.Date < dayGiaDinh.Date).Take(SoPhienKT).ToList();
+                    if (rsi14Period.Count < SoPhienKT) continue;
+
+                    var nhungNgaySoSanhVoiDayGiaDinh = rsi14Period.OrderByDescending(h => h.Date).Skip(KC2D).ToList();
+
+                    var ngaySoSanhVoiDayGiaDinh = nhungNgaySoSanhVoiDayGiaDinh.Where(h => h.NenBot == nhungNgaySoSanhVoiDayGiaDinh.Min(f => f.NenBot)).OrderBy(h => h.RSI).First();
+
+                    var isDayGiaDinhDung = ngaySoSanhVoiDayGiaDinh.NenBot > dayGiaDinh.NenBot;
+                    if (isDayGiaDinhDung == false) continue;
+
+                    var isRSIIncreasing = ngaySoSanhVoiDayGiaDinh.RSI < dayGiaDinh.RSI;
+
+                    //TODO: giữa 2 điểm so sánh, ko có 1 điểm nào xen ngang vô cả
+                    var middlePoints = histories.Where(h => h.Date > ngaySoSanhVoiDayGiaDinh.Date && h.Date < dayGiaDinh.Date).ToList();
+                    if (middlePoints.Count < 2) continue; //ở giữa ít nhất 2 điểm
+
+                    var trendLineRSI = new Line();
+                    trendLineRSI.x1 = 0;  //x là trục tung - trục đối xứng
+                    trendLineRSI.y1 = ngaySoSanhVoiDayGiaDinh.RSI;   //
+                    trendLineRSI.x2 = (decimal)((dayGiaDinh.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    trendLineRSI.y2 = dayGiaDinh.RSI;
+                    var crossLine = new Line();
+                    crossLine.x1 = (decimal)((middlePoints.OrderByDescending(h => h.RSI).First().Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    crossLine.y1 = middlePoints.OrderByDescending(h => h.RSI).First().RSI;
+                    crossLine.x2 = (decimal)((middlePoints.OrderByDescending(h => h.RSI).Last().Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    crossLine.y2 = middlePoints.OrderByDescending(h => h.RSI).Last().RSI;
+
+                    //var trendLine = new Line();
+                    //trendLine.x1 = 0;  //x là trục tung - trục đối xứng
+                    //trendLine.y1 = ngaySoSanhVoiDayGiaDinh.NenBot;   //
+                    //trendLine.x2 = (decimal)((dayGiaDinh.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    //trendLine.y2 = dayGiaDinh.NenBot;
+
+                    //var crossLine = new Line();
+                    //var point1 = middlePoints.OrderByDescending(h => h.NenBot).First();
+                    //var point2 = middlePoints.OrderByDescending(h => h.NenBot).Last();
+                    //crossLine.x1 = (decimal)((point1.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    //crossLine.y1 = point1.NenBot;
+                    //crossLine.x2 = (decimal)((point2.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    //crossLine.y2 = point2.NenBot;
+
+                    var point = trendLineRSI.FindIntersection(crossLine);
+
+                    if (isRSIIncreasing && point == null)
+                    {
+                        var tileChinhXac = 0;
+                        var tPlus = historiesInPeriodOfTime.Where(h => h.Date >= buyingDate.Date)
+                            .OrderBy(h => h.Date)
+                            .Skip(3)
+                            .Take(3)
+                            .ToList();
+
+                        if (tPlus.Any(t => t.C > buyingDate.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                        {
+                            dung++;
+                            result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc để ngày mai mua: {dayGiaDinh.Date.ToShortDateString()} RSI {dayGiaDinh.RSI.ToString("N2")} - Giá {dayGiaDinh.NenBot.ToString("N2")} - Điểm so sánh: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.NenBot.ToString("N2")}");
+                        }
+                        else
+                        {
+                            sai++;
+                            result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc để ngày mai mua: {dayGiaDinh.Date.ToShortDateString()} RSI {dayGiaDinh.RSI.ToString("N2")} - Giá {dayGiaDinh.NenBot.ToString("N2")} - Điểm so sánh: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.NenBot.ToString("N2")}");
+                        }
+                    }
+                }
+
+                tong = dung + sai;
+                var tile = tong == 0 ? 0 : Math.Round(dung / tong, 2);
+                //result1.Add($"Tỉ lệ: {tile}");
+                tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, tile, result1));
+            });
+
+            return tup;
+        }
+
+        public async Task<List<Tuple<string, decimal, List<string>>>> RSITestMANhanhCatCham(string code, DateTime ngay, DateTime ngayCuoi, int KC2D, int SoPhienKT, int ma20vol, int MANhanh, int MACham)
+        {
+            var result = new PatternDetailsResponseModel();
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.StockSymbolHistory
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10) //calculate T
+                    && ss.Date >= ngayCuoi.AddDays(-MACham * 2)) //caculate SRI
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var result1 = new List<string>();
+                decimal tong = 0;
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var NhậtKýMuaBán = new List<Tuple<string, DateTime, bool, decimal>>();
+
+                var historiesInPeriodOfTime = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+                if (historiesInPeriodOfTime.Count < 100) return;
+
+
+                var ngayCuoiCuaMa = historiesInPeriodOfTime[0].Date.AddDays(30) > ngayCuoi
+                    ? historiesInPeriodOfTime[0].Date.AddDays(30)
+                    : ngayCuoi;
+
+                var histories = historiesInPeriodOfTime
+                    .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoiCuaMa)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                for (int i = 0; i < histories.Count; i++)
+                {
+                    var phienKiemTra = histories[i];
+
+                    var phienKiemTraMa20 = phienKiemTra.MA(historiesInPeriodOfTime, -MACham);
+                    var phienKiemTraMa05 = phienKiemTra.MA(historiesInPeriodOfTime, -MANhanh);
+                    var phienTruocPhienKiemTra = historiesInPeriodOfTime.Where(h => h.Date < phienKiemTra.Date).OrderByDescending(h => h.Date).First();
+                    var phienTruocPhienKiemTraMa05 = phienTruocPhienKiemTra.MA(historiesInPeriodOfTime, -MANhanh);
+                    var phienTruocPhienKiemTraMa20 = phienTruocPhienKiemTra.MA(historiesInPeriodOfTime, -MACham);
+
+
+                    //tín hiệu mua
+                    var Ma05DuoiMa20 = phienKiemTraMa05 < phienKiemTraMa20;
+                    var MA05HuongLen = phienTruocPhienKiemTraMa05 < phienKiemTraMa05;
+                    var nenTangGia = phienKiemTra.TangGia();
+                    var nenTangLenChamMa20 = phienKiemTra.NenTop >= phienKiemTraMa20 && phienKiemTra.NenBot < phienKiemTraMa20;             //Giá trong phiên MA 05 tăng lên chạm MA 20
+                    var râunếnTangLenChamMa20 = phienKiemTra.H >= phienKiemTraMa20 && phienKiemTra.NenBot < phienKiemTraMa20;               //Giá trong phiên MA 05 tăng lên chạm MA 20
+                    var duongMa05CatLenTrenMa20 = phienTruocPhienKiemTraMa05 < phienKiemTraMa20 && phienKiemTraMa05 > phienKiemTraMa20;     //MA 05 cắt lên trên MA 20
+                    var nenNamDuoiMA20 = phienKiemTra.NenBot < phienKiemTraMa20;                                                            //Giá nằm dưới MA 20
+                    var thânNếnKhôngVượtQuáBandTren = phienKiemTra.NenTop < phienKiemTra.BandsTop;
+
+
+                    /*TODO: cảnh báo mua nếu giá mở cửa tăng chạm bands trên. Ví dụ 9/4/2021 KBC, 17/1/2022 VNM - tăng gần chạm bands mà ko thấy dấu hiệu mở bands rộng ra, mA 20 cũng ko hướng lên - sideway
+                     * 10-2-22 VNM: bands ko mở rộng, bands tren hướng xuống, bands dưới đi ngang, các giá trước loanh quanh MA 20, ko có dấu hiệu phá bỏ sideway
+                     * var khángCựĐỉnh = phienKiemTra.KhángCựĐỉnh(historiesInPeriodOfTime);
+                     * var khángCựBands = phienKiemTra.KhángCựBands(historiesInPeriodOfTime);
+                     * var khángCựFibonacci = phienKiemTra.KhángCựFibonacci(historiesInPeriodOfTime);
+                     * var khángCựIchimoku   = phienKiemTra.KhángCựIchimoku(historiesInPeriodOfTime);
+                     * 
+                     * Ví dụ: 
+                     *  KBC - 22/3/22 (MA + bands) -> nhưng có thể xét vì giá đã tăng gần tới viền mây dưới ichimoku rồi nên ko mua, hoặc giá từ MA 5 đi lên (hổ trợ lên kháng cự) ở MA 20, và bands bóp nên giá chỉ quay về MA20
+                     *  KBC - 03/3/20 (MA + bands) -> MA, Bands đi ngang, có thể mua để lợi T+ => thất bại -> có thể xét tới MACD trong trường hợp này:
+                     *                              + MACD dưới 0, đỏ cắt lên xanh
+                     *                              + Đã mua ở ngày 26/2 rồi, MACD chưa vượt 0 lên dương mạnh thì cũng ko cần mua thêm
+                     *                              + => bands hẹp, bands ko thay đổi, ma 20 k thay đổi, thân nến ở giữa bands => ko mua, vì rất dễ sảy T3
+                     *                                      
+                     *  KBC - 10/3/20 -> 17/3/20 - Nếu bất chấp nến ngoài bolinger bands dưới để mua, thì hãy cân nhắc KBC trong những ngày này -> nên kết hợp MACD (macd giảm, momentum âm mạnh) 
+                     *                              + => CThuc A
+                     *                                                     
+                     *  KBC - 27/03/20 tới 31/03/2020 -> Nến rút chân xanh 3 cây liên tục, bands dưới vòng cung lên, band trên đi xuống => bands bóp => biên độ cực rộng => giá sẽ qua về MA 20
+                     *                                + 3 cây nến xanh bám ở MA 5 liên tục, rút chân lên => mua vô ở cây sau được, giá mua vô từ trung bình râu nến dưới của 2 cây trước (do tín hiệu tăng) lên tới MA 5, ko cần mua đuổi
+                     *                                + Theo dõi sau đó, vì nếu band tăng, MA 20 tăng, thì MA 20 sẽ là hỗ trợ cho nhịp hồi này, khi nào bán?                                          
+                     *                                      + RSI rớt way về quanh 80 thì xả từ từ
+                     *                                      + Giá dưới MA 5 2 phiên thì xả thêm 1 đoạn
+                     *                                      + MA 5 cắt xuống MA 20 thì xả hết
+                     *                              + => CThuc A
+                     *                                  
+                     *  KBC - 7/07/20 tới 22/07/2020 -> từ 26/6/20 tới 6/7/20 -> giao dịch quanh kháng cự là MA 5, và hổ trợ là bands dưới
+                     *                                  + ngày 7/7/20 -> giá vượt kháng cự (MA 05), MACD xanh bẻ ngang lúc này kháng cự mới sẽ là MA 20, MA 5 sẽ là hỗ trợ
+                     *                                  + có thể ra nhanh đoạn này khi T3 về (13/7/20) vì giá vượt kháng cự, nhưng lại lạ nến đỏ => ko qua dc, dễ dội về hỗ trợ => ko cần giữ lâu
+                     *                              + => CThuc A
+                     *  KBC - 10/8/20 (MA + bands) -> Nếu mua ngày 4/8/20 (trước đó 4 ngày) vì phân kì tăng RSI, thì mình có thể tránh trường hợp này
+                     *                                + 31/7/20: nến doji tăng ngoài bands dưới
+                     *                                + 03/8/20: nến tăng xác nhận doji trước là đáy -> cuối ngày ngồi coi - RSI tăng, Giá giảm -> tín hiệu đảo chiều -> nên mua vô
+                     *                                + 04/8/20: mua vô ở giá đóng cửa của phiên trước (03/8/20)
+                     *                                + Giá tăng liên tục trong những phiên sau, nhưng vol < ma 20, thân nến nhỏ => giao dịch ít, lưỡng lự, ko nên tham gia lâu dài trong tình huống này
+                     *                                + Nếu lỡ nhịp mua ngày 04/8/20 rồi thì thôi
+                     *                              + => CThuc A
+                     *  KBC - 12/11/20 tới 17/11/2020 -> Nếu đã mua ngày 11/11/2020, thì nên theo dõi thêm MACD để tránh bán hàng mà lỡ nhịp tăng
+                     *                                + MACD cắt ngày 11/11/20, tạo tín hiệu đảo chiều, kết hợp với những yếu tố đi kèm,
+                     *                                + MACD tăng dần lên 0, momentum tăng dần theo, chờ vượt 0 là nổ
+                     *                              + => CThuc B
+                     *  KBC - 21/5/21 -> Lưu ý đặt sẵn giá mua ở giá sàn những ngày này nếu 2 nến trước đã tạo râu bám vô MA 05, nếu ko có râu bám vô MA 5 thì thôi
+                     *                                + nếu có râu nên bám vô, thì đặt sẵn giá mua = giá từ giá thấp nhất của cây nến thứ 2 có râu
+                     *                                  
+                     *                                  
+                     *  KBC - 12/7/21 - 26/7/21  -> giống đợt 31/7/20 tới 4/8/20
+                     *                              + Ngày 12/7 1 nến con quay dài xuất hiện dưới bands bot => xác nhận đáy, cùng đáy với ngày 21/5/21 => hỗ trợ mạnh vùng thân nến đỏ trải xuống râu nến này, có thể vô tiền 1 ít tầm giá này
+                     *                              + Sau đó giá bật lại MA 5
+                     *                              + tới ngày 19/7/20 - 1 cây giảm mạnh, nhưng giá cũng chỉ loanh quanh vùng hỗ trợ này, vol trong nhịp này giảm => hết sức đạp, cũng chả ai muốn bán
+                     *                              + RSI trong ngày 19/7, giá đóng cửa xuống giá thấp hơn ngày 12/7, nhưng RSI đang cao hơn => tín hiệu đảo chiều 
+                     *                              + - nhưng cần theo dõi thêm 1 phiên, nếu phiên ngày mai xanh thì ok, xác nhận phân kỳ tăng => Có thể mua vô dc
+                     *                              
+                     *  Bands và giá rớt (A - Done)
+                     *      + Nếu giá rớt liên tục giữa bands và MA 5, nếu xuất hiện 1 cây nến có thân rớt ra khỏi bands dưới, có râu trên dài > 2 lần thân nến, thì bắt đầu để ý vô lệnh mua
+                     *      + (A1) Nếu nến rớt ngoài bands này là nến xanh => đặt mua ở giá quanh thân nến
+                     *      + (A2) Nếu nến rớt ngoài bands này là nến đỏ   => tiếp tục chờ 1 cây nến sau cây đỏ này, nếu vẫn là nến đỏ thì bỏ, nếu là nến xanh thì đặt mua cây tiếp theo
+                     *          + đặt mua ở giá trung bình giữa giá mở cửa của cây nến đỏ ngoài bands và giá MA 5 ngày hum nay
+                     *          
+                     *      + Ví dụ: KBC: 10/3/20 -> 17/3/20                                                    03/8/20                 3/11/20                                     12/7/21 - 26/7/21                   
+                     *                  - RSI dương   (cây nến hiện tại hoặc 1 trong 3 cây trước là dc)         RSI dương               RSI dương                                   Cây nến 13/7/21 ko tăng
+                     *                  - MACD momentum tăng->0                                                 Tăng                    Tăng                                        Tăng rất nhẹ (~2%)
+                     *                  - MACD tăng                                                             Tăng                    Giảm nhẹ hơn trước (-5 -> -41 -> -50)       Giảm
+                     *                  - nến tăng                                                              Tăng                    Tăng                                        Tăng
+                     *                  - giá bật từ bands về MA 5                                              OK                      OK
+                     *                  - 13 nến trước (100% bám bands dưới, thân nến dưới MA 5                 7 (100%) dưới MA 5      4/5 cây giảm (80%) ko chạm MA 5             4/6 nến giảm liên tục ko chạm MA 5
+                     *                  - MA 5 bẻ ngang -> giảm nhẹ hơn 2 phiên trước:                          MA 5 tăng               14330 (-190) -> 14140 (-170)
+                     *                      + T(-1) - T(0) < T(-3) - T(-2) && T(-2) - T(-1)                                             -> 13970 (-60) -> 13910
+                     *                  - Khoảng cách từ MA 5 tới MA 20 >= 15%                                  > 15%                   4% (bỏ)                                     12%
+                     *                      + vì giá sẽ về MA 20, nên canh tí còn ăn
+                     *                      + mục tiêu là 10% trong những đợt hồi này, nên mua quanh +-3%       +-3%
+                     *                      + Khoảng cách càng lớn thì đặt giá mua càng cao, tối đa 3%
+                     *                      + Cân nhắc đặt ATO cho dễ tính => đặt giá C như bth
+                     *      
+                    */
+                    var bandsTrenHumNay = phienKiemTra.BandsTop;
+                    var bandsDuoiHumNay = phienKiemTra.BandsBot;
+                    var bandsTrenHumWa = phienTruocPhienKiemTra.BandsTop;
+                    var bandsDuoiHumWa = phienTruocPhienKiemTra.BandsBot;
+
+                    var bắtĐầuMuaDoNếnTăngA1 = phienKiemTra.NếnĐảoChiềuTăngMạnhA1();
+                    var bắtĐầuMuaDoNếnTăngA2 = phienKiemTra.NếnĐảoChiềuTăngMạnhA2(phienTruocPhienKiemTra);
+
+                    var bandsĐangGiảm = bandsTrenHumNay < bandsTrenHumWa;
+                    var bandsĐangBópLại = bandsTrenHumNay < bandsTrenHumWa && bandsDuoiHumNay > bandsDuoiHumWa;
+                    var ma20ĐangGiảm = phienKiemTraMa20 < phienTruocPhienKiemTraMa20;
+
+                    var bandsKhôngĐổi = bandsTrenHumNay == bandsTrenHumWa && bandsDuoiHumNay == bandsDuoiHumWa;
+                    var ma20KhôngĐổi = phienKiemTraMa20 == phienTruocPhienKiemTraMa20;
+                    var giaOGiuaBands = phienKiemTra.NenBot * 0.93M < phienKiemTra.BandsBot && phienKiemTra.NenTop * 1.07M > phienKiemTra.BandsTop;
+
+                    var muaTheoMA = thânNếnKhôngVượtQuáBandTren && nenTangGia && ((duongMa05CatLenTrenMa20 && nenNamDuoiMA20)
+                                                    || (MA05HuongLen && (nenTangLenChamMa20 || râunếnTangLenChamMa20) && Ma05DuoiMa20));
+                    var nếnGiảmVượtMạnhNgoàiBandDưới = phienKiemTra.BandsBot > phienKiemTra.NenBot + ((phienKiemTra.NenTop - phienKiemTra.NenBot) / 2);
+                    var momenTumTang = phienKiemTra.MACDMomentum > phienTruocPhienKiemTra.MACDMomentum * 0.96M;
+                    var nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands =
+                        (phienTruocPhienKiemTra.NenTop < phienTruocPhienKiemTra.BandsBot || (phienTruocPhienKiemTra.NenBot.IsDifferenceInRank(phienTruocPhienKiemTra.BandsBot, 0.02M) && phienTruocPhienKiemTra.NenTop < phienTruocPhienKiemTraMa05))
+                        && (phienKiemTra.NenTop >= phienKiemTraMa05 || phienKiemTra.NenBot >= phienKiemTra.BandsBot);
+                    var trongXuHướngGiảmMạnh = phienKiemTra.TỉLệNếnCựcYếu(histories) >= 0.5M;
+                    var ma05ĐangBẻNgang = phienKiemTra.MAChuyểnDần(histories, false, -5, 3);
+                    var khôngNênBánT3 = phienKiemTra.MACDMomentum > phienTruocPhienKiemTra.MACDMomentum && phienKiemTra.MACDFast > phienTruocPhienKiemTra.MACDFast && phienKiemTra.MACDMomentum > -100;
+
+                    var rsiDuong = phienKiemTra.RSIDương(histories);
+                    var tínHiệuMuaTrongSóngHồi =
+                        //rsiDuong                                                &&
+                        momenTumTang
+                                                && phienKiemTra.TangGia()
+                                                && nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands
+                                                && trongXuHướngGiảmMạnh
+                                                && phienKiemTraMa20 / phienKiemTraMa05 > 0.15M
+                                                && ma05ĐangBẻNgang;
+
+                    var tinHieuMuaTrungBinh1 = muaTheoMA ? 5 : 0;
+                    var tinHieuMuaTrungBinh2 = nếnGiảmVượtMạnhNgoàiBandDưới ? 2 : 0;
+                    var tinhieuMuaManh = tínHiệuMuaTrongSóngHồi ? 20 : 0;
+                    var tinHieuGiảmMua1 = bandsĐangGiảm && ma20ĐangGiảm ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuGiảmMua2 = bandsKhôngĐổi && ma20KhôngĐổi && giaOGiuaBands ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+
+                    if (tinhieuMuaManh + tinHieuMuaTrungBinh1 + tinHieuMuaTrungBinh2 + tinHieuGiảmMua1 + tinHieuGiảmMua2 <= 2) continue;
+
+                    //if (tinhieuMuaManh + tinHieuMuaTrungBinh1 + tinHieuMuaTrungBinh2 + tinHieuGiảmMua1 + tinHieuGiảmMua2 > 0
+                    //    && tinhieuMuaManh + tinHieuMuaTrungBinh1 + tinHieuMuaTrungBinh2 + tinHieuGiảmMua1 + tinHieuGiảmMua2 <= 2)
+                    //    result1.Add($"{symbol._sc_} - {phienKiemTra.Date.ToShortDateString()} - {tinhieuMuaManh} - {tinHieuMuaTrungBinh1} - {tinHieuMuaTrungBinh2} - {tinHieuGiảmMua1} - {tinHieuGiảmMua2}");
+
+                    var ngayMua = historiesInPeriodOfTime.Where(h => h.Date > phienKiemTra.Date).OrderBy(h => h.Date).FirstOrDefault();
+                    if (ngayMua == null) ngayMua = new StockSymbolHistory() { Date = phienKiemTra.Date.AddDays(1) };
+                    var giáĐặtMua = nếnGiảmVượtMạnhNgoàiBandDưới
+                        ? (phienKiemTra.BandsBot + phienKiemTra.NenBot) / 2
+                        : phienKiemTra.C;
+
+                    //if (giáĐặtMua >= ngayMua.L && giáĐặtMua <= ngayMua.H)       //Giá hợp lệ
+                    //{
+                    var giữT = khôngNênBánT3 ? 6 : 3;
+                    var tPlus = historiesInPeriodOfTime.Where(h => h.Date >= ngayMua.Date)
+                        .OrderBy(h => h.Date)
+                        .Skip(3)
+                        .Take(giữT)
+                        .ToList();
+
+                    if (tPlus.Count < 3) //hiện tại
+                    {
+                        result1.Add($"{symbol._sc_} - Hiện tại điểm nhắc mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    }
+                    else
+                    {
+                        if (tPlus.Any(t => t.C > ngayMua.O * 1.01M || t.O > ngayMua.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                        {
+                            dung++;
+                            result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                        else
+                        {
+                            sai++;
+                            result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                    }
+
+                    //if (bandsĐangGiảm && ma20ĐangGiảm && !nếnGiảmVượtMạnhNgoàiBandDưới)
+                    //{
+                    //    if (tPlus.Any(t => t.C > ngayMua.O * 1.01M || t.O > ngayMua.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                    //    {
+                    //        sai++;
+                    //        result1.Add($"{symbol._sc_} - Sai  - Band xấu - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //    else
+                    //    {
+                    //        dung++;
+                    //        result1.Add($"{symbol._sc_} - Đúng - Band xấu - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //}
+
+                    //if (!bandsĐangGiảm || !ma20ĐangGiảm || nếnGiảmVượtMạnhNgoàiBandDưới)
+                    //{
+                    //    if (tPlus.Any(t => t.C > ngayMua.O * 1.01M || t.O > ngayMua.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                    //    {
+                    //        dung++;
+                    //        result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //    else
+                    //    {
+                    //        sai++;
+                    //        result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //}
+                }
+                //else
+                //{
+                //    result1.Add($"{symbol._sc_} - Không có giá {giáĐặtMua.ToString("N2")} ở ngày mai mua: {phienKiemTra.Date.ToShortDateString()}");
+                //}
+
+
+                ////tín hiệu bán
+                //if ((phienTruocPhienKiemTraMa05 > phienKiemTraMa05              //MA 05 đang hướng lên
+                //        && phienKiemTra.NenBot <= phienKiemTraMa20)             //Giá MA 05 chạm MA 20
+                //    || (phienTruocPhienKiemTraMa05 >= phienKiemTraMa20 && phienKiemTraMa05 <= phienKiemTraMa20))  //MA 05 cắt xuống dưới MA 20
+                //{
+                //    var ngayBán = historiesInPeriodOfTime.Where(h => h.Date > phienKiemTra.Date).OrderBy(h => h.Date).First();
+                //    var tileChinhXac = 0;
+                //    var tPlus = historiesInPeriodOfTime.Where(h => h.Date >= ngayBán.Date)
+                //        .OrderBy(h => h.Date)
+                //        .Skip(3)
+                //        .Take(3)
+                //        .ToList();
+
+                //    if (tPlus.All(t => t.C > ngayBán.O || t.O > ngayBán.O))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                //    {
+                //        dung++;
+                //        result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc để ngày mai bán: {phienKiemTra.Date.ToShortDateString()}");
+                //    }
+                //    else
+                //    {
+                //        sai++;
+                //        result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc để ngày mai bán: {phienKiemTra.Date.ToShortDateString()} - Bán: {ngayBán.Date.ToShortDateString()} giá {ngayBán.O}");
+                //    }
+                //}
+                //}
+
+                tong = dung + sai;
+                var tile = tong == 0 ? 0 : Math.Round(dung / tong, 2);
+                //result1.Add($"Tỉ lệ: {tile}");
+                tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, tile, result1));
+            });
+
+            tup = tup.OrderByDescending(t => t.Item2).ToList();
+
+            return tup;
+        }
+
+
+
+
+        public void AddBollingerBands(List<StockSymbolHistory> histories, int period, int factor)
+        {
+            double total_average = 0;
+            double total_squares = 0;
+
+            for (int i = 0; i < histories.Count(); i++)
+            {
+                total_average += (double)histories[i].C;
+                total_squares += Math.Pow((double)histories[i].C, 2);
+
+                if (i >= period - 1)
+                {
+                    double total_bollinger = 0;
+                    double average = total_average / period;
+
+                    double stdev = Math.Sqrt((total_squares - Math.Pow(total_average, 2) / period) / period);
+                    //histories[i]..Values[i]["bollinger_average"] = average;
+                    histories[i].BandsTop = (decimal)(average + factor * stdev);
+                    histories[i].BandsBot = (decimal)(average - factor * stdev);
+
+                    //total_average -= data.Values[i - period + 1]["close"];
+                    //total_squares -= Math.Pow(data.Values[i - period + 1]["close"], 2);
+
+                    total_average -= (double)histories[i - period + 1].C;
+                    total_squares -= Math.Pow((double)histories[i - period + 1].C, 2);
+                }
+            }
+        }
+
+        public IEnumerable<Quote> MACDConvert(List<StockSymbolHistory> histories)
+        {
+            var qoutes = new List<Skender.Stock.Indicators.Quote>();
+            foreach (var h in histories)
+            {
+                qoutes.Add(new Skender.Stock.Indicators.Quote
+                {
+                    Close = h.C,
+                    Date = h.Date
+                });
+            }
+
+            return qoutes;
+        }
+
+        public async Task<List<string>> MACDTest()
+        {
+            var histories = await _context.StockSymbolHistory
+                .Where(ss => ss.StockSymbol == "VNM")
+                //.OrderByDescending(ss => ss.Date)
+                .OrderBy(ss => ss.Date)
+                .Take(100)
+                .ToListAsync();
+
+            var result1 = new List<string>();
+            decimal tong = 0;
+            decimal dung = 0;
+            decimal sai = 0;
+
+            histories = histories.OrderBy(h => h.Date).ToList();
+
+            var qoutes = MACDConvert(histories);
+
+            var macd = new Skender.Stock.Indicators.MacdResult();
+            IEnumerable<Quote> quotes;// = GetHistoryFromFeed("SPY");
+
+            var res = qoutes.GetMacd();
+            var res1 = qoutes.GetRsi();
+
+            //AddBollingerBands(histories, 20, 2);
+
+            foreach (var item in res)
+            {
+                var rsi = res1.FirstOrDefault(r => r.Date == item.Date);
+                if (rsi != null)
+                    result1.Add($"{item.Date.ToShortDateString()} - {item.FastEma?.ToString("N2")} - {item.SlowEma?.ToString("N2")} - {item.Histogram?.ToString("N2")} - RSI {rsi.Rsi?.ToString("N2")}");
+                else
+                    result1.Add($"{item.Date.ToShortDateString()} - {item.FastEma?.ToString("N2")} - {item.SlowEma?.ToString("N2")} - {item.Histogram?.ToString("N2")}");
+            }
+
+            return result1;
+        }
+
+
+        public async Task<List<string>> BandsTest()
+        {
+            var histories = await _context.StockSymbolHistory
+                .Where(ss => ss.StockSymbol == "VNM")
+                .OrderByDescending(ss => ss.Date)
+                .Take(100)
+                .ToListAsync();
+
+            var result1 = new List<string>();
+            decimal tong = 0;
+            decimal dung = 0;
+            decimal sai = 0;
+
+            histories = histories.OrderBy(h => h.Date).ToList();
+
+
+            AddBollingerBands(histories, 20, 2);
+
+            foreach (var item in histories.Where(h => h.BandsBot > 0))
+            {
+                result1.Add($"{item.Date.ToShortDateString()} - {item.BandsTop.ToString("N2")} - {item.BandsBot.ToString("N2")}");
+            }
+
+            return result1;
+        }
+
+        /*
+         * Trend giảm
+         *              MACD 
+         *                              - Tìm 3 đỉnh giảm dần, nối lại tạo trend line giảm
+         *                              - Giữa 3 đỉnh sẽ có 2 đáy
+         *                              - ở 2 đáy xét động lượng của MACD -> nếu động lượng cao dần thì đó là tín hiệu đảo chiều
+         *                              - Giờ chỉ còn chờ đỉnh 4 - sẽ là điểm breakout
+         *                              - Kết hợp thêm kháng cự và hỗ trợ 
+         *                              
+         *                              Có thể kết hợp thêm
+         *                               - MACD đường xanh cắt lên đỏ
+         *                               - Bolinger bands
+         *                               - Ichimoku
+         *                               - RSI
+         *                               
+         *                              Example:
+         *                                  Good:
+         *                                      AAA: 04/04/2022 - 19/05/2022
+         *                              
+         *                              Hướng dẫn
+         *                                                          https://www.youtube.com/watch?v=fmtBWx9eMHc
+         *                                                          confirm pyll back/trendline  (MUST)
+         *                                                          confirm macf histogram       (MUST)
+         *                                                          confirm support/resistance   (NO)
+         *                                                          confirm ending volume        (NO)
+         *                                                          confirm entry breakout point (MUST)
+         *              
+         *              RSI Trendline
+         *                              - Tìm đáy trong quá khứ, nối lại tạo trend line A
+         *                              - Ở 2 đáy, nối 2 điểm RSI tạo thành trendline B
+         *                              - Nếu A đi xuống hoặc ngang, và B đi lên, đây là tín hiệu đảo chiều, cbi tăng
+         *                              - Kết hợp thêm kháng cự và hỗ trợ 
+         *
+         *                              Có thể kết hợp thêm
+         *                               - MACD đường xanh cắt lên đỏ
+         *                               - Bolinger bands
+         *                               - Ichimoku
+         *
+         *                              BAD examples:
+         *                                  - AAA: 20/8/2019 -> 02/10/2019
+         *                                      - Sửa: Nếu kết hợp Breakout thì ăn (Breakout: 23/10/2019, vậy là mua ở cây 24/10/2019 - điểm nối từ 14/08/2019, cắt qua 16/9/2019, nó sẽ kéo tới 22/10/2019, sau cây này là cây breakout)
+         *                                              - Sau cây breakout, giá chạm MA 20 là bật lên, MA 20 trở thành hỗ trợ - chờ ra hàng
+         *                                              - Kết hợp bolinger bands để tìm điểm bán phù hợp trong sideway (top của bolinger bands)
+         *                                              - Ngày 14/11/2019 - MA 20 bị phá vỡ, MACD xanh cắt xuống MACD đỏ, momentum MACD âm, RSI dốc xướng dưới 40 => tín hiệu bán mạnh
+         *                                         
+         *                                         
+         * 
+         
+         */
+
+        /*
+         * Nhìn vô TA
+         *  - Xu hướng (mục đích làm gì?)
+         *      + Xu hướng tăng: MACD 26 từ âm vượt wa dương
+         *      + Xu hướng giảm: MACD 26 từ âm vượt wa dương
+         *      + Xu hướng sideway:
+         *          
+         *      + Chart Tuần: 
+         *          + 
+         *      + Chart Ngày:
+         *  - Vẽ trend line:
+         *      + 
+         *  - RSI
+         *  - MACD
+         *  - Bolinger Bands
+         *      + upway  : bands trên và dưới ko chênh lệnh quá so với trung bình của bands trên/dưới tính từ 3 phiên trước > 3%
+         *      + sideway: bands trên và dưới ko chênh lệnh quá so với trung bình của bands trên/dưới tính từ 3 phiên trước > -3% < 3%
+         *      + down   : bands trên và dưới ko chênh lệnh quá so với trung bình của bands trên/dưới tính từ 3 phiên trước < 3%
+         *  - Ichimoku
+         *  - MA 20
+         *  - MA 50
+         *  - MA 200
+         *  
+         *  - Mẫu sideway
+         *      + Bán đỉnh bolinger bands
+         *      + Mua đáy bolinger bands
+         *      + Nếu sideway trên MA 20 - thì MA 20 sẽ là hỗ trợ nhẹ, bot bands là hỗ trợ mạnh, top bands là kháng cự -> mua ở hỗ trợ nhẹ, bán ở gần kháng cự * 0.8
+         *      + Nếu sideway dưới hoặc ngang MA 20 - không làm gì cả
+         *              + Định nghĩa sideway 
+         *                  + trên  MA 20: > 80% các nến trong lần kiểm tra đều có giá dưới cùng của nến (O OR C) cao  hơn MA 20 3-5%
+         *                  + ngang MA 20: > 80% các nến trong lần kiểm tra đều có thân nến đề lên MA 20
+         *                  + dưới  MA 20: > 80% các nến trong lần kiểm tra đều có giá trên cùng của nến (O OR C) thấp hơn MA 20 3-5% 
+         
+         */
     }
 }

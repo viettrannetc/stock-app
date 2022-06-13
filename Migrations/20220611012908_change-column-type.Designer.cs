@@ -4,6 +4,7 @@ using DotNetCoreSqlDb.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetCoreSqlDb.Migrations
 {
     [DbContext(typeof(MyDatabaseContext))]
-    partial class MyDatabaseContextModelSnapshot : ModelSnapshot
+    [Migration("20220611012908_change-column-type")]
+    partial class changecolumntype
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -193,12 +195,6 @@ namespace DotNetCoreSqlDb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"), 1L, 1);
 
-                    b.Property<decimal>("BandsBot")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("BandsTop")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("C")
                         .HasColumnType("decimal(18,2)");
 
@@ -208,28 +204,7 @@ namespace DotNetCoreSqlDb.Migrations
                     b.Property<decimal>("H")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("IchimokuCloudBot")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("IchimokuCloudTop")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("IchimokuKijun")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("IchimokuTenKan")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("L")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("MACDFast")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("MACDMomentum")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("MACDSlow")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("NenBot")

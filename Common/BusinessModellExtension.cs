@@ -474,9 +474,78 @@ namespace DotNetCoreSqlDb.Common
 
         public static decimal RSI(this StockSymbolHistory history, List<StockSymbolHistory> histories, int rsi)
         {
-            //var history = histories.FirstOrDefault(h => h.Date == today.da);
-            //if (history == null) return 0;
+            var historiesFromToday = histories.Where(h => h.Date <= history.Date).OrderByDescending(h => h.Date).ToList();
 
+            var rsiDays = historiesFromToday.Take(rsi + 1).ToList();
+
+            if (rsiDays.Count < rsi) return 0;
+
+            decimal gainValues = 0;
+            decimal lossValues = 0;
+
+            for (int i = 0; i < rsi; i++)
+            {
+                var differentValue = historiesFromToday[i].C - historiesFromToday[i + 1].C;
+
+                if (differentValue > 0) gainValues += differentValue;
+                if (differentValue < 0) lossValues += differentValue;
+            }
+
+            var rs = (gainValues / lossValues) * (-1);
+
+            var rsiValue = 100 - 100 / (rs + 1);
+
+            return rsiValue;
+        }
+
+        public static Tuple<decimal, decimal, decimal> RSIDetail(this StockSymbolHistory history, List<StockSymbolHistory> histories, int rsi)
+        {
+            var historiesFromToday = histories.Where(h => h.Date <= history.Date).OrderByDescending(h => h.Date).Take(rsi + 1).ToList();
+
+            var rsiDays = historiesFromToday.OrderBy(h => h.Date).ToList();
+
+            if (rsiDays.Count < rsi) return null;
+
+            decimal gainValues = 0;
+            decimal lossValues = 0;
+
+            for (int i = 0; i < rsi; i++)
+            {
+                var differentValue = rsiDays[i + 1].C - rsiDays[i].C;
+
+                if (differentValue > 0) gainValues += differentValue;
+                if (differentValue < 0) lossValues += differentValue;
+            }
+
+            if (lossValues == 0) return new Tuple<decimal, decimal, decimal>((gainValues / 14), 0, 0);
+
+            var rs = (gainValues / 14) / (lossValues / 14) * (-1);
+
+            var rsiValue = 100 - 100 / (rs + 1);
+
+            return new Tuple<decimal, decimal, decimal>((gainValues / 14), (lossValues / 14) * (-1), rsiValue);
+        }
+
+        public static List<StockSymbolFinanceHistory> Filter(this List<StockSymbolFinanceHistory> stockSymbolFinanceHistories, int year, int quarter)
+        {
+            var currentIndex = ConstantData.TimeQuarter.LstOfQuarters.FirstOrDefault(i => i.Item2 == quarter && i.Item3 == year)?.Item1 ?? 0;
+            List<StockSymbolFinanceHistory> result = new List<StockSymbolFinanceHistory>();
+            stockSymbolFinanceHistories = stockSymbolFinanceHistories.Where(r => r.YearPeriod >= year).ToList();
+
+            foreach (var item in stockSymbolFinanceHistories)
+            {
+                var index = ConstantData.TimeQuarter.LstOfQuarters.FirstOrDefault(i => i.Item2 == item.Quarter && i.Item3 == item.YearPeriod)?.Item1 ?? 0;
+                if (index == currentIndex)
+                {
+                    result.Add(item);
+                }
+            }
+
+            return result;
+        }
+
+        public static List<decimal> MACD(this StockSymbolHistory history, List<StockSymbolHistory> histories, int rsi)
+        {
             var rsiDays = histories.Where(h => h.Date <= history.Date).OrderByDescending(h => h.Date).Take(rsi + 1).ToList();
 
             decimal gainValues = 0;
@@ -489,12 +558,221 @@ namespace DotNetCoreSqlDb.Common
                 if (differentValue > 0) gainValues += differentValue;
                 if (differentValue < 0) lossValues += differentValue;
             }
-            
-            var rs = (gainValues / lossValues) *(-1);
+
+            var rs = (gainValues / lossValues) * (-1);
+
+            var rsiValue = 100 - 100 / (rs + 1);
+
+            return null;
+        }
+
+        public static decimal SMA(this StockSymbolHistory history, List<StockSymbolHistory> histories, int rsi)
+        {
+            var rsiDays = histories.Where(h => h.Date <= history.Date).OrderByDescending(h => h.Date).Take(rsi + 1).ToList();
+
+            decimal gainValues = 0;
+            decimal lossValues = 0;
+
+            for (int i = 0; i < rsi; i++)
+            {
+                var differentValue = histories[i].C - histories[i + 1].C;
+
+                if (differentValue > 0) gainValues += differentValue;
+                if (differentValue < 0) lossValues += differentValue;
+            }
+
+            var rs = (gainValues / lossValues) * (-1);
 
             var rsiValue = 100 - 100 / (rs + 1);
 
             return rsiValue;
+        }
+
+        public static bool TangGia(this StockSymbolHistory today)
+        {
+            return today.C > today.O;
+        }
+
+
+        /// <summary>
+        /// TODO: Kháng cự có thể là 1 biên rộng, nên 2 giá trị có thể là hợp lí
+        /// </summary>
+        /// <param name="today"></param>
+        /// <param name="histories"></param>
+        /// <returns></returns>
+        public static decimal KhángCựĐỉnh(this StockSymbolHistory today, List<StockSymbolHistory> histories)
+        {
+            return 0;
+        }
+
+        /// <summary>
+        /// TODO: Kháng cự có thể là 1 biên rộng, nên 2 giá trị có thể là hợp lí
+        /// </summary>
+        /// <param name="today"></param>
+        /// <param name="histories"></param>
+        /// <returns></returns>
+        public static decimal KhángCựBands(this StockSymbolHistory today, List<StockSymbolHistory> histories)
+        {
+            return 0;
+        }
+
+        ////public static void AddBollingerBands(ref SortedList<DateTime, Dictionary<string, double>> data, int period, int factor)
+        //public static void AddBollingerBands(this List<StockSymbolHistory> histories, int period, int factor)
+        //{
+        //    double total_average = 0;
+        //    double total_squares = 0;
+
+        //    for (int i = 0; i < data.Count(); i++)
+        //    {
+        //        total_average += data.Values[i]["close"];
+        //        total_squares += Math.Pow(data.Values[i]["close"], 2);
+
+        //        if (i >= period - 1)
+        //        {
+        //            double total_bollinger = 0;
+        //            double average = total_average / period;
+
+        //            double stdev = Math.Sqrt((total_squares - Math.Pow(total_average, 2) / period) / period);
+        //            data.Values[i]["bollinger_average"] = average;
+        //            data.Values[i]["bollinger_top"] = average + factor * stdev;
+        //            data.Values[i]["bollinger_bottom"] = average - factor * stdev;
+
+        //            total_average -= data.Values[i - period + 1]["close"];
+        //            total_squares -= Math.Pow(data.Values[i - period + 1]["close"], 2);
+        //        }
+        //    }
+        //}
+
+        /// <summary>
+        /// TODO: Kháng cự có thể là 1 biên rộng, nên 2 giá trị có thể là hợp lí
+        /// </summary>
+        /// <param name="today"></param>
+        /// <param name="histories"></param>
+        /// <returns></returns>
+        public static decimal KhángCựFibonacci(this StockSymbolHistory today, List<StockSymbolHistory> histories)
+        {
+            return 0;
+        }
+
+        /// <summary>
+        /// TODO: Kháng cự có thể là 1 biên rộng, nên 2 giá trị có thể là hợp lí
+        /// </summary>
+        /// <param name="today"></param>
+        /// <param name="histories"></param>
+        /// <returns></returns>
+        public static decimal KhángCựIchimoku(this StockSymbolHistory today, List<StockSymbolHistory> histories)
+        {
+            return 0;
+        }
+
+        public static bool NếnĐảoChiều(this StockSymbolHistory phienKiemTra)
+        {
+            var nếnĐảoChiều = phienKiemTra.NenTop < phienKiemTra.BandsBot
+                                    && (phienKiemTra.H - phienKiemTra.NenTop) / 2 > (phienKiemTra.NenTop - phienKiemTra.NenBot);
+            //var bắtĐầuMuaDoNếnTăngA1 = nếnĐảoChiều && phienKiemTra.TangGia() ? true : false;
+
+            return nếnĐảoChiều;
+        }
+
+        public static bool NếnĐảoChiềuTăngMạnhA1(this StockSymbolHistory phienKiemTra)
+        {
+            return phienKiemTra.NếnĐảoChiều() && phienKiemTra.TangGia() ? true : false;
+        }
+
+        public static bool NếnĐảoChiềuTăngMạnhA2(this StockSymbolHistory phienKiemTra, StockSymbolHistory phiênTrướcPhiênKiemTra)
+        {
+            return phiênTrướcPhiênKiemTra.NếnĐảoChiều() && !phiênTrướcPhiênKiemTra.TangGia() && phienKiemTra.TangGia() ? true : false;
+        }
+
+
+        /// <summary>
+        /// Đơn giản là so sánh về quá khứ lấy 1 cây cùng giá đóng cửa, thấy RSI cây hiện tại cao hơn thì dương, còn ko thì âm
+        /// </summary>
+        /// <param name="phienKiemTra"></param>
+        /// <param name="histories"></param>
+        /// <returns></returns>
+        public static bool RSIDương(this StockSymbolHistory phienKiemTra, List<StockSymbolHistory> histories)
+        {
+            var checkingList = histories.Where(h => h.Date < phienKiemTra.Date).OrderByDescending(h => h.Date).Skip(3).Take(52).ToList();
+            var comparingHistory = checkingList.Where(h => h.C == phienKiemTra.C).OrderByDescending(h => h.Date).FirstOrDefault();
+
+            if (comparingHistory != null)
+                return comparingHistory.RSI < phienKiemTra.RSI;
+
+            comparingHistory = checkingList.Where(h => h.C >= phienKiemTra.C * 0.98M && h.C <= phienKiemTra.C * 1.02M).OrderByDescending(h => h.Date).FirstOrDefault();
+            if (comparingHistory != null)
+                return comparingHistory.RSI < phienKiemTra.RSI;
+
+            //200 entities
+            checkingList = histories.Where(h => h.Date < phienKiemTra.Date).OrderByDescending(h => h.Date).Skip(3).Take(200).ToList();
+
+            comparingHistory = checkingList.Where(h => h.C == phienKiemTra.C).OrderByDescending(h => h.Date).FirstOrDefault();
+            if (comparingHistory != null)
+                return comparingHistory.RSI < phienKiemTra.RSI;
+
+            comparingHistory = checkingList.Where(h => h.C >= phienKiemTra.C * 0.98M && h.C <= phienKiemTra.C * 1.02M).OrderByDescending(h => h.Date).FirstOrDefault();
+            if (comparingHistory != null)
+                return comparingHistory.RSI < phienKiemTra.RSI;
+
+            return false;
+        }
+
+
+        public static decimal TỉLệNếnCựcYếu(this StockSymbolHistory phienKiemTra, List<StockSymbolHistory> histories)
+        {
+            var checkingList = histories.Where(h => h.Date < phienKiemTra.Date).OrderByDescending(h => h.Date).ToList();
+            var totalNenYeu = 0;
+            var nenCựcYếu = 0;
+            var tongSoNen = 0;
+            for (int i = 0; i < checkingList.Count; i++)
+            {
+                tongSoNen++;
+                var ma05 = checkingList[i].MA(histories, -5);
+
+
+                if (checkingList[i].NenBot < checkingList[i].BandsBot)
+                    nenCựcYếu++;
+                else if (checkingList[i].NenTop < ma05)
+                    totalNenYeu++;
+
+                if (checkingList[i].NenBot > ma05) break;
+            }
+
+            return tongSoNen == 0 ? 0 : (decimal)nenCựcYếu / (decimal)tongSoNen;
+        }
+
+
+        public static bool MAChuyểnDần(this StockSymbolHistory phienKiemTra, List<StockSymbolHistory> histories, bool chieuKiemTra, int numberOfPreviousPhien, int soPhienKiemTra)
+        {
+            var checkingList = histories.Where(h => h.Date <= phienKiemTra.Date).OrderByDescending(h => h.Date).Take(soPhienKiemTra + 1).ToList();
+            checkingList = checkingList.OrderBy(h => h.Date).ToList();
+
+            var startDate = checkingList[0].Date;
+
+            if (chieuKiemTra) //tăng
+            {
+                decimal compareValue = checkingList[checkingList.Count - 1].MA(histories, numberOfPreviousPhien);
+                for (int i = 0; i < checkingList.Count - 1; i++)
+                {
+                    var tăng = checkingList[i].MA(histories, numberOfPreviousPhien) - checkingList[i + 1].MA(histories, numberOfPreviousPhien);
+                    if (tăng > compareValue) return false;
+
+                    compareValue = tăng;
+                }
+            }
+            else              //giảm
+            {
+                decimal compareValue = checkingList[0].MA(histories, numberOfPreviousPhien);
+                for (int i = 0; i < checkingList.Count - 1; i++)
+                {
+                    var giảm = checkingList[i].MA(histories, numberOfPreviousPhien) - checkingList[i + 1].MA(histories, numberOfPreviousPhien);
+                    if (giảm > compareValue) return false;
+
+                    compareValue = giảm;
+                }
+            }
+
+            return true;
         }
     }
 

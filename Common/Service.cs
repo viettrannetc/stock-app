@@ -70,5 +70,35 @@ namespace DotNetCoreSqlDb.Common
                 result.Add(history);
             }
         }
+
+
+        public async Task<StockSymbolHistory> GetStockDataByDay(string stockCode, RestServiceHelper restService, DateTime missingDate)
+        {
+            var requestModel = new VietStockSymbolHistoryResquestModel();
+            requestModel.code = stockCode;
+            requestModel.from = missingDate;
+            requestModel.to = missingDate;
+
+            var url = string.Format(VietStock_GetDetailsBySymbolCode,
+                            requestModel.code,
+                            "D",
+                            requestModel.from.ConvertToPhpInt(),
+                            requestModel.to.ConvertToPhpInt()
+                            );
+            var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
+            if (allSharePointsObjects == null || !allSharePointsObjects.t.Any()) return null;
+
+            var history = new StockSymbolHistory();
+            history.T = allSharePointsObjects.t[0];
+            history.Date = allSharePointsObjects.t[0].PhpIntConvertToDateTime();
+            history.O = allSharePointsObjects.o[0];
+            history.C = allSharePointsObjects.c[0];
+            history.H = allSharePointsObjects.h[0];
+            history.L = allSharePointsObjects.l[0];
+            history.V = allSharePointsObjects.v[0];
+            history.StockSymbol = requestModel.code;
+
+            return history;
+        }
     }
 }

@@ -39,30 +39,50 @@ namespace DotNetCoreSqlDb.Controllers
             return false;
         }
 
-        public async Task<bool> Pull(string code, bool isQuarter)
+        public async Task<bool> Pull(string code, bool isQuarter, int year, int quarter)
         {
             return isQuarter
-                ? await PullByQuarter(code)
-                : await PullByYearly(code);
+                ? await PullByQuarter(code, year, quarter)
+                : await PullByYearly(code, year, quarter);
         }
 
 
         /// <summary>
         /// Pull data by quarter
         /// </summary>
-        private async Task<bool> PullByQuarter(string code)
+        private async Task<bool> PullByQuarter(string code, int year, int quarter)
         {
-            var symbols = await _context.StockSymbol.ToListAsync();
+            var symbols = await _context.StockSymbol
+                //.Where(s => s._sc_ == code)
+                .ToListAsync();
             List<StockSymbolFinanceHistory> result = new List<StockSymbolFinanceHistory>();
 
             foreach (var symbol in symbols)
             {
-                await GetFinanceData(symbol, new RestServiceHelper(), result);
+                await GetFinanceDataByQuarter(symbol, new RestServiceHelper(), result);
             }
 
             if (result.Any())
             {
-                await _context.StockSymbolFinanceHistory.AddRangeAsync(result);
+                result = result.Filter(year, quarter);
+
+                var newItems = new List<StockSymbolFinanceHistory>();
+                foreach (var item in result)
+                {
+                    var dbItem = await _context.StockSymbolFinanceHistory
+                        .FirstOrDefaultAsync(f => f.StockSymbol == item.StockSymbol && f.Quarter == item.Quarter && f.YearPeriod == item.YearPeriod
+                            && f.NameEn == item.NameEn
+                            && f.Type == item.Type
+                        );
+                    if (dbItem != null)
+                        dbItem.Value = item.Value;
+                    else
+                        newItems.Add(item);
+                }
+
+                if (newItems.Any())
+                    await _context.StockSymbolFinanceHistory.AddRangeAsync(newItems);
+
                 await _context.SaveChangesAsync();
             }
             return true;
@@ -71,7 +91,7 @@ namespace DotNetCoreSqlDb.Controllers
         /// <summary>
         /// Pull data by quarter
         /// </summary>
-        public async Task<bool> PullByYearly(string code)
+        public async Task<bool> PullByYearly(string code, int year, int quarter)
         {
             var symbols = await _context.StockSymbol
                 //.Where(s => s._sc_ == code)
@@ -126,7 +146,7 @@ namespace DotNetCoreSqlDb.Controllers
             }
         }
 
-        private async Task GetFinanceData(StockSymbol item, RestServiceHelper restService, List<StockSymbolFinanceHistory> result)
+        private async Task GetFinanceDataByQuarter(StockSymbol item, RestServiceHelper restService, List<StockSymbolFinanceHistory> result)
         {
             for (int i = 1; i <= 4; i++)
             {

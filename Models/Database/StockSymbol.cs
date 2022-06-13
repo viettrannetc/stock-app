@@ -78,6 +78,9 @@ namespace DotNetCoreSqlDb.Models
         /// </summary>
         public decimal _diviend_ { get; set; }
 
+        public bool BiChanGiaoDich { get; set; }
+        public decimal MA20Vol { get; set; }
+
     }
 }
 
