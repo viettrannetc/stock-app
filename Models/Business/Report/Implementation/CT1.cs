@@ -45,7 +45,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
             return null;
         }
 
-        public List<PatternWeekResearchModel> GetStockDataByWeekFromNgay(List<StockSymbolHistory> dataFromLast8Months)//, string symbol, DateTime ngayKiemTra, int? weekRange = 30)
+        public List<PatternWeekResearchModel> GetStockDataByWeekFromNgay(List<History> dataFromLast8Months)//, string symbol, DateTime ngayKiemTra, int? weekRange = 30)
         {
             var newShorted = dataFromLast8Months.OrderBy(h => h.Date).ToList();
             var minWeekIndex = newShorted[0].Date.GetIso8601WeekOfYear();
@@ -128,7 +128,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
             return result;
         }
 
-        public ReportFormularModel Calculation(string code, DateTime ngay, List<StockSymbolHistory> dataFromLast8Months, List<StockSymbolTradingHistory> tradingHistories)
+        public ReportFormularModel Calculation(string code, DateTime ngay, List<History> dataFromLast8Months, List<StockSymbolTradingHistory> tradingHistories)
         {
             var result = new ReportFormularModel();
             

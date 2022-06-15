@@ -10,7 +10,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
     /// </summary>
     public class ReportFormularCT12 : IReportFormular
     {
-        public ReportFormularModel Calculation(string code, DateTime checkingDate, List<StockSymbolHistory> histories, List<StockSymbolTradingHistory> tradingHistories)
+        public ReportFormularModel Calculation(string code, DateTime checkingDate, List<History> histories, List<StockSymbolTradingHistory> tradingHistories)
         {
             var result = new ReportFormularModel();
 

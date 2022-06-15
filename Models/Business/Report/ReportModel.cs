@@ -39,7 +39,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report
 
     public interface IReportFormular
     {
-        ReportFormularModel Calculation(string stockCode, DateTime checkingDate, List<StockSymbolHistory> histories, List<StockSymbolTradingHistory> tradingHistories);
+        ReportFormularModel Calculation(string stockCode, DateTime checkingDate, List<History> histories, List<StockSymbolTradingHistory> tradingHistories);
 
     }
 

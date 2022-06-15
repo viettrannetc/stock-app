@@ -14,9 +14,9 @@ namespace DotNetCoreSqlDb.Models
         {
         }
 
-        public DbSet<Todo> Todo { get; set; }
+        public DbSet<History> History { get; set; }
         public DbSet<StockSymbol> StockSymbol { get; set; }
-        public DbSet<StockSymbolHistory> StockSymbolHistory { get; set; }
+        //public DbSet<StockSymbolHistory> StockSymbolHistory { get; set; }
         /// <summary>
         /// https://api-finance-t19.24hmoney.vn/v1/web/stock/transaction-list-ssi?symbol=VCB&page=1&per_page=20000
         /// </summary>

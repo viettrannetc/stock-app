@@ -8,7 +8,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
 
     public class ReportFormularCT3 : IReportFormular
     {
-        public ReportFormularModel Calculation(string code, DateTime ngay, List<StockSymbolHistory> histories, List<StockSymbolTradingHistory> tradingHistories)
+        public ReportFormularModel Calculation(string code, DateTime ngay, List<History> histories, List<StockSymbolTradingHistory> tradingHistories)
         {
             int expectedLowerPercentage = 25;
             var result = new ReportFormularModel();

@@ -4,6 +4,7 @@ using DotNetCoreSqlDb.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DotNetCoreSqlDb.Migrations
 {
     [DbContext(typeof(MyDatabaseContext))]
-    partial class MyDatabaseContextModelSnapshot : ModelSnapshot
+    [Migration("20220614104030_UpdateTableHistory")]
+    partial class UpdateTableHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -256,6 +258,79 @@ namespace DotNetCoreSqlDb.Migrations
                     b.HasKey("ID");
 
                     b.ToTable("StockSymbolFinanceYearlyHistory");
+                });
+
+            modelBuilder.Entity("DotNetCoreSqlDb.Models.StockSymbolHistory", b =>
+                {
+                    b.Property<int>("ID")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ID"), 1L, 1);
+
+                    b.Property<decimal>("BandsBot")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("BandsTop")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("C")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("H")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IchimokuCloudBot")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IchimokuCloudTop")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IchimokuKijun")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("IchimokuTenKan")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("L")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MACD")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MACDMomentum")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("MACDSignal")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("NenBot")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("NenTop")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("O")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("RSI")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("StockSymbol")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("T")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("V")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("ID");
+
+                    b.ToTable("StockSymbolHistory");
                 });
 
             modelBuilder.Entity("DotNetCoreSqlDb.Models.StockSymbolTradingHistory", b =>

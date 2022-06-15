@@ -125,7 +125,7 @@ namespace DotNetCoreSqlDb.Controllers
              * 
             */
 
-            return View(await _context.Todo.ToListAsync());
+            return View(await _context.StockSymbol.ToListAsync());
         }
 
         /// <summary>
@@ -144,7 +144,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             var t1 = itertools.Combinations(a, 2);
 
-            return View(await _context.Todo.ToListAsync());
+            return View(await _context.StockSymbol.ToListAsync());
         }
 
         public async Task<bool> Build(string code, DateTime? startFrom, DateTime? toDate)
@@ -155,7 +155,7 @@ namespace DotNetCoreSqlDb.Controllers
 
                 if (startFrom == null)
                 {
-                    startFrom = _context.StockSymbolHistory
+                    startFrom = _context.History
                         .Where(ss => ss.StockSymbol == code)
                         .OrderBy(ss => ss.Date)
                         .Skip(60)
@@ -165,7 +165,7 @@ namespace DotNetCoreSqlDb.Controllers
 
                 if (toDate == null)
                 {
-                    toDate = _context.StockSymbolHistory
+                    toDate = _context.History
                         .Where(ss => ss.StockSymbol == code)
                         .OrderByDescending(ss => ss.Date)
                         .Skip(3)
@@ -178,7 +178,7 @@ namespace DotNetCoreSqlDb.Controllers
                 bool contains = Directory.EnumerateFiles(ConstantPath.Path).Any(f => f.IndexOf(filename, StringComparison.OrdinalIgnoreCase) > 0);
                 if (contains) return true;
 
-                var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+                var historiesInPeriodOfTimeByStockCode = await _context.History
                         .Where(ss => ss.StockSymbol == code && ss.Date >= startFrom.Value.AddDays(-60))
                         .OrderByDescending(ss => ss.Date)
                         .ToListAsync();
@@ -188,7 +188,7 @@ namespace DotNetCoreSqlDb.Controllers
                 if (expectedT3 != null)
                     historiesInPeriodOfTimeByStockCode = historiesInPeriodOfTimeByStockCode.Where(h => h.Date <= expectedT3.Date).ToList();
 
-                var dates = await _context.StockSymbolHistory.OrderByDescending(s => s.Date)
+                var dates = await _context.History.OrderByDescending(s => s.Date)
                     .Where(s => s.StockSymbol == code && s.Date > startFrom.Value.AddDays((30 * 8) * -1))
                     .ToListAsync();
 
@@ -206,9 +206,9 @@ namespace DotNetCoreSqlDb.Controllers
             }
         }
 
-        public async Task ExecuteEachThread(DateTime startFrom, string code, List<StockSymbolHistory> historiesInPeriodOfTimeByStockCode,
+        public async Task ExecuteEachThread(DateTime startFrom, string code, List<History> historiesInPeriodOfTimeByStockCode,
             ReportModel result,
-            List<StockSymbolHistory> dates, DateTime toDate)
+            List<History> dates, DateTime toDate)
         {
             var patternOnsymbol = new PatternBySymbolResponseModel();
             patternOnsymbol.StockCode = code;
@@ -233,10 +233,10 @@ namespace DotNetCoreSqlDb.Controllers
         }
 
         private async Task Test(DateTime startFrom, string code,
-            List<StockSymbolHistory> orderedHistoryByStockCode,
-            StockSymbolHistory history,
+            List<History> orderedHistoryByStockCode,
+            History history,
             ReportModel result,
-            List<StockSymbolHistory> dates,
+            List<History> dates,
             DateTime toDate)
         {
             if (history.Date < startFrom) return;

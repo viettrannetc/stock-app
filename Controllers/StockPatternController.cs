@@ -90,7 +90,7 @@ namespace DotNetCoreSqlDb.Controllers
             var startFrom = ngay.AddDays(-60);
 
             var stockCodes = symbols.Select(s => s._sc_).ToList();
-            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeByStockCode = await _context.History
                     .Where(ss =>
                         stockCodes.Contains(ss.StockSymbol)
                         && ss.Date >= startFrom
@@ -100,7 +100,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             if (historiesInPeriodOfTimeByStockCode.FirstOrDefault() != null && historiesInPeriodOfTimeByStockCode.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
             {
-                var newPackages = new List<StockSymbolHistory>();
+                var newPackages = new List<History>();
                 var from = DateTime.Now.WithoutHours();
                 var to = DateTime.Now.WithoutHours().AddDays(1);
 
@@ -221,7 +221,7 @@ namespace DotNetCoreSqlDb.Controllers
                 : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
             var ct1 = new ReportFormularCT1();
-            var dates = await _context.StockSymbolHistory.OrderByDescending(s => s.Date)
+            var dates = await _context.History.OrderByDescending(s => s.Date)
                 .Where(s => stockCodes.Contains(s.StockSymbol) && s.Date > ngay.AddDays((30 * 8) * -1))
                 .ToListAsync();
 
@@ -348,7 +348,7 @@ namespace DotNetCoreSqlDb.Controllers
                 : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
 
             var stockCodes = symbols.Select(s => s._sc_).ToList();
-            var historiesInPeriodOfTimeNonDB = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeNonDB = await _context.History
                     .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= fromDate)
                     .OrderByDescending(ss => ss.Date)
                     .ToListAsync();
@@ -511,7 +511,7 @@ namespace DotNetCoreSqlDb.Controllers
                 : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
 
             var stockCodes = symbols.Select(s => s._sc_).ToList();
-            var historiesInPeriodOfTimeNonDB = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeNonDB = await _context.History
                     .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= fromDate.AddDays(-100))
                     .OrderByDescending(ss => ss.Date)
                     .ToListAsync();
@@ -683,7 +683,7 @@ namespace DotNetCoreSqlDb.Controllers
                 .ToListAsync();
 
 
-            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeByStockCode = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= ngay.AddDays(-10))
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
@@ -733,7 +733,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
-            var historiesInPeriodOfTimeNonDB = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeNonDB = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= dateTime.AddDays(-60))
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
@@ -821,7 +821,7 @@ namespace DotNetCoreSqlDb.Controllers
             var startFrom = ngay.AddDays(-180);
 
             var stockCodes = symbols.Select(s => s._sc_).ToList();
-            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeByStockCode = await _context.History
                     .Where(ss =>
                         stockCodes.Contains(ss.StockSymbol)
                         && ss.Date >= startFrom
@@ -831,7 +831,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             if (historiesInPeriodOfTimeByStockCode.FirstOrDefault() != null && historiesInPeriodOfTimeByStockCode.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
             {
-                var newPackages = new List<StockSymbolHistory>();
+                var newPackages = new List<History>();
                 var from = DateTime.Now.WithoutHours();
                 var to = DateTime.Now.WithoutHours().AddDays(1);
 
@@ -873,9 +873,9 @@ namespace DotNetCoreSqlDb.Controllers
                 var currentDateToCheck = history.Date;
                 var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(soPhienGd).ToList();
 
-                var dinh1 = new StockSymbolHistory();
-                var day1 = new StockSymbolHistory();
-                var day2 = new StockSymbolHistory();
+                var dinh1 = new History();
+                var day1 = new History();
+                var day2 = new History();
 
                 var t1 = histories.DidDay2ShowYesterdayStartWithDay2(history, out dinh1, out day1, out day2);
 
@@ -1181,13 +1181,13 @@ namespace DotNetCoreSqlDb.Controllers
                 .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - 10))
                 .ToListAsync();
 
-            var today = await _context.StockSymbolHistory.OrderByDescending(d => d.Date).FirstAsync();
+            var today = await _context.History.OrderByDescending(d => d.Date).FirstAsync();
 
-            var TodayData = await _context.StockSymbolHistory
+            var TodayData = await _context.History
                 .Where(f => stockCodes.Contains(f.StockSymbol) && f.Date == today.Date)
                 .ToListAsync();
 
-            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeByStockCode = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= today.Date.AddDays(-10))
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
@@ -1377,7 +1377,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
             var unexpectedBusiness = new List<string>() { "Tài chính và bảo hiểm" };
-            var today = await _context.StockSymbolHistory.OrderByDescending(d => d.Date).FirstAsync();
+            var today = await _context.History.OrderByDescending(d => d.Date).FirstAsync();
 
 
             var symbols = string.IsNullOrWhiteSpace(code)
@@ -1390,11 +1390,11 @@ namespace DotNetCoreSqlDb.Controllers
                 .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - range))
                 .ToListAsync();
 
-            var stockSymbolHistoryToday = await _context.StockSymbolHistory
+            var stockSymbolHistoryToday = await _context.History
                 .Where(f => stockCodes.Contains(f.StockSymbol) && f.Date == today.Date)
                 .ToListAsync();
 
-            var stockSymbolHistoryInRange = await _context.StockSymbolHistory
+            var stockSymbolHistoryInRange = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= today.Date.AddDays(-10))
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
@@ -1596,14 +1596,14 @@ namespace DotNetCoreSqlDb.Controllers
         public async Task<PatternResponseModel> PhanTichDoanhNghiepTheoNamNoiDung(string code, int year, int range, double tangtruong,
             List<StockSymbol> symbols,
             List<StockSymbolFinanceYearlyHistory> stockSymbolFinanceYearlyHistories,
-            List<StockSymbolHistory> stockSymbolHistoryToday,
-            List<StockSymbolHistory> stockSymbolHistoryInRange,
+            List<History> stockSymbolHistoryToday,
+            List<History> stockSymbolHistoryInRange,
             List<StockSymbolFinanceHistory> stockSymbolFinanceQuarterlyHistories)
         {
             var result = new PatternResponseModel();
 
             //var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
-            //var today = await _context.StockSymbolHistory.OrderByDescending(d => d.Date).FirstAsync();
+            //var today = await _context.History.OrderByDescending(d => d.Date).FirstAsync();
 
             //var symbols = string.IsNullOrWhiteSpace(code)
             //    ? await _context.StockSymbol.Where(s => s._sc_.Length <= 3).ToListAsync()
@@ -1615,11 +1615,11 @@ namespace DotNetCoreSqlDb.Controllers
             //    .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - range - 1))
             //    .ToListAsync();
 
-            //var stockSymbolHistoryToday = await _context.StockSymbolHistory
+            //var stockSymbolHistoryToday = await _context.History
             //    .Where(f => stockCodes.Contains(f.StockSymbol) && f.Date == today.Date)
             //    .ToListAsync();
 
-            //var stockSymbolHistoryInRange = await _context.StockSymbolHistory
+            //var stockSymbolHistoryInRange = await _context.History
             //    .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= today.Date.AddDays(-10))
             //    .OrderByDescending(ss => ss.Date)
             //    .ToListAsync();
@@ -1755,7 +1755,7 @@ namespace DotNetCoreSqlDb.Controllers
             var result = new PatternResponseModel();
 
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
-            var today = await _context.StockSymbolHistory.OrderByDescending(d => d.Date).FirstAsync();
+            var today = await _context.History.OrderByDescending(d => d.Date).FirstAsync();
 
             var symbols = string.IsNullOrWhiteSpace(code)
                 ? await _context.StockSymbol.Where(s => s._sc_.Length <= 3).ToListAsync()
@@ -1767,11 +1767,11 @@ namespace DotNetCoreSqlDb.Controllers
                 .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - range - 1))
                 .ToListAsync();
 
-            var stockSymbolHistoryToday = await _context.StockSymbolHistory
+            var stockSymbolHistoryToday = await _context.History
                 .Where(f => stockCodes.Contains(f.StockSymbol) && f.Date == today.Date)
                 .ToListAsync();
 
-            var stockSymbolHistoryInRange = await _context.StockSymbolHistory
+            var stockSymbolHistoryInRange = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= today.Date.AddDays(-10))
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
@@ -1914,7 +1914,7 @@ namespace DotNetCoreSqlDb.Controllers
         /// <param name="year"></param>
         /// <returns></returns>
         private async Task<PatternResponseModel> PhanTichTungDoanhNghiepTheoNam(StockSymbol symbol, int year, int range, double tangtruong,
-            StockSymbolHistory stockSymbolHistoryToday,
+            History stockSymbolHistoryToday,
             List<StockSymbolFinanceYearlyHistory> stockSymbolFinanceYearlyHistoryByStockCodeAllYears,
             List<StockSymbolFinanceHistory> stockSymbolFinanceQuarterlyHistoriesByStockCodeAllYears)
         {
@@ -2041,7 +2041,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             var selectedCodes = data.SelectMany(d => d.Prediction).SelectMany(d => d.DuLieuDuocPhanTich).Select(d => d.Code).Distinct().ToList();
 
-            var codeHistories = await _context.StockSymbolHistory.Where(h => selectedCodes.Contains(h.StockSymbol) && h.Date >= minDate).ToListAsync();
+            var codeHistories = await _context.History.Where(h => selectedCodes.Contains(h.StockSymbol) && h.Date >= minDate).ToListAsync();
 
             Parallel.ForEach(data, symbol =>
             {
@@ -2095,7 +2095,7 @@ namespace DotNetCoreSqlDb.Controllers
             //var maxRangeList = new List<int> { maCanhBaoBan, maCanhBaoMua, rsi, soPhienGd };
             //var maxRange = maxRangeList.Max() + 5;//TODO: tại sao 5 ? vì mình cần lấy rsi + 1, cần lấy rsi ngày hum wa xem có phải điểm mua là ngày hum nay ko
 
-            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeByStockCode = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date <= ngay)
                 .OrderByDescending(ss => ss.Date)
                 //.Take(14) //tinh rsi 14
@@ -2171,7 +2171,7 @@ namespace DotNetCoreSqlDb.Controllers
             var maxRangeList = new List<int> { maCanhBaoBan, maCanhBaoMua, rsi, soPhienGd };
             var maxRange = maxRangeList.Max() + 5;//TODO: tại sao 5 ? vì mình cần lấy rsi + 1, cần lấy rsi ngày hum wa xem có phải điểm mua là ngày hum nay ko
 
-            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeByStockCode = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date <= ngay)
                 .OrderByDescending(ss => ss.Date)
                 .Take(maxRange)
@@ -2179,7 +2179,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             //if (historiesInPeriodOfTimeByStockCode.FirstOrDefault() != null && historiesInPeriodOfTimeByStockCode.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
             //{
-            //    var newPackages = new List<StockSymbolHistory>();
+            //    var newPackages = new List<History>();
             //    var from = DateTime.Now.WithoutHours();
             //    var to = DateTime.Now.WithoutHours().AddDays(1);
 
@@ -2260,7 +2260,7 @@ namespace DotNetCoreSqlDb.Controllers
             var maxRangeList = new List<int> { maCanhBaoBan, maCanhBaoMua, rsi, soPhienGd };
             var maxRange = maxRangeList.Max() + 5;//TODO: tại sao 5 ? vì mình cần lấy rsi + 1, cần lấy rsi ngày hum wa xem có phải điểm mua là ngày hum nay ko
 
-            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeByStockCode = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date <= ngay)
                 .OrderByDescending(ss => ss.Date)
                 .Take(maxRange)
@@ -2268,7 +2268,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             //if (historiesInPeriodOfTimeByStockCode.FirstOrDefault() != null && historiesInPeriodOfTimeByStockCode.First().Date < ngay && ngay.Date == DateTime.Today.WithoutHours())
             //{
-            //    var newPackages = new List<StockSymbolHistory>();
+            //    var newPackages = new List<History>();
             //    var from = DateTime.Now.WithoutHours();
             //    var to = DateTime.Now.WithoutHours().AddDays(1);
 
@@ -2458,154 +2458,154 @@ namespace DotNetCoreSqlDb.Controllers
          */
 
 
-        public async Task<List<string>> RSITest(string code, DateTime ngay, DateTime ngayCuoi)
-        {
-            var result = new PatternDetailsResponseModel();
-            int rsi = 14;
-            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
-            var symbols = string.IsNullOrWhiteSpace(code)
-                ? await _context.StockSymbol.ToListAsync()
-                : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
-            var stockCodes = symbols.Select(s => s._sc_).ToList();
+        //public async Task<List<string>> RSITest(string code, DateTime ngay, DateTime ngayCuoi)
+        //{
+        //    var result = new PatternDetailsResponseModel();
+        //    int rsi = 14;
+        //    var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+        //    var symbols = string.IsNullOrWhiteSpace(code)
+        //        ? await _context.StockSymbol.ToListAsync()
+        //        : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+        //    var stockCodes = symbols.Select(s => s._sc_).ToList();
 
-            var historiesStockCode = await _context.StockSymbolHistory
-                .Where(ss => stockCodes.Contains(ss.StockSymbol)
-                    && ss.Date <= ngay.AddDays(10) //calculate T
-                    )
-                //&& ss.Date >= ngayCuoi.AddDays(-30)) //caculate SRI
-                .OrderByDescending(ss => ss.Date)
-                .ToListAsync();
+        //    var historiesStockCode = await _context.History
+        //        .Where(ss => stockCodes.Contains(ss.StockSymbol)
+        //            && ss.Date <= ngay.AddDays(10) //calculate T
+        //            )
+        //        //&& ss.Date >= ngayCuoi.AddDays(-30)) //caculate SRI
+        //        .OrderByDescending(ss => ss.Date)
+        //        .ToListAsync();
 
-            var result1 = new List<string>();
+        //    var result1 = new List<string>();
 
-            Parallel.ForEach(symbols, symbol =>
-            {
-                var historiesInPeriodOfTime = historiesStockCode
-                    .Where(ss => ss.StockSymbol == symbol._sc_)
-                    .OrderBy(h => h.Date)
-                    .ToList();
+        //    Parallel.ForEach(symbols, symbol =>
+        //    {
+        //        var historiesInPeriodOfTime = historiesStockCode
+        //            .Where(ss => ss.StockSymbol == symbol._sc_)
+        //            .OrderBy(h => h.Date)
+        //            .ToList();
 
-                for (int i = 14; i < historiesInPeriodOfTime.Count - 1; i++)
-                {
-                    if (i == 14)
-                    {
-                        var tuple = historiesInPeriodOfTime[i].RSIDetail(historiesInPeriodOfTime, 14);
-                        if (tuple == null)
-                        {
-                            historiesInPeriodOfTime[i].RSIAvgG = 0;
-                            historiesInPeriodOfTime[i].RSIAvgL = 0;
-                            historiesInPeriodOfTime[i].RSI = 0;
-                        }
-                        else
-                        {
-                            historiesInPeriodOfTime[i].RSIAvgG = tuple.Item1;
-                            historiesInPeriodOfTime[i].RSIAvgL = tuple.Item2;
-                            historiesInPeriodOfTime[i].RSI = tuple.Item3;
-                        }
-                    }
-                    else
-                    {
-                        var gain = historiesInPeriodOfTime[i].C - historiesInPeriodOfTime[i - 1].C;
-                        var totalG = (historiesInPeriodOfTime[i - 1].RSIAvgG * 13 + (gain < 0 ? 0 : gain)) / 14;
-                        var totalL = (historiesInPeriodOfTime[i - 1].RSIAvgL * 13 + (gain < 0 ? gain * (-1) : 0)) / 14;
+        //        for (int i = 14; i < historiesInPeriodOfTime.Count - 1; i++)
+        //        {
+        //            if (i == 14)
+        //            {
+        //                var tuple = historiesInPeriodOfTime[i].RSIDetail(historiesInPeriodOfTime, 14);
+        //                if (tuple == null)
+        //                {
+        //                    historiesInPeriodOfTime[i].RSIAvgG = 0;
+        //                    historiesInPeriodOfTime[i].RSIAvgL = 0;
+        //                    historiesInPeriodOfTime[i].RSI = 0;
+        //                }
+        //                else
+        //                {
+        //                    historiesInPeriodOfTime[i].RSIAvgG = tuple.Item1;
+        //                    historiesInPeriodOfTime[i].RSIAvgL = tuple.Item2;
+        //                    historiesInPeriodOfTime[i].RSI = tuple.Item3;
+        //                }
+        //            }
+        //            else
+        //            {
+        //                var gain = historiesInPeriodOfTime[i].C - historiesInPeriodOfTime[i - 1].C;
+        //                var totalG = (historiesInPeriodOfTime[i - 1].RSIAvgG * 13 + (gain < 0 ? 0 : gain)) / 14;
+        //                var totalL = (historiesInPeriodOfTime[i - 1].RSIAvgL * 13 + (gain < 0 ? gain * (-1) : 0)) / 14;
 
-                        historiesInPeriodOfTime[i].RSIAvgG = totalG;
-                        historiesInPeriodOfTime[i].RSIAvgL = totalL;
-                        historiesInPeriodOfTime[i].RSI = 100 - 100 / ((totalG / totalL) + 1);
-                    }
-                }
+        //                historiesInPeriodOfTime[i].RSIAvgG = totalG;
+        //                historiesInPeriodOfTime[i].RSIAvgL = totalL;
+        //                historiesInPeriodOfTime[i].RSI = 100 - 100 / ((totalG / totalL) + 1);
+        //            }
+        //        }
 
-                //foreach (var item in historiesInPeriodOfTime)
-                //{
+        //        //foreach (var item in historiesInPeriodOfTime)
+        //        //{
 
-                //}
+        //        //}
 
-                var histories = historiesInPeriodOfTime
-                    .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoi)
-                    .OrderByDescending(h => h.Date)
-                    .ToList();
+        //        var histories = historiesInPeriodOfTime
+        //            .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoi)
+        //            .OrderByDescending(h => h.Date)
+        //            .ToList();
 
-                var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
+        //        var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
 
-                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
-                if (biCanhCao) return;
+        //        var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
+        //        if (biCanhCao) return;
 
-                var avarageOfLastXXPhien = histories.Take(30).Sum(h => h.V) / 30;
-                if (avarageOfLastXXPhien < 100000) return;
+        //        var avarageOfLastXXPhien = histories.Take(30).Sum(h => h.V) / 30;
+        //        if (avarageOfLastXXPhien < 100000) return;
 
-                var patternOnsymbol = new PatternBySymbolResponseModel();
-                patternOnsymbol.StockCode = symbol._sc_;
+        //        var patternOnsymbol = new PatternBySymbolResponseModel();
+        //        patternOnsymbol.StockCode = symbol._sc_;
 
-                var history = histories.FirstOrDefault(h => h.Date == ngay);
-                if (history == null) return;
+        //        var history = histories.FirstOrDefault(h => h.Date == ngay);
+        //        if (history == null) return;
 
-                var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
-                if (yesterday == null) return;
+        //        var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
+        //        if (yesterday == null) return;
 
-                for (int i = 0; i < histories.Count - 1; i++)
-                {
-                    var checkingDay = histories[i];
-                    if (!checkingDay.TangGia()) continue;
+        //        for (int i = 0; i < histories.Count - 1; i++)
+        //        {
+        //            var checkingDay = histories[i];
+        //            if (!checkingDay.TangGia()) continue;
 
-                    //Giả định ngày trước đó là đáy
-                    var dayGiaDinh = histories[i + 1];
+        //            //Giả định ngày trước đó là đáy
+        //            var dayGiaDinh = histories[i + 1];
 
-                    //Kiem tra đáy giả định: trong vòng 2 tuần (10 phiên) không có cây nào trước đó thấp hơn nó)
-                    var isDayGiaDinhDung = histories.Where(h => dayGiaDinh.Date > h.Date).Take(10).Any(h => h.C < dayGiaDinh.C);
+        //            //Kiem tra đáy giả định: trong vòng 2 tuần (10 phiên) không có cây nào trước đó thấp hơn nó)
+        //            var isDayGiaDinhDung = histories.Where(h => dayGiaDinh.Date > h.Date).Take(10).Any(h => h.C < dayGiaDinh.C);
 
-                    if (isDayGiaDinhDung == false) continue;
+        //            if (isDayGiaDinhDung == false) continue;
 
-                    if (dayGiaDinh.C <= checkingDay.C)
-                    {
-                        //var rsiOfPreviousDay = dayGiaDinh.RSI; // (historiesInPeriodOfTime, rsi);
-                        //var price = dayGiaDinh.C;
+        //            if (dayGiaDinh.C <= checkingDay.C)
+        //            {
+        //                //var rsiOfPreviousDay = dayGiaDinh.RSI; // (historiesInPeriodOfTime, rsi);
+        //                //var price = dayGiaDinh.C;
 
-                        var j = i + 1 + 1;
+        //                var j = i + 1 + 1;
 
-                        decimal minPrice = 0;//tìm đáy theo giá, chỉ so sánh với giá thấp nhất trước đó
+        //                decimal minPrice = 0;//tìm đáy theo giá, chỉ so sánh với giá thấp nhất trước đó
 
-                        while (j < histories.Count && j < i + 1 + 1 + 20)
-                        {
-                            var ngaySoSanhVoiDayGiaDinh = histories[j];
-                            //var jPrice = ngaySoSanhVoiDayGiaDinh.C;
-                            //var jRsi = ngaySoSanhVoiDayGiaDinh.RSI;// (historiesInPeriodOfTime, rsi);
+        //                while (j < histories.Count && j < i + 1 + 1 + 20)
+        //                {
+        //                    var ngaySoSanhVoiDayGiaDinh = histories[j];
+        //                    //var jPrice = ngaySoSanhVoiDayGiaDinh.C;
+        //                    //var jRsi = ngaySoSanhVoiDayGiaDinh.RSI;// (historiesInPeriodOfTime, rsi);
 
-                            if (minPrice >= ngaySoSanhVoiDayGiaDinh.C)
-                            {
-                                j++;
-                                continue;
-                            }
+        //                    if (minPrice >= ngaySoSanhVoiDayGiaDinh.C)
+        //                    {
+        //                        j++;
+        //                        continue;
+        //                    }
 
-                            minPrice = ngaySoSanhVoiDayGiaDinh.C;
+        //                    minPrice = ngaySoSanhVoiDayGiaDinh.C;
 
-                            var dateSoSanh = ngaySoSanhVoiDayGiaDinh.Date;
-                            var dateDaygiaDinh = dayGiaDinh.Date;
-
-
-                            if (ngaySoSanhVoiDayGiaDinh.C >= dayGiaDinh.C && ngaySoSanhVoiDayGiaDinh.RSI < dayGiaDinh.RSI)
-                            {
-                                var tileChinhXac = 0;
-                                var tPlus = historiesInPeriodOfTime.Where(h => h.Date > checkingDay.Date)
-                                    .OrderBy(h => h.Date)
-                                    .Take(5)
-                                    .ToList();
-
-                                if (tPlus.Any(t => t.C > checkingDay.C * 1.01M))
-                                    result1.Add($"{symbol._sc_} - Đúng - T3-5 lời ít nhất 1% - Điểm nhắc: {checkingDay.Date.ToShortDateString()} RSI {checkingDay.RSI.ToString("N2")} - Giá {checkingDay.C.ToString("N2")} - Điểm tín hiệu: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.C.ToString("N2")}");
-                                else
-                                    result1.Add($"{symbol._sc_} - Sai  - T3-5 lỗ             - Điểm nhắc: {checkingDay.Date.ToShortDateString()} RSI {checkingDay.RSI.ToString("N2")} - Giá {checkingDay.C.ToString("N2")} - Điểm tín hiệu: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.C.ToString("N2")}");
-                            }
-
-                            j++;
-                        }
-
-                    }
-                }
-            });
+        //                    var dateSoSanh = ngaySoSanhVoiDayGiaDinh.Date;
+        //                    var dateDaygiaDinh = dayGiaDinh.Date;
 
 
-            return result1;
-        }
+        //                    if (ngaySoSanhVoiDayGiaDinh.C >= dayGiaDinh.C && ngaySoSanhVoiDayGiaDinh.RSI < dayGiaDinh.RSI)
+        //                    {
+        //                        var tileChinhXac = 0;
+        //                        var tPlus = historiesInPeriodOfTime.Where(h => h.Date > checkingDay.Date)
+        //                            .OrderBy(h => h.Date)
+        //                            .Take(5)
+        //                            .ToList();
+
+        //                        if (tPlus.Any(t => t.C > checkingDay.C * 1.01M))
+        //                            result1.Add($"{symbol._sc_} - Đúng - T3-5 lời ít nhất 1% - Điểm nhắc: {checkingDay.Date.ToShortDateString()} RSI {checkingDay.RSI.ToString("N2")} - Giá {checkingDay.C.ToString("N2")} - Điểm tín hiệu: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.C.ToString("N2")}");
+        //                        else
+        //                            result1.Add($"{symbol._sc_} - Sai  - T3-5 lỗ             - Điểm nhắc: {checkingDay.Date.ToShortDateString()} RSI {checkingDay.RSI.ToString("N2")} - Giá {checkingDay.C.ToString("N2")} - Điểm tín hiệu: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.C.ToString("N2")}");
+        //                    }
+
+        //                    j++;
+        //                }
+
+        //            }
+        //        }
+        //    });
+
+
+        //    return result1;
+        //}
 
         public async Task<List<string>> RSITestV1(string code, DateTime ngay, DateTime ngayCuoi, int KC2D, int SoPhienKT)
         {
@@ -2617,7 +2617,7 @@ namespace DotNetCoreSqlDb.Controllers
                 : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
-            var historiesStockCode = await _context.StockSymbolHistory
+            var historiesStockCode = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol)
                     && ss.Date <= ngay.AddDays(10) //calculate T
                     )
@@ -2757,7 +2757,7 @@ namespace DotNetCoreSqlDb.Controllers
                 : await _context.StockSymbol.Where(s => s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
-            var historiesStockCode = await _context.StockSymbolHistory
+            var historiesStockCode = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol)
                     && ss.Date <= ngay.AddDays(10) //calculate T
                     && ss.Date >= ngayCuoi.AddDays(-30)) //caculate SRI
@@ -2881,7 +2881,7 @@ namespace DotNetCoreSqlDb.Controllers
             return tup;
         }
 
-        public async Task<List<Tuple<string, decimal, List<string>>>> RSITestMANhanhCatCham(string code, DateTime ngay, DateTime ngayCuoi, int KC2D, int SoPhienKT, int ma20vol, int MANhanh, int MACham)
+        public async Task<List<Tuple<string, decimal, List<string>>>> RSITestMANhanhCatCham(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
         {
             var result = new PatternDetailsResponseModel();
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
@@ -2890,7 +2890,7 @@ namespace DotNetCoreSqlDb.Controllers
                 : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
-            var historiesStockCode = await _context.StockSymbolHistory
+            var historiesStockCode = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol)
                     && ss.Date <= ngay.AddDays(10) //calculate T
                     && ss.Date >= ngayCuoi.AddDays(-MACham * 2)) //caculate SRI
@@ -2932,24 +2932,25 @@ namespace DotNetCoreSqlDb.Controllers
 
                 for (int i = 0; i < histories.Count; i++)
                 {
-                    var phienKiemTra = histories[i];
+                    var phienHumNay = histories[i];
+                    var phienHumWa = historiesInPeriodOfTime.Where(h => h.Date < phienHumNay.Date).OrderByDescending(h => h.Date).First();
+                    var phienHumKia = historiesInPeriodOfTime.Where(h => h.Date < phienHumWa.Date).OrderByDescending(h => h.Date).First();
 
-                    var phienKiemTraMa20 = phienKiemTra.MA(historiesInPeriodOfTime, -MACham);
-                    var phienKiemTraMa05 = phienKiemTra.MA(historiesInPeriodOfTime, -MANhanh);
-                    var phienTruocPhienKiemTra = historiesInPeriodOfTime.Where(h => h.Date < phienKiemTra.Date).OrderByDescending(h => h.Date).First();
-                    var phienTruocPhienKiemTraMa05 = phienTruocPhienKiemTra.MA(historiesInPeriodOfTime, -MANhanh);
-                    var phienTruocPhienKiemTraMa20 = phienTruocPhienKiemTra.MA(historiesInPeriodOfTime, -MACham);
+                    var phienHumNayMa20 = phienHumNay.MA(historiesInPeriodOfTime, -MACham);
+                    var phienHumNayMa05 = phienHumNay.MA(historiesInPeriodOfTime, -MANhanh);
+                    var phienHumWaMa05 = phienHumWa.MA(historiesInPeriodOfTime, -MANhanh);
+                    var phienHumWaMa20 = phienHumWa.MA(historiesInPeriodOfTime, -MACham);
 
 
                     //tín hiệu mua
-                    var Ma05DuoiMa20 = phienKiemTraMa05 < phienKiemTraMa20;
-                    var MA05HuongLen = phienTruocPhienKiemTraMa05 < phienKiemTraMa05;
-                    var nenTangGia = phienKiemTra.TangGia();
-                    var nenTangLenChamMa20 = phienKiemTra.NenTop >= phienKiemTraMa20 && phienKiemTra.NenBot < phienKiemTraMa20;             //Giá trong phiên MA 05 tăng lên chạm MA 20
-                    var râunếnTangLenChamMa20 = phienKiemTra.H >= phienKiemTraMa20 && phienKiemTra.NenBot < phienKiemTraMa20;               //Giá trong phiên MA 05 tăng lên chạm MA 20
-                    var duongMa05CatLenTrenMa20 = phienTruocPhienKiemTraMa05 < phienKiemTraMa20 && phienKiemTraMa05 > phienKiemTraMa20;     //MA 05 cắt lên trên MA 20
-                    var nenNamDuoiMA20 = phienKiemTra.NenBot < phienKiemTraMa20;                                                            //Giá nằm dưới MA 20
-                    var thânNếnKhôngVượtQuáBandTren = phienKiemTra.NenTop < phienKiemTra.BandsTop;
+                    var Ma05DuoiMa20 = phienHumNayMa05 < phienHumNayMa20;
+                    var MA05HuongLen = phienHumWaMa05 < phienHumNayMa05;
+                    var nenTangGia = phienHumNay.TangGia();
+                    var nenTangLenChamMa20 = phienHumNay.NenTop >= phienHumNayMa20 && phienHumNay.NenBot < phienHumNayMa20;             //Giá trong phiên MA 05 tăng lên chạm MA 20
+                    var râunếnTangLenChamMa20 = phienHumNay.H >= phienHumNayMa20 && phienHumNay.NenBot < phienHumNayMa20;               //Giá trong phiên MA 05 tăng lên chạm MA 20
+                    var duongMa05CatLenTrenMa20 = phienHumWaMa05 < phienHumNayMa20 && phienHumNayMa05 > phienHumNayMa20;     //MA 05 cắt lên trên MA 20
+                    var nenNamDuoiMA20 = phienHumNay.NenBot < phienHumNayMa20;                                                            //Giá nằm dưới MA 20
+                    var thânNếnKhôngVượtQuáBandTren = phienHumNay.NenTop < phienHumNay.BandsTop;
 
 
                     /*TODO: cảnh báo mua nếu giá mở cửa tăng chạm bands trên. Ví dụ 9/4/2021 KBC, 17/1/2022 VNM - tăng gần chạm bands mà ko thấy dấu hiệu mở bands rộng ra, mA 20 cũng ko hướng lên - sideway
@@ -3025,60 +3026,78 @@ namespace DotNetCoreSqlDb.Controllers
                      *                      + Cân nhắc đặt ATO cho dễ tính => đặt giá C như bth
                      *      
                     */
-                    var bandsTrenHumNay = phienKiemTra.BandsTop;
-                    var bandsDuoiHumNay = phienKiemTra.BandsBot;
-                    var bandsTrenHumWa = phienTruocPhienKiemTra.BandsTop;
-                    var bandsDuoiHumWa = phienTruocPhienKiemTra.BandsBot;
+                    var bandsTrenHumNay = phienHumNay.BandsTop;
+                    var bandsDuoiHumNay = phienHumNay.BandsBot;
+                    var bandsTrenHumWa = phienHumWa.BandsTop;
+                    var bandsDuoiHumWa = phienHumWa.BandsBot;
 
-                    var bắtĐầuMuaDoNếnTăngA1 = phienKiemTra.NếnĐảoChiềuTăngMạnhA1();
-                    var bắtĐầuMuaDoNếnTăngA2 = phienKiemTra.NếnĐảoChiềuTăngMạnhA2(phienTruocPhienKiemTra);
+                    var bắtĐầuMuaDoNếnTăngA1 = phienHumNay.NếnĐảoChiềuTăngMạnhA1();
+                    var bắtĐầuMuaDoNếnTăngA2 = phienHumNay.NếnĐảoChiềuTăngMạnhA2(phienHumWa);
 
-                    var bandsĐangGiảm = bandsTrenHumNay < bandsTrenHumWa;
+                    var bandsTrênĐangGiảm = bandsTrenHumNay < bandsTrenHumWa;
+                    var bandsMởRộng = bandsTrenHumNay > bandsTrenHumWa && bandsDuoiHumNay > bandsDuoiHumWa;
                     var bandsĐangBópLại = bandsTrenHumNay < bandsTrenHumWa && bandsDuoiHumNay > bandsDuoiHumWa;
-                    var ma20ĐangGiảm = phienKiemTraMa20 < phienTruocPhienKiemTraMa20;
+                    var ma20ĐangGiảm = phienHumNayMa20 < phienHumWaMa20;
+
 
                     var bandsKhôngĐổi = bandsTrenHumNay == bandsTrenHumWa && bandsDuoiHumNay == bandsDuoiHumWa;
-                    var ma20KhôngĐổi = phienKiemTraMa20 == phienTruocPhienKiemTraMa20;
-                    var giaOGiuaBands = phienKiemTra.NenBot * 0.93M < phienKiemTra.BandsBot && phienKiemTra.NenTop * 1.07M > phienKiemTra.BandsTop;
+                    var ma20KhôngĐổi = phienHumNayMa20 == phienHumWaMa20;
+                    var giaOGiuaBands = phienHumNay.NenBot * 0.93M < phienHumNay.BandsBot && phienHumNay.NenTop * 1.07M > phienHumNay.BandsTop;
 
                     var muaTheoMA = thânNếnKhôngVượtQuáBandTren && nenTangGia && ((duongMa05CatLenTrenMa20 && nenNamDuoiMA20)
                                                     || (MA05HuongLen && (nenTangLenChamMa20 || râunếnTangLenChamMa20) && Ma05DuoiMa20));
-                    var nếnGiảmVượtMạnhNgoàiBandDưới = phienKiemTra.BandsBot > phienKiemTra.NenBot + ((phienKiemTra.NenTop - phienKiemTra.NenBot) / 2);
-                    var momenTumTang = phienKiemTra.MACDMomentum > phienTruocPhienKiemTra.MACDMomentum * 0.96M;
+                    var nếnTụtMạnhNgoàiBandDưới = phienHumNay.BandsBot > phienHumNay.NenBot + ((phienHumNay.NenTop - phienHumNay.NenBot) / 2);
+
+                    var momenTumTốt = (phienHumKia.MACDMomentum.IsDifferenceInRank(phienHumWa.MACDMomentum, 0.01M) || phienHumWa.MACDMomentum > phienHumKia.MACDMomentum) && phienHumNay.MACDMomentum > phienHumWa.MACDMomentum * 0.96M;
+                    var momenTumTăngTốt = phienHumWa.MACDMomentum > phienHumKia.MACDMomentum * 0.96M && phienHumNay.MACDMomentum > phienHumWa.MACDMomentum * 0.96M;
+
                     var nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands =
-                        (phienTruocPhienKiemTra.NenTop < phienTruocPhienKiemTra.BandsBot || (phienTruocPhienKiemTra.NenBot.IsDifferenceInRank(phienTruocPhienKiemTra.BandsBot, 0.02M) && phienTruocPhienKiemTra.NenTop < phienTruocPhienKiemTraMa05))
-                        && (phienKiemTra.NenTop >= phienKiemTraMa05 || phienKiemTra.NenBot >= phienKiemTra.BandsBot);
-                    var trongXuHướngGiảmMạnh = phienKiemTra.TỉLệNếnCựcYếu(histories) >= 0.5M;
-                    var ma05ĐangBẻNgang = phienKiemTra.MAChuyểnDần(histories, false, -5, 3);
-                    var khôngNênBánT3 = phienKiemTra.MACDMomentum > phienTruocPhienKiemTra.MACDMomentum && phienKiemTra.MACDFast > phienTruocPhienKiemTra.MACDFast && phienKiemTra.MACDMomentum > -100;
+                        (phienHumWa.NenTop < phienHumWa.BandsBot
+                            || (phienHumWa.NenBot.IsDifferenceInRank(phienHumWa.BandsBot, 0.02M) && phienHumWa.NenTop < phienHumWaMa05))
+                        && (phienHumNay.NenTop >= phienHumNayMa05 || phienHumNay.NenBot >= phienHumNay.BandsBot);
 
-                    var rsiDuong = phienKiemTra.RSIDương(histories);
-                    var tínHiệuMuaTrongSóngHồi =
-                        //rsiDuong                                                &&
-                        momenTumTang
-                                                && phienKiemTra.TangGia()
-                                                && nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands
-                                                && trongXuHướngGiảmMạnh
-                                                && phienKiemTraMa20 / phienKiemTraMa05 > 0.15M
-                                                && ma05ĐangBẻNgang;
+                    var trongXuHướngGiảmMạnh = phienHumNay.TỉLệNếnCựcYếu(histories) >= 0.5M;
+                    var trongXuHướngGiảm = phienHumNay.TỉLệNếnYếu(histories) >= 0.5M;
 
+                    var ma05ĐangBẻNgang = phienHumNay.MAChuyểnDần(histories, false, -5, 3);
+                    var khôngNênBánT3 = phienHumNay.MACDMomentum > phienHumWa.MACDMomentum && phienHumNay.MACD > phienHumWa.MACD && phienHumNay.MACDMomentum > -100;
+
+                    var rsiDuong = phienHumNay.RSIDương(histories);
+                    var tínHiệuMuaTrongSóngHồiMạnh =
+                                                   momenTumTăngTốt
+                                                && phienHumNay.TangGia()
+                                                && (nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands || ma05ĐangBẻNgang)
+                                                && (trongXuHướngGiảmMạnh)
+                                                && phienHumNayMa20 / phienHumNayMa05 > 1.1M;
+
+                    var tínHiệuMuaTrongSóngHồiTrungBình =
+                                                   momenTumTốt
+                                                && (phienHumNay.TangGia() || phienHumNay.Doji())
+                                                && (nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands || ma05ĐangBẻNgang)
+                                                && (trongXuHướngGiảmMạnh || trongXuHướngGiảm)
+                                                && phienHumNayMa20 / phienHumNayMa05 > 1.1M;
+
+                    var tinhieuMuaManh = tínHiệuMuaTrongSóngHồiMạnh ? 10 : 0;
+                    var tinhieuMuaTrungBinh = tínHiệuMuaTrongSóngHồiTrungBình ? 5 : 0;
                     var tinHieuMuaTrungBinh1 = muaTheoMA ? 5 : 0;
-                    var tinHieuMuaTrungBinh2 = nếnGiảmVượtMạnhNgoàiBandDưới ? 2 : 0;
-                    var tinhieuMuaManh = tínHiệuMuaTrongSóngHồi ? 20 : 0;
-                    var tinHieuGiảmMua1 = bandsĐangGiảm && ma20ĐangGiảm ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
-                    var tinHieuGiảmMua2 = bandsKhôngĐổi && ma20KhôngĐổi && giaOGiuaBands ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuMuaTrungBinh2 = nếnTụtMạnhNgoàiBandDưới && ma05ĐangBẻNgang ? 5 : 0;
+                    var tinHieuMuaYếu1 = bandsMởRộng ? 5 : 0;
 
-                    if (tinhieuMuaManh + tinHieuMuaTrungBinh1 + tinHieuMuaTrungBinh2 + tinHieuGiảmMua1 + tinHieuGiảmMua2 <= 2) continue;
+                    var tinHieuGiảmMua1 = bandsTrênĐangGiảm && ma20ĐangGiảm ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    //var tinHieuGiảmMua2 = bandsKhôngĐổi && ma20KhôngĐổi && giaOGiuaBands ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuGiảmMua2 = bandsKhôngĐổi && ma20KhôngĐổi ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuGiảmMua3 = giaOGiuaBands ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuGiảmMua4 = !phienHumNay.SoSánhGiá(1) || !phienHumWa.SoSánhGiá(1) ? -5 : 0;
 
-                    //if (tinhieuMuaManh + tinHieuMuaTrungBinh1 + tinHieuMuaTrungBinh2 + tinHieuGiảmMua1 + tinHieuGiảmMua2 > 0
-                    //    && tinhieuMuaManh + tinHieuMuaTrungBinh1 + tinHieuMuaTrungBinh2 + tinHieuGiảmMua1 + tinHieuGiảmMua2 <= 2)
-                    //    result1.Add($"{symbol._sc_} - {phienKiemTra.Date.ToShortDateString()} - {tinhieuMuaManh} - {tinHieuMuaTrungBinh1} - {tinHieuMuaTrungBinh2} - {tinHieuGiảmMua1} - {tinHieuGiảmMua2}");
+                    if (tinhieuMuaManh 
+                        + tinhieuMuaTrungBinh + tinHieuMuaTrungBinh1 + tinHieuMuaTrungBinh2 
+                        + tinHieuGiảmMua1 + tinHieuGiảmMua2 + tinHieuGiảmMua3 + tinHieuGiảmMua4 <= 0) continue;
 
-                    var ngayMua = historiesInPeriodOfTime.Where(h => h.Date > phienKiemTra.Date).OrderBy(h => h.Date).FirstOrDefault();
-                    if (ngayMua == null) ngayMua = new StockSymbolHistory() { Date = phienKiemTra.Date.AddDays(1) };
-                    var giáĐặtMua = nếnGiảmVượtMạnhNgoàiBandDưới
-                        ? (phienKiemTra.BandsBot + phienKiemTra.NenBot) / 2
-                        : phienKiemTra.C;
+                    var ngayMua = historiesInPeriodOfTime.Where(h => h.Date > phienHumNay.Date).OrderBy(h => h.Date).FirstOrDefault();
+                    if (ngayMua == null) ngayMua = new History() { Date = phienHumNay.Date.AddDays(1) };
+                    var giáĐặtMua = nếnTụtMạnhNgoàiBandDưới
+                        ? (phienHumNay.BandsBot + phienHumNay.NenBot) / 2
+                        : phienHumNay.C;
 
                     //if (giáĐặtMua >= ngayMua.L && giáĐặtMua <= ngayMua.H)       //Giá hợp lệ
                     //{
@@ -3091,19 +3110,19 @@ namespace DotNetCoreSqlDb.Controllers
 
                     if (tPlus.Count < 3) //hiện tại
                     {
-                        result1.Add($"{symbol._sc_} - Hiện tại điểm nhắc mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        result1.Add($"{symbol._sc_} - Hiện tại điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
                     }
                     else
                     {
-                        if (tPlus.Any(t => t.C > ngayMua.O * 1.01M || t.O > ngayMua.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                        if (tPlus.Any(t => t.C > ngayMua.O * (1M + percentProfit) || t.O > ngayMua.O * (1M + percentProfit)))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
                         {
                             dung++;
-                            result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                            result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
                         }
                         else
                         {
                             sai++;
-                            result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                            result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
                         }
                     }
 
@@ -3181,7 +3200,7 @@ namespace DotNetCoreSqlDb.Controllers
 
 
 
-        public void AddBollingerBands(List<StockSymbolHistory> histories, int period, int factor)
+        public void AddBollingerBands(List<History> histories, int period, int factor)
         {
             double total_average = 0;
             double total_squares = 0;
@@ -3210,7 +3229,7 @@ namespace DotNetCoreSqlDb.Controllers
             }
         }
 
-        public IEnumerable<Quote> MACDConvert(List<StockSymbolHistory> histories)
+        public IEnumerable<Quote> MACDConvert(List<History> histories)
         {
             var qoutes = new List<Skender.Stock.Indicators.Quote>();
             foreach (var h in histories)
@@ -3227,7 +3246,7 @@ namespace DotNetCoreSqlDb.Controllers
 
         public async Task<List<string>> MACDTest()
         {
-            var histories = await _context.StockSymbolHistory
+            var histories = await _context.History
                 .Where(ss => ss.StockSymbol == "VNM")
                 //.OrderByDescending(ss => ss.Date)
                 .OrderBy(ss => ss.Date)
@@ -3266,7 +3285,7 @@ namespace DotNetCoreSqlDb.Controllers
 
         public async Task<List<string>> BandsTest()
         {
-            var histories = await _context.StockSymbolHistory
+            var histories = await _context.History
                 .Where(ss => ss.StockSymbol == "VNM")
                 .OrderByDescending(ss => ss.Date)
                 .Take(100)

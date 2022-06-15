@@ -19,22 +19,22 @@ namespace DotNetCoreSqlDb.Controllers
             _context = context;
         }
 
-        // GET: StockSymbolHistory
-        public async Task<List<StockSymbolHistory>> Index()
+        // GET: History
+        public async Task<List<History>> Index()
         {
-            return await _context.StockSymbolHistory.ToListAsync();
+            return await _context.History.ToListAsync();
         }
 
-        // GET: https://localhost:44359/StockSymbolHistory/Details?code=A32
+        // GET: https://localhost:44359/History/Details?code=A32
         [HttpGet]
-        public async Task<List<StockSymbolHistory>> Details(string code)
+        public async Task<List<History>> Details(string code)
         {
             if (string.IsNullOrWhiteSpace(code))
             {
                 return null;
             }
 
-            var result = await _context.StockSymbolHistory.Where(m => m.StockSymbol == code).ToListAsync();
+            var result = await _context.History.Where(m => m.StockSymbol == code).ToListAsync();
             if (result == null)
             {
                 return null;
@@ -43,7 +43,7 @@ namespace DotNetCoreSqlDb.Controllers
             return result;
         }
 
-        // GET: StockSymbolHistory/Create
+        // GET: History/Create
         // Form Data:
         //      code: A32
         //      from: 01-01-1970  (12 AM as default)
@@ -52,22 +52,14 @@ namespace DotNetCoreSqlDb.Controllers
         public async Task<string> Create()
         {
             var restService = new RestServiceHelper();
-            //var huyNiemYet = new List<string>();
-            //huyNiemYet.Add("KSK");
-            //huyNiemYet.Add("TRT");
-            //huyNiemYet.Add("ABR");
-            //huyNiemYet.Add("GTN");
-            //huyNiemYet.Add("FUCTVGF2");
-
             var allSymbols = await _context.StockSymbol
+                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000)
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
 
-            //allSymbols = allSymbols.Where(s => !huyNiemYet.Contains(s._sc_)).ToList();
-
-            var result = new List<StockSymbolHistory>();
-            var t1 = _context.StockSymbolHistory.Where(c => c.StockSymbol == "A32").OrderByDescending(r => r.Date).FirstOrDefault();
-            var currentLatestDate = t1 == null ? new DateTime(2000, 1, 1) : t1.Date;
+            var result = new List<History>();
+            var latestHistory = _context.History.OrderByDescending(r => r.Date).FirstOrDefault();
+            var currentLatestDate = latestHistory == null ? new DateTime(2000, 1, 1) : latestHistory.Date;
             var from = currentLatestDate;
             var to = DateTime.Now.WithoutHours();
 
@@ -78,15 +70,16 @@ namespace DotNetCoreSqlDb.Controllers
 
             if (result.Any())
             {
-                await _context.StockSymbolHistory.AddRangeAsync(result);
+                await _context.History.AddRangeAsync(result);
                 await _context.SaveChangesAsync();
+                await UpdateIndicators(currentLatestDate);
             }
 
-            return "true";
+            return string.Empty;
         }
 
 
-        // GET: https://localhost:44359/StockSymbolHistory/Details?code=A32
+        // GET: https://localhost:44359/History/Details?code=A32
         [HttpGet]
         public async Task<List<string>> DetectedMissing(DateTime from)
         {
@@ -98,14 +91,12 @@ namespace DotNetCoreSqlDb.Controllers
                 .ToListAsync();
 
             var codes = symbols.Select(h => h._sc_).ToList();
-            var histories = await _context.StockSymbolHistory.Where(m => codes.Contains(m.StockSymbol)).OrderBy(h => h.Date).ToListAsync();
+            var histories = await _context.History.Where(m => codes.Contains(m.StockSymbol)).OrderBy(h => h.Date).ToListAsync();
 
             var service = new Service();
-            //foreach (var symbol in symbols)
-            //{
-            //var dataOfSymbol = histories.Where(h => h.StockSymbol == symbol._sc_).ToList();
+
             var checkingDate = from;
-            var resultMissingData = new List<StockSymbolHistory>();
+            var resultMissingData = new List<History>();
 
             var minDates = histories.GroupBy(h => h.StockSymbol).ToDictionary(g => g.Key, g => g.OrderBy(h => h.Date).First());
 
@@ -120,8 +111,6 @@ namespace DotNetCoreSqlDb.Controllers
                         foreach (var missingCode in missingData)
                         {
                             if (minDates.ContainsKey(missingCode) && checkingDate < minDates[missingCode].Date) continue;
-
-                            //var date = startDate.ConvertToPhpInt();
                             var missingHistory = await service.GetStockDataByDay(missingCode, restService, checkingDate);
                             if (missingHistory != null)
                                 resultMissingData.Add(missingHistory);
@@ -134,7 +123,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             if (resultMissingData.Any())
             {
-                await _context.StockSymbolHistory.AddRangeAsync(resultMissingData);
+                await _context.History.AddRangeAsync(resultMissingData);
                 await _context.SaveChangesAsync();
             }
 
@@ -142,16 +131,19 @@ namespace DotNetCoreSqlDb.Controllers
             return result;
         }
 
-
-        [HttpPost]
-        public async Task<string> Update()
+        public async Task<string> UpdateIndicators(DateTime fromDate)
         {
             var allSymbols = await _context.StockSymbol
                 .Where(s => s.BiChanGiaoDich == false && s.MA20Vol > 100000)
+                //.Where(s => s._sc_ == "VND")
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
             var stockCodes = allSymbols.Select(s => s._sc_).ToList();
-            var historiesStockCode = await _context.StockSymbolHistory.Where(ss => stockCodes.Contains(ss.StockSymbol))
+            var last60Phien = await _context.History.Where(h => h.StockSymbol == "SSI" && h.Date >= fromDate).OrderByDescending(h => h.Date).Skip(60).Take(1).FirstOrDefaultAsync();
+
+            var historiesStockCode = await _context.History
+                //.Where(ss => stockCodes.Contains(ss.StockSymbol))
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= last60Phien.Date)
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
 
@@ -183,92 +175,105 @@ namespace DotNetCoreSqlDb.Controllers
                     .OrderBy(h => h.Date)
                     .ToList();
 
-                //double total_average = 0;
-                //double total_squares = 0;
-
-                //histories = histories.OrderBy(h => h.Date).ToList();
-
                 var qoutes = MACDConvert(historiesInPeriodOfTime);
 
-                var macd = new MacdResult();
-                IEnumerable<Quote> quotes;// = GetHistoryFromFeed("SPY");
+                var ichimoku = qoutes.GetIchimoku();
+                var macd = qoutes.GetMacd();
+                var rsis = qoutes.GetRsi();
+                var bands = qoutes.GetBollingerBands();
 
-                var res = qoutes.GetMacd();
-
-
+                var test = new List<History>();
                 for (int i = 0; i < historiesInPeriodOfTime.Count; i++)
                 {
                     try
                     {
-                        ////Update RSI
-                        ////if (i < rsiPeriod) continue;
-                        ////if (historiesInPeriodOfTime[i].RSI != 0) continue;
+                        //var newHistory = new History();
 
-                        //if (i >= rsiPeriod)
+                        ////Update Ichimoku
+                        //var sameDateIchi = ichimoku.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        //if (sameDateIchi != null)
                         //{
-                        //    if (i == rsiPeriod)
-                        //    {
-                        //        var tuple = historiesInPeriodOfTime[i].RSIDetail(historiesInPeriodOfTime, rsiPeriod);
-                        //        historiesInPeriodOfTime[i].RSIAvgG = tuple.Item1;
-                        //        historiesInPeriodOfTime[i].RSIAvgL = tuple.Item2;
-                        //        historiesInPeriodOfTime[i].RSI = tuple.Item3;
-                        //    }
-                        //    else
-                        //    {
-                        //        var gain = historiesInPeriodOfTime[i].C - historiesInPeriodOfTime[i - 1].C;
-                        //        var totalG = (historiesInPeriodOfTime[i - 1].RSIAvgG * (rsiPeriod - 1) + (gain < 0 ? 0 : gain)) / rsiPeriod;
-                        //        var totalL = (historiesInPeriodOfTime[i - 1].RSIAvgL * (rsiPeriod - 1) + (gain < 0 ? gain * (-1) : 0)) / rsiPeriod;
-
-                        //        historiesInPeriodOfTime[i].RSIAvgG = totalG;
-                        //        historiesInPeriodOfTime[i].RSIAvgL = totalL;
-                        //        historiesInPeriodOfTime[i].RSI = totalL == 0
-                        //            ? 0
-                        //            : totalG / totalL == 0
-                        //                ? 0
-                        //                : 100 - 100 / ((totalG / totalL) + 1);
-                        //    }
+                        //    newHistory.IchimokuCloudBot = sameDateIchi.SenkouSpanB.HasValue ? (decimal)sameDateIchi.SenkouSpanB.Value : 0;
+                        //    newHistory.IchimokuCloudTop = sameDateIchi.SenkouSpanA.HasValue ? (decimal)sameDateIchi.SenkouSpanA.Value : 0;
+                        //    newHistory.IchimokuTenKan = sameDateIchi.TenkanSen.HasValue ? (decimal)sameDateIchi.TenkanSen.Value : 0;
+                        //    newHistory.IchimokuKijun = sameDateIchi.KijunSen.HasValue ? (decimal)sameDateIchi.KijunSen.Value : 0;
                         //}
+
+                        ////Update RSI
+                        //var sameDateRSI = rsis.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        //if (sameDateRSI != null)
+                        //{
+                        //    newHistory.RSI = sameDateRSI.Rsi.HasValue ? (decimal)sameDateRSI.Rsi.Value : 0;
+                        //}
+
+                        ////Update Bands
+                        //var sameDateBands = bands.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        //if (sameDateBands != null)
+                        //{
+                        //    newHistory.BandsTop = sameDateBands.UpperBand.HasValue ? (decimal)sameDateBands.UpperBand.Value : 0;
+                        //    newHistory.BandsBot = sameDateBands.LowerBand.HasValue ? (decimal)sameDateBands.LowerBand.Value : 0;
+                        //}
+
+                        ////Update MACD
+                        //var sameDateMacd = macd.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        //if (sameDateMacd != null)
+                        //{
+                        //    newHistory.MACD = sameDateMacd.Macd.HasValue ? (decimal)sameDateMacd.Macd.Value : 0;
+                        //    newHistory.MACDSignal = sameDateMacd.Signal.HasValue ? (decimal)sameDateMacd.Signal.Value : 0;
+                        //    newHistory.MACDMomentum = sameDateMacd.Histogram.HasValue ? (decimal)sameDateMacd.Histogram.Value : 0;
+                        //}
+
+
+
+
+                        if (historiesInPeriodOfTime[i].HadAllIndicators()) continue;
+
+                        //Update Ichimoku
+                        var sameDateIchi = ichimoku.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        if (sameDateIchi != null && !historiesInPeriodOfTime[i].HadIchimoku())
+                        {
+                            historiesInPeriodOfTime[i].IchimokuCloudBot = sameDateIchi.SenkouSpanB.HasValue ? (decimal)sameDateIchi.SenkouSpanB.Value : 0;
+                            historiesInPeriodOfTime[i].IchimokuCloudTop = sameDateIchi.SenkouSpanA.HasValue ? (decimal)sameDateIchi.SenkouSpanA.Value : 0;
+                            historiesInPeriodOfTime[i].IchimokuTenKan = sameDateIchi.TenkanSen.HasValue ? (decimal)sameDateIchi.TenkanSen.Value : 0;
+                            historiesInPeriodOfTime[i].IchimokuKijun = sameDateIchi.KijunSen.HasValue ? (decimal)sameDateIchi.KijunSen.Value : 0;
+                        }
+
                         //historiesInPeriodOfTime[i].NenBot = historiesInPeriodOfTime[i].TangGia() ? historiesInPeriodOfTime[i].O : historiesInPeriodOfTime[i].C;
                         //historiesInPeriodOfTime[i].NenTop = historiesInPeriodOfTime[i].TangGia() ? historiesInPeriodOfTime[i].C : historiesInPeriodOfTime[i].O;
 
-
-                        ////Update Bollingerbands
-                        //total_average += (double)historiesInPeriodOfTime[i].C;
-                        //total_squares += Math.Pow((double)historiesInPeriodOfTime[i].C, 2);
-
-                        //if (i >= bandsPeriod - 1)
+                        ////Update RSI
+                        //var sameDateRSI = rsis.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        //if (sameDateRSI != null && !historiesInPeriodOfTime[i].HadRsi())
                         //{
-                        //    double average = total_average / bandsPeriod;
-
-                        //    double stdev = Math.Sqrt((total_squares - Math.Pow(total_average, 2) / bandsPeriod) / bandsPeriod);
-
-                        //    historiesInPeriodOfTime[i].BandsTop = (decimal)(average + bandsFactor * stdev);
-                        //    historiesInPeriodOfTime[i].BandsBot = (decimal)(average - bandsFactor * stdev);
-
-                        //    total_average -= (double)historiesInPeriodOfTime[i - bandsPeriod + 1].C;
-                        //    total_squares -= Math.Pow((double)historiesInPeriodOfTime[i - bandsPeriod + 1].C, 2);
+                        //    historiesInPeriodOfTime[i].RSI = sameDateRSI.Rsi.HasValue ? (decimal)sameDateRSI.Rsi.Value : 0;
                         //}
 
+                        ////Update Bands
+                        //var sameDateBands = bands.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        //if (sameDateBands != null && !historiesInPeriodOfTime[i].HadBands())
+                        //{
+                        //    historiesInPeriodOfTime[i].BandsTop = sameDateBands.UpperBand.HasValue ? (decimal)sameDateBands.UpperBand.Value : 0;
+                        //    historiesInPeriodOfTime[i].BandsBot = sameDateBands.LowerBand.HasValue ? (decimal)sameDateBands.LowerBand.Value : 0;
+                        //}
 
-                        //Update MACD
-                        var sameDate = res.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDate != null)
-                        {
-                            historiesInPeriodOfTime[i].MACDFast = sameDate.Macd.HasValue ? (decimal)sameDate.Macd.Value : 0;
-                            historiesInPeriodOfTime[i].MACDSlow = sameDate.Signal.HasValue ? (decimal)sameDate.Signal.Value : 0;
-                            historiesInPeriodOfTime[i].MACDMomentum = sameDate.Histogram.HasValue ? (decimal)sameDate.Histogram.Value : 0;
-                        }
-
+                        ////Update MACD
+                        //var sameDateMacd = macd.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        //if (sameDateMacd != null && !historiesInPeriodOfTime[i].HadMACD())
+                        //{
+                        //    historiesInPeriodOfTime[i].MACD = sameDateMacd.Macd.HasValue ? (decimal)sameDateMacd.Macd.Value : 0;
+                        //    historiesInPeriodOfTime[i].MACDSignal = sameDateMacd.Signal.HasValue ? (decimal)sameDateMacd.Signal.Value : 0;
+                        //    historiesInPeriodOfTime[i].MACDMomentum = sameDateMacd.Histogram.HasValue ? (decimal)sameDateMacd.Histogram.Value : 0;
+                        //}
                     }
                     catch (Exception ex)
                     {
                         continue;
                     }
 
-                    _context.StockSymbolHistory.Update(historiesInPeriodOfTime[i]);
+
+
+                    _context.History.Update(historiesInPeriodOfTime[i]);
                 }
-
-
             }
 
             await _context.SaveChangesAsync();
@@ -276,22 +281,37 @@ namespace DotNetCoreSqlDb.Controllers
             return "true";
         }
 
-        public IEnumerable<Quote> MACDConvert(List<StockSymbolHistory> histories)
+
+        //[HttpPost]
+        //public async Task<string> Update()
+        //{
+        //    return await UpdateIndicators();
+        //}
+
+        public IEnumerable<Quote> MACDConvert(List<History> histories)
         {
             var qoutes = new List<Quote>();
             foreach (var h in histories)
             {
                 qoutes.Add(new Quote
                 {
+                    Date = h.Date,
+                    //Close = Math.Round(h.C / 1000, 2),                    
+                    //High = Math.Round(h.H / 1000, 2),
+                    //Low = Math.Round(h.L / 1000, 2),
+                    //Open = Math.Round(h.O / 1000, 2),
                     Close = h.C,
-                    Date = h.Date
+                    High = h.H,
+                    Low = h.L,
+                    Open = h.O,
+                    Volume = h.V,
                 });
             }
 
             return qoutes;
         }
 
-        public void AddBollingerBands(List<StockSymbolHistory> histories, int period, int factor)
+        public void AddBollingerBands(List<History> histories, int period, int factor)
         {
             double total_average = 0;
             double total_squares = 0;

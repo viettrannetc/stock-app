@@ -7,7 +7,7 @@ namespace DotNetCoreSqlDb.Models.Business.Report.Implementation
 {
     public class ReportFormularCT11 : IReportFormular
     {
-        public ReportFormularModel Calculation(string code, DateTime checkingDate, List<StockSymbolHistory> histories, List<StockSymbolTradingHistory> tradingHistories)
+        public ReportFormularModel Calculation(string code, DateTime checkingDate, List<History> histories, List<StockSymbolTradingHistory> tradingHistories)
         {
             var result = new ReportFormularModel();
             var history = histories.FirstOrDefault(h => h.Date == checkingDate);

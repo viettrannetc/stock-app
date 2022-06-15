@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace DotNetCoreSqlDb.Models.Business
 {
-    public class PatternWeekResearchModel : StockSymbolHistory
+    public class PatternWeekResearchModel : History
     {
         public PatternWeekResearchModel()
         {

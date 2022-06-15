@@ -5,6 +5,10 @@
 	<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Compile Remove="Migrations\20220614052926_DropTableHistory.cs" />
+  </ItemGroup>
+
 
   <ItemGroup>
     <PackageReference Include="CSharpItertools" Version="1.0.0" />

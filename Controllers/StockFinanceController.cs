@@ -233,7 +233,7 @@ namespace DotNetCoreSqlDb.Controllers
             var lstDotBien = new List<string>();
             var ngay = DateTime.Today.WithoutHours();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
-            var historiesInPeriodOfTimeByStockCode = await _context.StockSymbolHistory
+            var historiesInPeriodOfTimeByStockCode = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= ngay.AddDays(-10))
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();

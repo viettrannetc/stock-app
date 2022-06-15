@@ -17,11 +17,11 @@ namespace DotNetCoreSqlDb.Common
             return false;
         }
 
-        public static bool VOLBienDong(this StockSymbolHistory checkingDate, List<StockSymbolHistory> histories, int numberOfPreviousPhien, decimal bienDong)
+        public static bool VOLBienDong(this History checkingDate, List<History> histories, int numberOfPreviousPhien, decimal bienDong)
         {
             if (numberOfPreviousPhien == 0) return false;
 
-            var checkingRange = new List<StockSymbolHistory>();
+            var checkingRange = new List<History>();
             if (numberOfPreviousPhien < 0)
             {
                 numberOfPreviousPhien = numberOfPreviousPhien * -1;
@@ -42,11 +42,11 @@ namespace DotNetCoreSqlDb.Common
             return dk1 && dk2;
         }
 
-        public static decimal VOL(this StockSymbolHistory checkingDate, List<StockSymbolHistory> histories, int numberOfPreviousPhien)
+        public static decimal VOL(this History checkingDate, List<History> histories, int numberOfPreviousPhien)
         {
             if (numberOfPreviousPhien == 0) return 0;
 
-            var checkingRange = new List<StockSymbolHistory>();
+            var checkingRange = new List<History>();
             if (numberOfPreviousPhien < 0)
             {
                 numberOfPreviousPhien = numberOfPreviousPhien * -1;
@@ -60,11 +60,11 @@ namespace DotNetCoreSqlDb.Common
             return checkingRange.Sum(h => h.V) / numberOfPreviousPhien;
         }
 
-        public static decimal MA(this StockSymbolHistory checkingDate, List<StockSymbolHistory> histories, int numberOfPreviousPhien)
+        public static decimal MA(this History checkingDate, List<History> histories, int numberOfPreviousPhien)
         {
             if (numberOfPreviousPhien == 0) return 0;
 
-            var checkingRange = new List<StockSymbolHistory>();
+            var checkingRange = new List<History>();
             if (numberOfPreviousPhien < 0)
             {
                 numberOfPreviousPhien = numberOfPreviousPhien * -1;
@@ -96,7 +96,7 @@ namespace DotNetCoreSqlDb.Common
             return checkingRange.Sum(h => h.C) / numberOfPreviousPhien;
         }
 
-        public static bool IsPriceUp(this StockSymbolHistory today, List<StockSymbolHistory> histories, int numberOfSideway)
+        public static bool IsPriceUp(this History today, List<History> histories, int numberOfSideway)
         {
             var todayVol = today.C;
             var averageOfVolInSideway = today.MAPrice(histories, numberOfSideway);
@@ -104,7 +104,7 @@ namespace DotNetCoreSqlDb.Common
             return todayVol > averageOfVolInSideway * 1.05M;
         }
 
-        public static bool IsPriceDown(this StockSymbolHistory today, List<StockSymbolHistory> histories, int numberOfSideway)
+        public static bool IsPriceDown(this History today, List<History> histories, int numberOfSideway)
         {
             var todayVol = today.C;
             var averageOfVolInSideway = today.MAPrice(histories, numberOfSideway);
@@ -113,7 +113,7 @@ namespace DotNetCoreSqlDb.Common
         }
 
 
-        public static bool IsVolUp(this StockSymbolHistory today, List<StockSymbolHistory> histories, int numberOfSideway)
+        public static bool IsVolUp(this History today, List<History> histories, int numberOfSideway)
         {
             var todayVol = today.V;
             var averageOfVolInSideway = today.MASideway(histories, numberOfSideway);
@@ -121,7 +121,7 @@ namespace DotNetCoreSqlDb.Common
             return todayVol > averageOfVolInSideway * 1.05M;
         }
 
-        public static bool IsVolDown(this StockSymbolHistory today, List<StockSymbolHistory> histories, int numberOfSideway)
+        public static bool IsVolDown(this History today, List<History> histories, int numberOfSideway)
         {
             var todayVol = today.V;
             var averageOfVolInSideway = today.MASideway(histories, numberOfSideway);
@@ -129,17 +129,17 @@ namespace DotNetCoreSqlDb.Common
             return todayVol * 1.05M < averageOfVolInSideway;
         }
 
-        public static decimal MASideway(this StockSymbolHistory today, List<StockSymbolHistory> histories, int numberOfSideway)
+        public static decimal MASideway(this History today, List<History> histories, int numberOfSideway)
         {
             return histories.Where(h => h.Date < today.Date).OrderByDescending(h => h.Date).Take(numberOfSideway).Sum(h => h.V) / numberOfSideway;
         }
 
-        public static decimal MAPrice(this StockSymbolHistory today, List<StockSymbolHistory> histories, int numberOfSideway)
+        public static decimal MAPrice(this History today, List<History> histories, int numberOfSideway)
         {
             return histories.Where(h => h.Date < today.Date).OrderByDescending(h => h.Date).Take(numberOfSideway).Sum(h => h.C) / numberOfSideway;
         }
 
-        public static bool DangBiCanhCaoGD1Tuan(this StockSymbolHistory checkingDate, List<StockSymbolHistory> histories)
+        public static bool DangBiCanhCaoGD1Tuan(this History checkingDate, List<History> histories)
         {
             var latestHistories = histories
                 .Where(h => h.Date <= checkingDate.Date && h.V > 0)
@@ -157,7 +157,7 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="histories"></param>
         /// <param name="T"></param>
         /// <returns></returns>
-        public static decimal LayGiaCuaPhienSau(this StockSymbolHistory checkingDate, List<StockSymbolHistory> histories, int T)
+        public static decimal LayGiaCuaPhienSau(this History checkingDate, List<History> histories, int T)
         {
             if (T < 0) return 0;
 
@@ -183,7 +183,7 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="histories"></param>
         /// <param name="T"></param>
         /// <returns></returns>
-        public static decimal LayGiaCaoNhatCuaCacPhienSau(this StockSymbolHistory checkingDate, List<StockSymbolHistory> histories, int fromT, int toT)
+        public static decimal LayGiaCaoNhatCuaCacPhienSau(this History checkingDate, List<History> histories, int fromT, int toT)
         {
             if (toT < fromT) return 0;
 
@@ -203,7 +203,7 @@ namespace DotNetCoreSqlDb.Common
             return transaction.C;
         }
 
-        public static StockSymbolHistory LookingForLowestWithout2Percent(this StockSymbolHistory currentDateHistory, List<StockSymbolHistory> histories)//, StockSymbolHistory currentDateHistory)
+        public static History LookingForLowestWithout2Percent(this History currentDateHistory, List<History> histories)//, History currentDateHistory)
         {
             if (currentDateHistory == null) return null;
 
@@ -218,7 +218,7 @@ namespace DotNetCoreSqlDb.Common
             return lowest;
         }
 
-        public static StockSymbolHistory LookingForSecondLowestWithout2Percent(this StockSymbolHistory lowest, List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory)
+        public static History LookingForSecondLowestWithout2Percent(this History lowest, List<History> histories, History currentDateHistory)
         {
             var theDaysAfterLowest = histories.Where(h => h.Date > lowest.Date && h.Date <= currentDateHistory.Date)
                 .OrderBy(h => h.Date)
@@ -251,7 +251,7 @@ namespace DotNetCoreSqlDb.Common
             return null;
         }
 
-        public static StockSymbolHistory LookingForSecondLowest(this StockSymbolHistory lowest, List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory, bool included2PercentHigher = false)
+        public static History LookingForSecondLowest(this History lowest, List<History> histories, History currentDateHistory, bool included2PercentHigher = false)
         {
             var theDaysAfterLowest = histories.Where(h => h.Date > lowest.Date && h.Date <= currentDateHistory.Date)
                 .OrderBy(h => h.Date)
@@ -286,7 +286,7 @@ namespace DotNetCoreSqlDb.Common
             return null;
         }
 
-        public static StockSymbolHistory LookingForSecondLowestWithCheckingDate(this StockSymbolHistory lowest, List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory, bool included2PercentHigher = false)
+        public static History LookingForSecondLowestWithCheckingDate(this History lowest, List<History> histories, History currentDateHistory, bool included2PercentHigher = false)
         {
             var theDaysAfterLowest = histories.Where(h => h.Date > lowest.Date && h.Date < currentDateHistory.Date)
                 .OrderBy(h => h.Date)
@@ -310,7 +310,7 @@ namespace DotNetCoreSqlDb.Common
             return null;
         }
 
-        public static StockSymbolHistory LookingForSecondLowestWithoutLowest(List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory, bool included2PercentHigher = false)
+        public static History LookingForSecondLowestWithoutLowest(List<History> histories, History currentDateHistory, bool included2PercentHigher = false)
         {
             var theDaysInThePast = histories.Where(h => h.Date < currentDateHistory.Date)
                 .OrderByDescending(h => h.Date)
@@ -337,7 +337,7 @@ namespace DotNetCoreSqlDb.Common
             return null;
         }
 
-        public static StockSymbolHistory LookingForLowest(this List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory)
+        public static History LookingForLowest(this List<History> histories, History currentDateHistory)
         {
             var h1 = histories.Where(h => h.Date < currentDateHistory.Date).OrderByDescending(h => h.Date).ToList();
 
@@ -355,12 +355,12 @@ namespace DotNetCoreSqlDb.Common
             return null;
         }
 
-        public static bool DidDay2ShowYesterday(this List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory, out StockSymbolHistory dinh1, out StockSymbolHistory day1, out StockSymbolHistory day2)
+        public static bool DidDay2ShowYesterday(this List<History> histories, History currentDateHistory, out History dinh1, out History day1, out History day2)
         {
             var h1 = histories.Where(h => h.Date < currentDateHistory.Date).OrderByDescending(h => h.Date).ToList();
-            day1 = new StockSymbolHistory();
-            day2 = new StockSymbolHistory();
-            dinh1 = new StockSymbolHistory();
+            day1 = new History();
+            day2 = new History();
+            dinh1 = new History();
 
             foreach (var day1Ao in h1)
             {
@@ -391,13 +391,13 @@ namespace DotNetCoreSqlDb.Common
         }
 
 
-        public static bool DidDay2ShowYesterdayStartWithDay2(this List<StockSymbolHistory> histories, StockSymbolHistory currentDateHistory, out StockSymbolHistory dinh1, out StockSymbolHistory day1, out StockSymbolHistory day2)
+        public static bool DidDay2ShowYesterdayStartWithDay2(this List<History> histories, History currentDateHistory, out History dinh1, out History day1, out History day2)
         {
             //var h1 = histories.Where(h => h.Date < currentDateHistory.Date).OrderByDescending(h => h.Date).ToList();
 
-            day1 = new StockSymbolHistory();
-            day2 = new StockSymbolHistory();
-            dinh1 = new StockSymbolHistory();
+            day1 = new History();
+            day2 = new History();
+            dinh1 = new History();
 
             var theDaysInThePast = histories.Where(h => h.Date < currentDateHistory.Date)
                 .OrderByDescending(h => h.Date)
@@ -472,7 +472,7 @@ namespace DotNetCoreSqlDb.Common
         }
 
 
-        public static decimal RSI(this StockSymbolHistory history, List<StockSymbolHistory> histories, int rsi)
+        public static decimal RSI(this History history, List<History> histories, int rsi)
         {
             var historiesFromToday = histories.Where(h => h.Date <= history.Date).OrderByDescending(h => h.Date).ToList();
 
@@ -498,7 +498,7 @@ namespace DotNetCoreSqlDb.Common
             return rsiValue;
         }
 
-        public static Tuple<decimal, decimal, decimal> RSIDetail(this StockSymbolHistory history, List<StockSymbolHistory> histories, int rsi)
+        public static Tuple<decimal, decimal, decimal> RSIDetail(this History history, List<History> histories, int rsi)
         {
             var historiesFromToday = histories.Where(h => h.Date <= history.Date).OrderByDescending(h => h.Date).Take(rsi + 1).ToList();
 
@@ -544,7 +544,7 @@ namespace DotNetCoreSqlDb.Common
             return result;
         }
 
-        public static List<decimal> MACD(this StockSymbolHistory history, List<StockSymbolHistory> histories, int rsi)
+        public static List<decimal> MACD(this History history, List<History> histories, int rsi)
         {
             var rsiDays = histories.Where(h => h.Date <= history.Date).OrderByDescending(h => h.Date).Take(rsi + 1).ToList();
 
@@ -566,7 +566,7 @@ namespace DotNetCoreSqlDb.Common
             return null;
         }
 
-        public static decimal SMA(this StockSymbolHistory history, List<StockSymbolHistory> histories, int rsi)
+        public static decimal SMA(this History history, List<History> histories, int rsi)
         {
             var rsiDays = histories.Where(h => h.Date <= history.Date).OrderByDescending(h => h.Date).Take(rsi + 1).ToList();
 
@@ -588,11 +588,15 @@ namespace DotNetCoreSqlDb.Common
             return rsiValue;
         }
 
-        public static bool TangGia(this StockSymbolHistory today)
+        public static bool TangGia(this History today)
         {
             return today.C > today.O;
         }
 
+        public static bool Doji(this History today)
+        {
+            return today.C.IsDifferenceInRank(today.O, 0.01M);
+        }
 
         /// <summary>
         /// TODO: Kháng cự có thể là 1 biên rộng, nên 2 giá trị có thể là hợp lí
@@ -600,7 +604,7 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="today"></param>
         /// <param name="histories"></param>
         /// <returns></returns>
-        public static decimal KhángCựĐỉnh(this StockSymbolHistory today, List<StockSymbolHistory> histories)
+        public static decimal KhángCựĐỉnh(this History today, List<History> histories)
         {
             return 0;
         }
@@ -611,13 +615,13 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="today"></param>
         /// <param name="histories"></param>
         /// <returns></returns>
-        public static decimal KhángCựBands(this StockSymbolHistory today, List<StockSymbolHistory> histories)
+        public static decimal KhángCựBands(this History today, List<History> histories)
         {
             return 0;
         }
 
         ////public static void AddBollingerBands(ref SortedList<DateTime, Dictionary<string, double>> data, int period, int factor)
-        //public static void AddBollingerBands(this List<StockSymbolHistory> histories, int period, int factor)
+        //public static void AddBollingerBands(this List<History> histories, int period, int factor)
         //{
         //    double total_average = 0;
         //    double total_squares = 0;
@@ -649,7 +653,7 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="today"></param>
         /// <param name="histories"></param>
         /// <returns></returns>
-        public static decimal KhángCựFibonacci(this StockSymbolHistory today, List<StockSymbolHistory> histories)
+        public static decimal KhángCựFibonacci(this History today, List<History> histories)
         {
             return 0;
         }
@@ -660,12 +664,12 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="today"></param>
         /// <param name="histories"></param>
         /// <returns></returns>
-        public static decimal KhángCựIchimoku(this StockSymbolHistory today, List<StockSymbolHistory> histories)
+        public static decimal KhángCựIchimoku(this History today, List<History> histories)
         {
             return 0;
         }
 
-        public static bool NếnĐảoChiều(this StockSymbolHistory phienKiemTra)
+        public static bool NếnĐảoChiều(this History phienKiemTra)
         {
             var nếnĐảoChiều = phienKiemTra.NenTop < phienKiemTra.BandsBot
                                     && (phienKiemTra.H - phienKiemTra.NenTop) / 2 > (phienKiemTra.NenTop - phienKiemTra.NenBot);
@@ -674,12 +678,12 @@ namespace DotNetCoreSqlDb.Common
             return nếnĐảoChiều;
         }
 
-        public static bool NếnĐảoChiềuTăngMạnhA1(this StockSymbolHistory phienKiemTra)
+        public static bool NếnĐảoChiềuTăngMạnhA1(this History phienKiemTra)
         {
             return phienKiemTra.NếnĐảoChiều() && phienKiemTra.TangGia() ? true : false;
         }
 
-        public static bool NếnĐảoChiềuTăngMạnhA2(this StockSymbolHistory phienKiemTra, StockSymbolHistory phiênTrướcPhiênKiemTra)
+        public static bool NếnĐảoChiềuTăngMạnhA2(this History phienKiemTra, History phiênTrướcPhiênKiemTra)
         {
             return phiênTrướcPhiênKiemTra.NếnĐảoChiều() && !phiênTrướcPhiênKiemTra.TangGia() && phienKiemTra.TangGia() ? true : false;
         }
@@ -691,7 +695,7 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="phienKiemTra"></param>
         /// <param name="histories"></param>
         /// <returns></returns>
-        public static bool RSIDương(this StockSymbolHistory phienKiemTra, List<StockSymbolHistory> histories)
+        public static bool RSIDương(this History phienKiemTra, List<History> histories)
         {
             var checkingList = histories.Where(h => h.Date < phienKiemTra.Date).OrderByDescending(h => h.Date).Skip(3).Take(52).ToList();
             var comparingHistory = checkingList.Where(h => h.C == phienKiemTra.C).OrderByDescending(h => h.Date).FirstOrDefault();
@@ -718,11 +722,11 @@ namespace DotNetCoreSqlDb.Common
         }
 
 
-        public static decimal TỉLệNếnCựcYếu(this StockSymbolHistory phienKiemTra, List<StockSymbolHistory> histories)
+        public static decimal TỉLệNếnCựcYếu(this History phienKiemTra, List<History> histories)
         {
             var checkingList = histories.Where(h => h.Date < phienKiemTra.Date).OrderByDescending(h => h.Date).ToList();
-            var totalNenYeu = 0;
-            var nenCựcYếu = 0;
+            var totalNenYeu = 0; //nến bám bands
+            var nenCựcYếu = 0;   //nến dưới bands
             var tongSoNen = 0;
             for (int i = 0; i < checkingList.Count; i++)
             {
@@ -738,11 +742,34 @@ namespace DotNetCoreSqlDb.Common
                 if (checkingList[i].NenBot > ma05) break;
             }
 
-            return tongSoNen == 0 ? 0 : (decimal)nenCựcYếu / (decimal)tongSoNen;
+            return tongSoNen == 0 ? 0 : (decimal)totalNenYeu / (decimal)tongSoNen;
+        }
+
+        /// <summary>
+        /// Nến cán bands
+        /// </summary>
+        public static decimal TỉLệNếnYếu(this History phienKiemTra, List<History> histories)
+        {
+            var checkingList = histories.Where(h => h.Date < phienKiemTra.Date).OrderByDescending(h => h.Date).ToList();
+            var totalNenYeu = 0; //nến cán bands
+            var tongSoNen = 0;
+            for (int i = 0; i < checkingList.Count; i++)
+            {
+                tongSoNen++;
+                var ma05 = checkingList[i].MA(histories, -5);
+
+                if (checkingList[i].NenBot < checkingList[i].BandsBot
+                    || (checkingList[i].NenTop > checkingList[i].BandsBot && checkingList[i].NenBot < checkingList[i].BandsBot)) //nến cán bands
+                    totalNenYeu++;
+
+                if (checkingList[i].NenBot > ma05) break;
+            }
+
+            return tongSoNen == 0 ? 0 : (decimal)totalNenYeu / (decimal)tongSoNen;
         }
 
 
-        public static bool MAChuyểnDần(this StockSymbolHistory phienKiemTra, List<StockSymbolHistory> histories, bool chieuKiemTra, int numberOfPreviousPhien, int soPhienKiemTra)
+        public static bool MAChuyểnDần(this History phienKiemTra, List<History> histories, bool chieuKiemTra, int numberOfPreviousPhien, int soPhienKiemTra)
         {
             var checkingList = histories.Where(h => h.Date <= phienKiemTra.Date).OrderByDescending(h => h.Date).Take(soPhienKiemTra + 1).ToList();
             checkingList = checkingList.OrderBy(h => h.Date).ToList();
@@ -773,6 +800,46 @@ namespace DotNetCoreSqlDb.Common
             }
 
             return true;
+        }
+
+        public static bool SoSánhGiá(this History today, int giáChênhLệch)
+        {
+            return
+                today.TangGia()
+                    ? ((decimal)today.C / (decimal)today.O) * 100 > giáChênhLệch
+                    : ((decimal)today.O / (decimal)today.C) * 100 > giáChênhLệch;
+
+        }
+
+
+        public static bool HadBands(this History today)
+        {
+            return today.BandsBot != 0 || today.BandsTop != 0;
+        }
+
+        public static bool HadIchimoku(this History today)
+        {
+            return today.IchimokuCloudBot != 0
+                || today.IchimokuCloudTop != 0
+                || today.IchimokuTenKan != 0
+                || today.IchimokuKijun != 0;
+        }
+
+        public static bool HadRsi(this History today)
+        {
+            return today.RSI != 0;
+        }
+
+        public static bool HadMACD(this History today)
+        {
+            return today.MACD != 0
+                || today.MACDSignal != 0
+                || today.MACDMomentum != 0;
+        }
+
+        public static bool HadAllIndicators(this History today)
+        {
+            return today.HadBands() && today.HadIchimoku() && today.HadMACD() && today.HadRsi();
         }
     }
 

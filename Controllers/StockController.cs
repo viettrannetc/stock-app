@@ -28,7 +28,7 @@ namespace DotNetCoreSqlDb.Controllers
         // GET: Stock
         public async Task<List<string>> Vol(int minVol)
         {
-            var t1 = await _context.StockSymbolHistory.Where(h => h.V >= minVol && h.Date == new DateTime(2022, 3, 10))
+            var t1 = await _context.History.Where(h => h.V >= minVol && h.Date == new DateTime(2022, 3, 10))
                 .Select(h => h.StockSymbol).Distinct().ToListAsync();
             return t1;
         }
