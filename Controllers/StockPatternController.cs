@@ -3395,7 +3395,7 @@ namespace DotNetCoreSqlDb.Controllers
          */
 
 
-        public async Task<List<Tuple<string, decimal, List<string>>>> RSITestMANhanhCatCham(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
+        public async Task<List<Tuple<string, decimal, List<string>>>> DoTimCongThuc(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
         {
             var result = new PatternDetailsResponseModel();
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
@@ -3486,18 +3486,18 @@ namespace DotNetCoreSqlDb.Controllers
                      *              trong vòng >= 5 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway mạnh
                      *              trong vòng >= 7 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway cực mạnh
                      *              
-                     * bands trên   tăng dần đều trong >= 1 phiên gần nhất >=1%                                     tín hiệu chuyển wa trend tăng nhẹ
-                     *                                 >= 2 phiên gần nhất >=3%                                     tín hiệu chuyển wa trend tăng trung bình
-                     *                                 >= 3 phiên gần nhất >=5%                                     tín hiệu chuyển wa trend tăng bền vững
-                     *                                 >= 4 phiên gần nhất >=7%                                     tín hiệu chuyển wa trend tăng mạnh
-                     *              có khoảng cách tới MA 20 tăng dần trong >= 1 phiên gần đây                      tín hiệu chuyển wa trend tăng nhẹ
-                     *                                                      >= 2 phiên gần đây                      tín hiệu chuyển wa trend tăng trung bình
-                     *                                                      >= 3 phiên gần đây                      tín hiệu chuyển wa trend tăng bền vững
-                     *                                                      >= 4 phiên gần đây                      tín hiệu chuyển wa trend tăng mạnh
-                     *              có khoảng cách tới MA 20 giảm dần trong >= 1 phiên gần đây                      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự nhẹ
-                     *                                                      >= 2 phiên gần đây                      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự trung bình
-                     *                                                      >= 3 phiên gần đây                      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự bền vững
-                     *                                                      >= 4 phiên gần đây                      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự mạnh
+                     * bands trên   tăng dần đều trong >= 1 phiên gần nhất                      + giá >= MA 20      tín hiệu chuyển wa trend tăng nhẹ
+                     *                                 >= 2 phiên gần nhất                      + giá >= MA 20      tín hiệu chuyển wa trend tăng trung bình
+                     *                                 >= 3 phiên gần nhất                      + giá >= MA 20      tín hiệu chuyển wa trend tăng bền vững
+                     *                                 >= 4 phiên gần nhất                      + giá >= MA 20      tín hiệu chuyển wa trend tăng mạnh
+                     *              có khoảng cách tới MA 20 tăng dần trong >= 1 phiên gần đây  + giá >= MA 20      tín hiệu chuyển wa trend tăng nhẹ
+                     *                                                      >= 2 phiên gần đây  + giá >= MA 20      tín hiệu chuyển wa trend tăng trung bình
+                     *                                                      >= 3 phiên gần đây  + giá >= MA 20      tín hiệu chuyển wa trend tăng bền vững
+                     *                                                      >= 4 phiên gần đây  + giá >= MA 20      tín hiệu chuyển wa trend tăng mạnh
+                     *              có khoảng cách tới MA 20 giảm dần trong >= 1 phiên gần đây  + giá >= MA 20      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự nhẹ
+                     *                                                      >= 2 phiên gần đây  + giá >= MA 20      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự trung bình
+                     *                                                      >= 3 phiên gần đây  + giá >= MA 20      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự bền vững
+                     *                                                      >= 4 phiên gần đây  + giá >= MA 20      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự mạnh
                      *              tăng dần đều trong >= 1 phiên gần nhất >=1%                                     tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự nhẹ
                      *                                 >= 2 phiên gần nhất >=3%                                     tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự trung bình
                      *                                 >= 3 phiên gần nhất >=5%                                     tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự bền vững
@@ -3507,6 +3507,7 @@ namespace DotNetCoreSqlDb.Controllers
                      *              trong vòng >= 5 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway mạnh
                      *              trong vòng >= 7 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway cực mạnh
                      *
+                     * 
                      * MA 5         cắt lên MA 20                                                                   tín hiệu chuyển wa trend tăng trung bình
                      *              cắt xuống MA 20                                                                 tín hiệu chuyển wa trend giảm trung bình
                      *              giảm dần đều trong >= 1 phiên gần nhất  >=1%                                    tín hiệu chuyển wa trend giảm nhẹ
@@ -3523,71 +3524,64 @@ namespace DotNetCoreSqlDb.Controllers
                      *                                                                       >= 3 phiên gần đây     tín hiệu chuyển wa trend giảm bền vững
                      *                                                                       >= 4 phiên gần đây     tín hiệu chuyển wa trend giảm mạnh
                      *                                                                       
-                     *              ở dưới MA 20 và có khoảng cách với MA 20 tăng dần trong  >= 1 phiên gần đây     tín hiệu chuyển wa trend tăng nhẹ
+                     *              ở dưới MA 20 và có khoảng cách với MA 20 giảm dần trong  >= 1 phiên gần đây     tín hiệu chuyển wa trend tăng nhẹ
                      *                                                                       >= 2 phiên gần đây     tín hiệu chuyển wa trend tăng trung bình
                      *                                                                       >= 3 phiên gần đây     tín hiệu chuyển wa trend tăng bền vững
                      *                                                                       >= 4 phiên gần đây     tín hiệu chuyển wa trend tăng mạnh
                      *                                                                       
-                     *                                                 MA 20 giảm dần trong  >= 1 phiên gần đây     tín hiệu chuyển wa trend giảm nhẹ               
+                     *                                                 MA 20 tăng dần trong  >= 1 phiên gần đây     tín hiệu chuyển wa trend giảm nhẹ               
                      *                                                                       >= 2 phiên gần đây     tín hiệu chuyển wa trend giảm trung bình                      
                      *                                                                       >= 3 phiên gần đây     tín hiệu chuyển wa trend giảm bền vững                    
                      *                                                                       >= 4 phiên gần đây     tín hiệu chuyển wa trend giảm mạnh                
                      *                                                                       
-                     *              tăng dần đều trong >= 1 phiên gần nhất  >=1%                                    tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ nhẹ
-                     *                                 >= 2 phiên gần nhất  >=3%                                    tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ trung bình
-                     *                                 >= 3 phiên gần nhất  >=5%                                    tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ bền vững
-                     *                                 >= 4 phiên gần nhất  >=7%                                    tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ mạnh
-                     *              trong vòng >= 1 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway nhẹ
-                     *              trong vòng >= 3 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway trung bình
-                     *              trong vòng >= 5 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway mạnh
-                     *              trong vòng >= 7 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway cực mạnh
+                     *              tăng dần đều trong >= 1 phiên gần nhất  >=1%                                    tín hiệu chuyển wa trend tăng nhẹ
+                     *                                 >= 2 phiên gần nhất  >=3%                                    tín hiệu chuyển wa trend tăng trung bình
+                     *                                 >= 3 phiên gần nhất  >=5%                                    tín hiệu chuyển wa trend tăng bền vững
+                     *                                 >= 4 phiên gần nhất  >=7%                                    tín hiệu chuyển wa trend tăng mạnh
+                     * 
+                     * MACD         hướng lên                       trên 0                                          tín hiệu chuyển wa trend tăng trung bình
+                     * MACD         hướng lên                       dưới 0                                          tín hiệu chuyển wa trend tăng nhẹ
+                     * MACD         cắt lên signal                                                                  tín hiệu chuyển wa trend tăng trung bình
+                     * MACD         hướng xuống                     dưới 0                                          tín hiệu chuyển wa trend giảm trung bình
+                     * MACD         hướng xuống                     trên 0                                          tín hiệu chuyển wa trend giảm nhẹ
+                     * MACD         cắt xuống signal                                                                tín hiệu chuyển wa trend giảm trung bình
+                     * Momentum     giảm dần                        trên 0                                          tín hiệu chuyển wa trend giảm nhẹ
+                     * Momentum     giảm dần                        dưới 0                                          tín hiệu chuyển wa trend giảm trung bình
+                     * Momentum     tăng dần                        trên 0                                          tín hiệu chuyển wa trend tăng trung bình
+                     * Momentum     tăng dần                        dưới 0                                          tín hiệu chuyển wa trend tăng nhẹ
                      * 
                      * 
                      * 
+                     * Ichi         Tenkan cắt lên Kijun            trên mây,   chikou & Price trên mây             tín hiệu chuyển wa trend tăng mạnh
+                     *                                              trong mây   chikou & Price trên mây             tín hiệu chuyển wa trend tăng trung bình
+                     *                                              dưới mây                                        N/A
+                     *              Tenkan xuống Kijun              trên mây                                        N/A
+                     *                                              trong mây   chikou & Price trong mây            tín hiệu chuyển wa trend giảm trung bình
+                     *                                              dưới mây    chikou & Price dưới mây             tín hiệu chuyển wa trend giảm mạnh
+                     *              Span A cắt lên trên Span B                                                      tín hiệu chuyển wa trend tăng nhẹ
+                     *              Span A cắt dưới Span B                                                          tín hiệu chuyển wa trend giảm nhẹ
+                     *              
+                     * Giá          nến top chạm bands top                                                          tín hiệu chuyển wa trend giảm nhẹ
+                     *              nến bot chạm bands dưới                                                         tín hiệu chuyển wa trend tăng nhẹ
+                     *              nến bot vượt ra khỏi bands top                                                  tín hiệu chuyển wa trend giảm trung bình
+                     *              nến top vượt ra khỏi bands top                                                  tín hiệu chuyển wa trend giảm nhẹ
+                     *              nến top vượt ra khỏi bands bot                                                  tín hiệu chuyển wa trend tăng trung bình
+                     *              nến xanh                                                                        tín hiệu chuyển wa trend tăng nhẹ
+                     *              nến đỏ                                                                          tín hiệu chuyển wa trend giảm nhẹ
+                     *              thân nến xanh dài               từ dưới MA 20 vượt lên gần bands top            tín hiệu chuyển wa trend giảm trung binh
+                     *              bật lên chạm MA 05                                                              tín hiệu chuyển wa trend tăng trung bình
+                     *              tụt xuống chạm MA 20                                                            tín hiệu chuyển wa trend giảm trung bình
+                     * 
+                     * Vol          > MA 20                         giá tăng                                        tín hiệu chuyển wa trend tăng nhẹ
+                     * Vol          > MA 20                         giá giảm                                        tín hiệu chuyển wa trend giảm nhẹ
+                     * Vol          < MA 20                         giá tăng                                        tín hiệu chuyển wa trend tăng nhẹ
+                     * Vol          < MA 20                         giá giảm                                        tín hiệu chuyển wa trend giảm nhẹ
+                     *              
                      * 
                      * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * MA 5         giảm dần đều trong 3 phiên gần nhất >=3%
-                     * MA 5         giảm dần đều trong 3 phiên gần nhất >=5%
-
-                     * MA 5         tăng dần đều trong 3 phiên gần nhất >=1%
-                     * MA 5         tăng dần đều trong 3 phiên gần nhất >=3%
-                     * MA 5         tăng dần đều trong 3 phiên gần nhất >=5%
-                     * 
-                     * MA 5         giảm dần đều trong 3 phiên gần nhất >=3%                    (dốc xuống)
-                     * MA 5         giảm dần đều trong 2 phiên gần nhất >=5%
-                     * MA 5         giảm dần đều trong 1 phiên gần nhất >=7%
-                     * MA 5         có khoảng cách tới MA 20 giảm dần trong >= 1 phiên gần đây  (đáy way đầu)
-                     * MA 5         có khoảng cách tới MA 20 giảm dần trong >= 2 phiên gần đây
-                     * MA 5         có khoảng cách tới MA 20 giảm dần trong >= 3 phiên gần đây
-                     * MA 5         giảm dần đều trong 3 phiên gần nhất >=3%                    (dốc xuống)
-                     * MA 5         giảm dần đều trong 2 phiên gần nhất >=5%                    
-                     * MA 5         giảm dần đều trong 1 phiên gần nhất >=7%                     
-                     * MA 5         có khoảng cách tới MA 20 giảm dần trong >= 1 phiên gần đây  (đỉnh way đầu)
-                     * MA 5         có khoảng cách tới MA 20 giảm dần trong >= 2 phiên gần đây
-                     * MA 5         có khoảng cách tới MA 20 giảm dần trong >= 3 phiên gần đây
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * 
-                     * MA 5         cắt xuống MA 20
-                     * MA 5         cắt xuống MA 20
                      */
+
+                    //tính hiệu quả
 
                     //tín hiệu mua
                     var Ma05DuoiMa20 = phienHumNayMa05 < phienHumNayMa20;
@@ -3842,6 +3836,89 @@ namespace DotNetCoreSqlDb.Controllers
             tup = tup.OrderByDescending(t => t.Item2).ToList();
 
             return tup;
+        }
+
+
+        public async Task<List<string>> ToiUuLoiNhuan(string code, DateTime ngay, DateTime ngayCuoi)
+        {
+            var historiesStockCode = await _context.History
+                .Where(ss => ss.StockSymbol == code
+                    && ss.Date <= ngay.AddDays(10) //calculate T
+                    && ss.Date >= ngayCuoi.AddDays(-60)) //caculate SRI
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            var result1 = new List<string>();
+            decimal tong = 0;
+            decimal dung = 0;
+            decimal sai = 0;
+
+            var NhậtKýMuaBán = new List<Tuple<string, DateTime, bool, decimal>>();
+
+            var historiesInPeriodOfTime = historiesStockCode
+                .Where(ss => ss.StockSymbol == code)
+                .OrderBy(h => h.Date)
+                .ToList();
+            if (historiesInPeriodOfTime.Count < 100) return null;
+
+
+            var ngayCuoiCuaMa = historiesInPeriodOfTime[0].Date.AddDays(30) > ngayCuoi
+                ? historiesInPeriodOfTime[0].Date.AddDays(30)
+                : ngayCuoi;
+
+            var histories = historiesInPeriodOfTime
+                .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoiCuaMa)
+                .OrderBy(h => h.Date)
+                .ToList();
+
+            var history = histories.FirstOrDefault(h => h.Date == ngay);
+            if (history == null) return null;
+
+            var root = 1;
+            var hasMoney = true;
+            var ngayMuaToiUu = new History();
+            var ngayMuaT3 = new History();
+
+            for (int i = 0; i < histories.Count; i++)
+            {
+                var phienHumNay = histories[i];
+                if (phienHumNay.Date < ngayMuaT3.Date) continue;
+
+                var phienNgayMai = histories[i + 1];
+                var phienT3 = histories[i + 3];
+                var phienT4 = histories[i + 4];
+
+                if (hasMoney)
+                {
+                    if (phienT3.C <= phienHumNay.C)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        ngayMuaToiUu = phienHumNay;
+                        ngayMuaT3 = phienT3;
+                        hasMoney = false;
+                        result1.Add($"{phienHumNay.Date.ToShortDateString()} - MUA - {phienHumNay.C} - Vốn {root}");
+                    }
+                }
+                else
+                {
+                    if (phienT4.C <= phienNgayMai.C && phienNgayMai.C <= phienHumNay.C) //mua giá đóng cửa, bán giá mở cửa
+                    {
+                        hasMoney = true;
+                        ngayMuaToiUu = new History();
+                        ngayMuaT3 = new History();
+
+                        result1.Add($"{phienHumNay.Date.ToShortDateString()} - BÁN - {phienHumNay.O} Lời {Math.Round((decimal)phienHumNay.O / (decimal)(ngayMuaToiUu.C), 2)}% - Vốn {Math.Round(1 * (Math.Round((decimal)phienHumNay.O / (decimal)(ngayMuaToiUu.O), 2)))}");
+                        continue;
+                    }
+                }
+            }
+
+            return result1;
         }
     }
 }
