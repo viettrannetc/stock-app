@@ -100,6 +100,11 @@ namespace DotNetCoreSqlDb.Common
             }
 
             result.AddRange(histories);
+
+            if (numberOfT >= 5000)
+            {
+                await GetStockDataByDay(item, restService, result, histories.OrderByDescending(h => h.Date).First().Date, to);
+            }
         }
 
 

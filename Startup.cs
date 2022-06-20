@@ -27,6 +27,8 @@ namespace DotNetCoreSqlDb
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddControllers(x => x.AllowEmptyInputInBodyModelBinding = true);
+            //services.AddEndpointsApiExplorer();
             services.AddControllersWithViews();
             services.AddDbContext<MyDatabaseContext>(options =>
                     options.UseSqlServer(Configuration.GetConnectionString("MyDbConnection")));
@@ -52,6 +54,8 @@ namespace DotNetCoreSqlDb
             app.UseRouting();
 
             app.UseAuthorization();
+
+            //app.MapControllers();
 
             app.UseEndpoints(endpoints =>
             {

@@ -1,6 +1,8 @@
 ﻿using CSharpItertools;
 using DotNetCoreSqlDb.Models.Business;
 using DotNetCoreSqlDb.Models.Learning;
+using DotNetCoreSqlDb.Models.Learning.RealData;
+using Newtonsoft.Json;
 using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
@@ -14,6 +16,14 @@ namespace DotNetCoreSqlDb.Common
 {
     public static class ExcelExtension
     {
+        public static DataTable ToDataTable(this List<LearningRealDataModel> dlist)
+        {
+            //= new List<dynamic>();
+            var json = JsonConvert.SerializeObject(dlist);
+            DataTable dataTable = (DataTable)JsonConvert.DeserializeObject(json, (typeof(DataTable)));
+            return dataTable;
+        }
+
         /// <summary>
         /// https://riptutorial.com/epplus/example/26422/fill-with-a-datatable
         /// </summary>
@@ -337,7 +347,8 @@ namespace DotNetCoreSqlDb.Common
                     rowsMatchedPattern = rowsMatchedPattern.Where(myRow => myRow.Field<string>((int)myColumn) == value);
                 }
 
-                Parallel.ForEach(codes, code => {
+                Parallel.ForEach(codes, code =>
+                {
                     var maData = rowsMatchedPattern.Where(myRow => myRow.Field<string>(1) == code);
 
                     var tong = maData.Count();

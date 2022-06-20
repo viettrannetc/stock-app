@@ -7,6 +7,16 @@ namespace DotNetCoreSqlDb.Common
 {
     public static class ObjectExtensions
     {
+        public static object GetPropValue(this object src, string propName)
+        {
+            return src.GetType().GetProperty(propName).GetValue(src, null);
+        }
+
+        //public static object GetPropValue1(this object src, string propName)
+        //{
+        //    Type.GetType(src).GetMethod(propName).Invoke(null, arguments);
+        //}
+
         private static readonly MethodInfo CloneMethod = typeof(Object).GetMethod("MemberwiseClone", BindingFlags.NonPublic | BindingFlags.Instance);
 
         public static bool IsPrimitive(this Type type)

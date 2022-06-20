@@ -157,6 +157,8 @@ namespace DotNetCoreSqlDb.Common
 
                 //solving equations (3) & (4) => x = (c1-c2)/(m2-m1)
                 //plugging x value in equation (4) => y = c2 + m2 * x
+                if ((m2 - m1) == 0) return default(Point);
+
                 x = (c1 - c2) / (m2 - m1);
                 y = c2 + m2 * x;
 

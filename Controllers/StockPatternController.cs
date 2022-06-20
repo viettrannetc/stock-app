@@ -16,9 +16,14 @@ using System.Text;
 using DotNetCoreSqlDb.Models.Prediction;
 using Newtonsoft.Json;
 using Skender.Stock.Indicators;
+using DotNetCoreSqlDb.Models.Learning.RealData;
+using DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu;
+using LinqKit;
 
 namespace DotNetCoreSqlDb.Controllers
 {
+    //[ApiController]
+    //[Route("[controller]")]
     public class StockPatternController : Controller
     {
         private readonly MyDatabaseContext _context;
@@ -1593,150 +1598,150 @@ namespace DotNetCoreSqlDb.Controllers
         /// <param name="code"></param>
         /// <param name="year"></param>
         /// <returns></returns>
-        public async Task<PatternResponseModel> PhanTichDoanhNghiepTheoNamNoiDung(string code, int year, int range, double tangtruong,
-            List<StockSymbol> symbols,
-            List<StockSymbolFinanceYearlyHistory> stockSymbolFinanceYearlyHistories,
-            List<History> stockSymbolHistoryToday,
-            List<History> stockSymbolHistoryInRange,
-            List<StockSymbolFinanceHistory> stockSymbolFinanceQuarterlyHistories)
-        {
-            var result = new PatternResponseModel();
+        //public async Task<PatternResponseModel> PhanTichDoanhNghiepTheoNamNoiDung(string code, int year, int range, double tangtruong,
+        //    List<StockSymbol> symbols,
+        //    List<StockSymbolFinanceYearlyHistory> stockSymbolFinanceYearlyHistories,
+        //    List<History> stockSymbolHistoryToday,
+        //    List<History> stockSymbolHistoryInRange,
+        //    List<StockSymbolFinanceHistory> stockSymbolFinanceQuarterlyHistories)
+        //{
+        //    var result = new PatternResponseModel();
 
-            //var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
-            //var today = await _context.History.OrderByDescending(d => d.Date).FirstAsync();
+        //    //var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+        //    //var today = await _context.History.OrderByDescending(d => d.Date).FirstAsync();
 
-            //var symbols = string.IsNullOrWhiteSpace(code)
-            //    ? await _context.StockSymbol.Where(s => s._sc_.Length <= 3).ToListAsync()
-            //    : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
+        //    //var symbols = string.IsNullOrWhiteSpace(code)
+        //    //    ? await _context.StockSymbol.Where(s => s._sc_.Length <= 3).ToListAsync()
+        //    //    : await _context.StockSymbol.Where(s => splitStringCode.Contains(s._sc_)).ToListAsync();
 
-            //var stockCodes = symbols.Select(s => s._sc_).ToList();
+        //    //var stockCodes = symbols.Select(s => s._sc_).ToList();
 
-            //var stockSymbolFinanceYearlyHistories = await _context.StockSymbolFinanceYearlyHistory
-            //    .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - range - 1))
-            //    .ToListAsync();
+        //    //var stockSymbolFinanceYearlyHistories = await _context.StockSymbolFinanceYearlyHistory
+        //    //    .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod >= (year - range - 1))
+        //    //    .ToListAsync();
 
-            //var stockSymbolHistoryToday = await _context.History
-            //    .Where(f => stockCodes.Contains(f.StockSymbol) && f.Date == today.Date)
-            //    .ToListAsync();
+        //    //var stockSymbolHistoryToday = await _context.History
+        //    //    .Where(f => stockCodes.Contains(f.StockSymbol) && f.Date == today.Date)
+        //    //    .ToListAsync();
 
-            //var stockSymbolHistoryInRange = await _context.History
-            //    .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= today.Date.AddDays(-10))
-            //    .OrderByDescending(ss => ss.Date)
-            //    .ToListAsync();
+        //    //var stockSymbolHistoryInRange = await _context.History
+        //    //    .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= today.Date.AddDays(-10))
+        //    //    .OrderByDescending(ss => ss.Date)
+        //    //    .ToListAsync();
 
-            var quarterlyData = new List<string> { "P/E", "Profit after tax for shareholders of parent company" };
-            //var stockSymbolFinanceQuarterlyHistories = await _context.StockSymbolFinanceHistory
-            //    .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod == (year - 1) && quarterlyData.Contains(f.NameEn))
-            //    .ToListAsync();
+        //    var quarterlyData = new List<string> { "P/E", "Profit after tax for shareholders of parent company" };
+        //    //var stockSymbolFinanceQuarterlyHistories = await _context.StockSymbolFinanceHistory
+        //    //    .Where(f => stockCodes.Contains(f.StockSymbol) && f.YearPeriod == (year - 1) && quarterlyData.Contains(f.NameEn))
+        //    //    .ToListAsync();
 
-            Parallel.ForEach(symbols, symbol =>
-            {
-                if (symbol._vhtt_ <= 3000) return;
+        //    Parallel.ForEach(symbols, symbol =>
+        //    {
+        //        if (symbol._vhtt_ <= 3000) return;
 
-                var stockSymbolHistoryInRangeBySockCode = stockSymbolHistoryInRange
-                   .Where(ss => ss.StockSymbol == symbol._sc_)
-                   .OrderBy(s => s.Date)
-                   .ToList();
+        //        var stockSymbolHistoryInRangeBySockCode = stockSymbolHistoryInRange
+        //           .Where(ss => ss.StockSymbol == symbol._sc_)
+        //           .OrderBy(s => s.Date)
+        //           .ToList();
 
-                var latestDate = stockSymbolHistoryInRangeBySockCode.OrderByDescending(h => h.Date).FirstOrDefault();
-                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(stockSymbolHistoryInRangeBySockCode);
-                if (biCanhCao) return;
+        //        var latestDate = stockSymbolHistoryInRangeBySockCode.OrderByDescending(h => h.Date).FirstOrDefault();
+        //        var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(stockSymbolHistoryInRangeBySockCode);
+        //        if (biCanhCao) return;
 
-                var avarageOfLastXXPhien = stockSymbolHistoryInRangeBySockCode.Take(30).Sum(h => h.V) / 30;
-                if (avarageOfLastXXPhien < 1000) return;
+        //        var avarageOfLastXXPhien = stockSymbolHistoryInRangeBySockCode.Take(30).Sum(h => h.V) / 30;
+        //        if (avarageOfLastXXPhien < 1000) return;
 
-                var stockSymbolFinanceYearlyHistoryByStockCode = stockSymbolFinanceYearlyHistories
-                    .Where(ss => ss.StockSymbol == symbol._sc_)
-                    .OrderBy(s => s.YearPeriod)
-                    .ToList();
-                decimal stockToday = stockSymbolHistoryToday.FirstOrDefault(t => t.StockSymbol == symbol._sc_)?.C ?? 0;
-                if (!stockSymbolFinanceYearlyHistoryByStockCode.Any() || stockToday <= 0) return;
-
-
-                var lnstNamDau = stockSymbolFinanceYearlyHistoryByStockCode
-                    .FirstOrDefault(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn) && d.Value.HasValue)
-                    ?.Value ?? 0;
-
-                var lnstNamCuoi = stockSymbolFinanceYearlyHistoryByStockCode.OrderByDescending(d => d.YearPeriod)
-                    .FirstOrDefault(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn))
-                    ?.Value ?? 0;
-
-                if (lnstNamDau == 0 || lnstNamCuoi == 0) return;
-
-                var soLanTangLNST = (double)(lnstNamCuoi / lnstNamDau);
-                var soNamKiemTra = stockSymbolFinanceYearlyHistoryByStockCode.Select(d => d.YearPeriod).Distinct().Count();
-
-                double lnstTangTruongTrungBinhThucTe = soLanTangLNST.NthRoot(soNamKiemTra - 1) - 1;
+        //        var stockSymbolFinanceYearlyHistoryByStockCode = stockSymbolFinanceYearlyHistories
+        //            .Where(ss => ss.StockSymbol == symbol._sc_)
+        //            .OrderBy(s => s.YearPeriod)
+        //            .ToList();
+        //        decimal stockToday = stockSymbolHistoryToday.FirstOrDefault(t => t.StockSymbol == symbol._sc_)?.C ?? 0;
+        //        if (!stockSymbolFinanceYearlyHistoryByStockCode.Any() || stockToday <= 0) return;
 
 
-                var groupedByYear = stockSymbolFinanceYearlyHistoryByStockCode.GroupBy(g => g.YearPeriod).ToDictionary(g => g.Key, g => g.ToList());
+        //        var lnstNamDau = stockSymbolFinanceYearlyHistoryByStockCode
+        //            .FirstOrDefault(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn) && d.Value.HasValue)
+        //            ?.Value ?? 0;
 
-                var lstData = new List<StockSymbolFinanceYearlyHistoryModel>();
+        //        var lnstNamCuoi = stockSymbolFinanceYearlyHistoryByStockCode.OrderByDescending(d => d.YearPeriod)
+        //            .FirstOrDefault(d => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(d.NameEn))
+        //            ?.Value ?? 0;
 
-                var quarterly = stockSymbolFinanceQuarterlyHistories
-                    .Where(ss => ss.StockSymbol == symbol._sc_)
-                    .OrderBy(s => s.Quarter)
-                    .ToList();
-                if (!quarterly.Any()) return;
+        //        if (lnstNamDau == 0 || lnstNamCuoi == 0) return;
 
-                decimal pe4QuyTruoc = quarterly.Any(q => q.NameEn == quarterlyData[0])
-                    ? quarterly.Where(q => q.NameEn == quarterlyData[0]).Sum(d => d.Value ?? 0) / quarterly.Count(q => q.NameEn == quarterlyData[0])
-                    : 0;
+        //        var soLanTangLNST = (double)(lnstNamCuoi / lnstNamDau);
+        //        var soNamKiemTra = stockSymbolFinanceYearlyHistoryByStockCode.Select(d => d.YearPeriod).Distinct().Count();
 
-                var t1 = quarterly.Where(q => q.NameEn == quarterlyData[1]).ToList();
-                decimal lnst4QuyTruoc = t1.Sum(d => d.Value ?? 0);
-
-                if (pe4QuyTruoc == 0 || lnst4QuyTruoc == 0) return; //cổ phiếu nhỏ lẻ
-
-                foreach (var item in groupedByYear)
-                {
-                    var previousYear = groupedByYear.ContainsKey(item.Key - 1) ? groupedByYear[item.Key - 1] : null;
-                    if (previousYear == null) continue;
-
-                    decimal lnstGrowth = previousYear.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0) != 0
-                            ? item.Value.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0)
-                              / previousYear.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0)
-                              - 1
-                            : 0;
-
-                    lstData.Add(new StockSymbolFinanceYearlyHistoryModel
-                    {
-                        Year = item.Key,
-                        PECoBan = item.Value.Where(y => y.NameEn == ConstantData.NameEn.PECoBan).Sum(y => y.Value ?? 0),
-                        LNSTGrowth = lnstGrowth
-                    });
-                }
-                if (!lstData.Any()) return;
+        //        double lnstTangTruongTrungBinhThucTe = soLanTangLNST.NthRoot(soNamKiemTra - 1) - 1;
 
 
-                decimal lnstGrowhrate = lstData.Sum(d => d.LNSTGrowth) / lstData.Count();
-                //decimal peToday = symbol._vhtt_ / lnst4QuyTruoc;
-                var dk1 = lnstTangTruongTrungBinhThucTe >= tangtruong;
+        //        var groupedByYear = stockSymbolFinanceYearlyHistoryByStockCode.GroupBy(g => g.YearPeriod).ToDictionary(g => g.Key, g => g.ToList());
 
-                if (dk1) //Start following
-                {
-                    var patternOnsymbol = new PatternBySymbolResponseModel();
-                    patternOnsymbol.StockCode = symbol._sc_;
-                    //var text = $"{symbol._sc_} - LNST TB {range} năm: {Math.Round(lnstGrowhrate, 2)}, P/E hôm nay thấp hơn P/E 4 quý gần nhất * LNST là {Math.Round(peToday / pe4QuyTruoc * (1 + lnstGrowhrate), 2)}%)";
-                    patternOnsymbol.Details.Add(new PatternDetailsResponseModel
-                    {
-                        MoreInformation = new
-                        {
-                            LNSTSoSach = lnstGrowhrate,
-                            LNSTThucTe = lnstTangTruongTrungBinhThucTe,
-                            RealityExpectation = string.Empty,
-                            ShouldBuy = true
-                        }
-                    });
+        //        var lstData = new List<StockSymbolFinanceYearlyHistoryModel>();
 
-                    result.NhanDinhHDKD.Items.Add(patternOnsymbol);
-                }
-            });
+        //        var quarterly = stockSymbolFinanceQuarterlyHistories
+        //            .Where(ss => ss.StockSymbol == symbol._sc_)
+        //            .OrderBy(s => s.Quarter)
+        //            .ToList();
+        //        if (!quarterly.Any()) return;
 
-            result.NhanDinhHDKD.Items = result.NhanDinhHDKD.Items.OrderBy(s => s.StockCode).ToList();
+        //        decimal pe4QuyTruoc = quarterly.Any(q => q.NameEn == quarterlyData[0])
+        //            ? quarterly.Where(q => q.NameEn == quarterlyData[0]).Sum(d => d.Value ?? 0) / quarterly.Count(q => q.NameEn == quarterlyData[0])
+        //            : 0;
 
-            return result;
-        }
+        //        var t1 = quarterly.Where(q => q.NameEn == quarterlyData[1]).ToList();
+        //        decimal lnst4QuyTruoc = t1.Sum(d => d.Value ?? 0);
+
+        //        if (pe4QuyTruoc == 0 || lnst4QuyTruoc == 0) return; //cổ phiếu nhỏ lẻ
+
+        //        foreach (var item in groupedByYear)
+        //        {
+        //            var previousYear = groupedByYear.ContainsKey(item.Key - 1) ? groupedByYear[item.Key - 1] : null;
+        //            if (previousYear == null) continue;
+
+        //            decimal lnstGrowth = previousYear.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0) != 0
+        //                    ? item.Value.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0)
+        //                      / previousYear.Where(y => ConstantData.NameEn.lnstTuTCDCtyMe.Contains(y.NameEn)).Sum(y => y.Value ?? 0)
+        //                      - 1
+        //                    : 0;
+
+        //            lstData.Add(new StockSymbolFinanceYearlyHistoryModel
+        //            {
+        //                Year = item.Key,
+        //                PECoBan = item.Value.Where(y => y.NameEn == ConstantData.NameEn.PECoBan).Sum(y => y.Value ?? 0),
+        //                LNSTGrowth = lnstGrowth
+        //            });
+        //        }
+        //        if (!lstData.Any()) return;
+
+
+        //        decimal lnstGrowhrate = lstData.Sum(d => d.LNSTGrowth) / lstData.Count();
+        //        //decimal peToday = symbol._vhtt_ / lnst4QuyTruoc;
+        //        var dk1 = lnstTangTruongTrungBinhThucTe >= tangtruong;
+
+        //        if (dk1) //Start following
+        //        {
+        //            var patternOnsymbol = new PatternBySymbolResponseModel();
+        //            patternOnsymbol.StockCode = symbol._sc_;
+        //            //var text = $"{symbol._sc_} - LNST TB {range} năm: {Math.Round(lnstGrowhrate, 2)}, P/E hôm nay thấp hơn P/E 4 quý gần nhất * LNST là {Math.Round(peToday / pe4QuyTruoc * (1 + lnstGrowhrate), 2)}%)";
+        //            patternOnsymbol.Details.Add(new PatternDetailsResponseModel
+        //            {
+        //                MoreInformation = new
+        //                {
+        //                    LNSTSoSach = lnstGrowhrate,
+        //                    LNSTThucTe = lnstTangTruongTrungBinhThucTe,
+        //                    RealityExpectation = string.Empty,
+        //                    ShouldBuy = true
+        //                }
+        //            });
+
+        //            result.NhanDinhHDKD.Items.Add(patternOnsymbol);
+        //        }
+        //    });
+
+        //    result.NhanDinhHDKD.Items = result.NhanDinhHDKD.Items.OrderBy(s => s.StockCode).ToList();
+
+        //    return result;
+        //}
 
         /// <summary>
         /// Condition đơn giản
@@ -2607,7 +2612,7 @@ namespace DotNetCoreSqlDb.Controllers
         //    return result1;
         //}
 
-        public async Task<List<string>> RSITestV1(string code, DateTime ngay, DateTime ngayCuoi, int KC2D, int SoPhienKT)
+        public async Task<List<string>> RSITestV1(string code, DateTime ngay, DateTime ngayCuoi, int KC2D, int SoPhienKT, decimal CL2D)
         {
             var result = new PatternDetailsResponseModel();
             int rsi = 14;
@@ -2677,11 +2682,14 @@ namespace DotNetCoreSqlDb.Controllers
                     var rsi14Period = histories.Where(h => h.Date < dayGiaDinh.Date).Take(SoPhienKT).ToList();
                     if (rsi14Period.Count < SoPhienKT) continue;
 
+                    var skipItems = rsi14Period.OrderByDescending(h => h.Date).Take(KC2D).ToList();
+                    if (skipItems.Any(sk => sk.C <= dayGiaDinh.C)) continue;
+
                     var nhungNgaySoSanhVoiDayGiaDinh = rsi14Period.OrderByDescending(h => h.Date).Skip(KC2D).ToList();
 
                     var ngaySoSanhVoiDayGiaDinh = nhungNgaySoSanhVoiDayGiaDinh.Where(h => h.NenBot == nhungNgaySoSanhVoiDayGiaDinh.Min(f => f.NenBot)).OrderBy(h => h.RSI).First();
 
-                    var isDayGiaDinhDung = ngaySoSanhVoiDayGiaDinh.NenBot > dayGiaDinh.NenBot;
+                    var isDayGiaDinhDung = ngaySoSanhVoiDayGiaDinh.NenBot * CL2D > dayGiaDinh.NenBot;
                     if (isDayGiaDinhDung == false) continue;
 
                     var isRSIIncreasing = ngaySoSanhVoiDayGiaDinh.RSI < dayGiaDinh.RSI;
@@ -2690,34 +2698,69 @@ namespace DotNetCoreSqlDb.Controllers
                     var middlePoints = histories.Where(h => h.Date > ngaySoSanhVoiDayGiaDinh.Date && h.Date < dayGiaDinh.Date).ToList();
                     if (middlePoints.Count < 2) continue; //ở giữa ít nhất 2 điểm
 
-                    var trendLine = new Line();
-                    trendLine.x1 = 0;  //x là trục tung - trục đối xứng
-                    trendLine.y1 = ngaySoSanhVoiDayGiaDinh.RSI;   //
-                    trendLine.x2 = (decimal)((dayGiaDinh.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
-                    trendLine.y2 = dayGiaDinh.RSI;
-                    var crossLine = new Line();
-                    crossLine.x1 = (decimal)((middlePoints.OrderByDescending(h => h.RSI).First().Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
-                    crossLine.y1 = middlePoints.OrderByDescending(h => h.RSI).First().RSI;
-                    crossLine.x2 = (decimal)((middlePoints.OrderByDescending(h => h.RSI).Last().Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
-                    crossLine.y2 = middlePoints.OrderByDescending(h => h.RSI).Last().RSI;
+                    var trendLineRsi = new Line();
+                    trendLineRsi.x1 = 0;  //x là trục tung - trục đối xứng
+                    trendLineRsi.y1 = ngaySoSanhVoiDayGiaDinh.RSI;   //
+                    trendLineRsi.x2 = middlePoints.Count() + 2;//(decimal)((dayGiaDinh.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    trendLineRsi.y2 = dayGiaDinh.RSI;
 
-                    //var trendLine = new Line();
-                    //trendLine.x1 = 0;  //x là trục tung - trục đối xứng
-                    //trendLine.y1 = ngaySoSanhVoiDayGiaDinh.NenBot;   //
-                    //trendLine.x2 = (decimal)((dayGiaDinh.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
-                    //trendLine.y2 = dayGiaDinh.NenBot;
+                    var crossLineRsi = new Line();
+                    var cr1 = 1;
+                    var tcr = middlePoints.OrderByDescending(h => h.RSI).First();
+                    while (cr1 < middlePoints.Count())
+                    {
+                        if (ngaySoSanhVoiDayGiaDinh.Date.AddDays(cr1) == tcr.Date)
+                            break;
+                        cr1++;
+                    }
+                    crossLineRsi.x1 = cr1;
+                    crossLineRsi.y1 = tcr.RSI;
 
-                    //var crossLine = new Line();
-                    //var point1 = middlePoints.OrderByDescending(h => h.NenBot).First();
-                    //var point2 = middlePoints.OrderByDescending(h => h.NenBot).Last();
-                    //crossLine.x1 = (decimal)((point1.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
-                    //crossLine.y1 = point1.NenBot;
-                    //crossLine.x2 = (decimal)((point2.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
-                    //crossLine.y2 = point2.NenBot;
+                    var cr2 = 1;
+                    var tcr2 = middlePoints.OrderByDescending(h => h.RSI).Last();
+                    while (cr2 < middlePoints.Count())
+                    {
+                        if (ngaySoSanhVoiDayGiaDinh.Date.AddDays(cr2) == tcr2.Date)
+                            break;
+                        cr2++;
+                    }
+                    crossLineRsi.x2 = cr2;//(decimal)((middlePoints.OrderByDescending(h => h.RSI).Last().Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    crossLineRsi.y2 = tcr2.RSI;
 
-                    var point = trendLine.FindIntersection(crossLine);
+                    var trendLineGia = new Line();
+                    trendLineGia.x1 = 0;  //x là trục tung - trục đối xứng
+                    trendLineGia.y1 = ngaySoSanhVoiDayGiaDinh.NenBot;   //
+                    trendLineGia.x2 = middlePoints.Count() + 2;//(decimal)((dayGiaDinh.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    trendLineGia.y2 = dayGiaDinh.NenBot;
+                    var crossLineGia = new Line();
+                    var point1 = middlePoints.OrderByDescending(h => h.NenBot).First();
+                    var point2 = middlePoints.OrderByDescending(h => h.NenBot).Last();
 
-                    if (isRSIIncreasing && point == null)
+                    var cg1 = 1;
+                    while (cg1 < middlePoints.Count())
+                    {
+                        if (ngaySoSanhVoiDayGiaDinh.Date.AddDays(cg1) == point1.Date)
+                            break;
+                        cg1++;
+                    }
+
+                    var cg2 = 1;
+                    while (cg2 < middlePoints.Count())
+                    {
+                        if (ngaySoSanhVoiDayGiaDinh.Date.AddDays(cg2) == point2.Date)
+                            break;
+                        cg2++;
+                    }
+
+                    crossLineGia.x1 = cg1;
+                    crossLineGia.y1 = point1.NenBot;
+                    crossLineGia.x2 = cg2;
+                    crossLineGia.y2 = point2.NenBot;
+
+                    var pointRsi = trendLineRsi.FindIntersection(crossLineRsi);
+                    var pointGia = trendLineGia.FindIntersection(crossLineGia);
+
+                    if (isRSIIncreasing && pointRsi == null && pointGia == null)
                     {
                         var tileChinhXac = 0;
                         var tPlus = historiesInPeriodOfTime.Where(h => h.Date >= buyingDate.Date)
@@ -2886,8 +2929,8 @@ namespace DotNetCoreSqlDb.Controllers
             var result = new PatternDetailsResponseModel();
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
             var symbols = string.IsNullOrWhiteSpace(code)
-                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol).ToListAsync()
-                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+                ? await _context.StockSymbol.Where(s => s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
             var historiesStockCode = await _context.History
@@ -3197,118 +3240,6 @@ namespace DotNetCoreSqlDb.Controllers
             return tup;
         }
 
-
-
-
-        public void AddBollingerBands(List<History> histories, int period, int factor)
-        {
-            double total_average = 0;
-            double total_squares = 0;
-
-            for (int i = 0; i < histories.Count(); i++)
-            {
-                total_average += (double)histories[i].C;
-                total_squares += Math.Pow((double)histories[i].C, 2);
-
-                if (i >= period - 1)
-                {
-                    double total_bollinger = 0;
-                    double average = total_average / period;
-
-                    double stdev = Math.Sqrt((total_squares - Math.Pow(total_average, 2) / period) / period);
-                    //histories[i]..Values[i]["bollinger_average"] = average;
-                    histories[i].BandsTop = (decimal)(average + factor * stdev);
-                    histories[i].BandsBot = (decimal)(average - factor * stdev);
-
-                    //total_average -= data.Values[i - period + 1]["close"];
-                    //total_squares -= Math.Pow(data.Values[i - period + 1]["close"], 2);
-
-                    total_average -= (double)histories[i - period + 1].C;
-                    total_squares -= Math.Pow((double)histories[i - period + 1].C, 2);
-                }
-            }
-        }
-
-        public IEnumerable<Quote> MACDConvert(List<History> histories)
-        {
-            var qoutes = new List<Skender.Stock.Indicators.Quote>();
-            foreach (var h in histories)
-            {
-                qoutes.Add(new Skender.Stock.Indicators.Quote
-                {
-                    Close = h.C,
-                    Date = h.Date
-                });
-            }
-
-            return qoutes;
-        }
-
-        public async Task<List<string>> MACDTest()
-        {
-            var histories = await _context.History
-                .Where(ss => ss.StockSymbol == "VNM")
-                //.OrderByDescending(ss => ss.Date)
-                .OrderBy(ss => ss.Date)
-                .Take(100)
-                .ToListAsync();
-
-            var result1 = new List<string>();
-            decimal tong = 0;
-            decimal dung = 0;
-            decimal sai = 0;
-
-            histories = histories.OrderBy(h => h.Date).ToList();
-
-            var qoutes = MACDConvert(histories);
-
-            var macd = new Skender.Stock.Indicators.MacdResult();
-            IEnumerable<Quote> quotes;// = GetHistoryFromFeed("SPY");
-
-            var res = qoutes.GetMacd();
-            var res1 = qoutes.GetRsi();
-
-            //AddBollingerBands(histories, 20, 2);
-
-            foreach (var item in res)
-            {
-                var rsi = res1.FirstOrDefault(r => r.Date == item.Date);
-                if (rsi != null)
-                    result1.Add($"{item.Date.ToShortDateString()} - {item.FastEma?.ToString("N2")} - {item.SlowEma?.ToString("N2")} - {item.Histogram?.ToString("N2")} - RSI {rsi.Rsi?.ToString("N2")}");
-                else
-                    result1.Add($"{item.Date.ToShortDateString()} - {item.FastEma?.ToString("N2")} - {item.SlowEma?.ToString("N2")} - {item.Histogram?.ToString("N2")}");
-            }
-
-            return result1;
-        }
-
-
-        public async Task<List<string>> BandsTest()
-        {
-            var histories = await _context.History
-                .Where(ss => ss.StockSymbol == "VNM")
-                .OrderByDescending(ss => ss.Date)
-                .Take(100)
-                .ToListAsync();
-
-            var result1 = new List<string>();
-            decimal tong = 0;
-            decimal dung = 0;
-            decimal sai = 0;
-
-            histories = histories.OrderBy(h => h.Date).ToList();
-
-
-            AddBollingerBands(histories, 20, 2);
-
-            foreach (var item in histories.Where(h => h.BandsBot > 0))
-            {
-                result1.Add($"{item.Date.ToShortDateString()} - {item.BandsTop.ToString("N2")} - {item.BandsBot.ToString("N2")}");
-            }
-
-            return result1;
-        }
-
         /*
          * Trend giảm
          *              MACD 
@@ -3394,14 +3325,13 @@ namespace DotNetCoreSqlDb.Controllers
          
          */
 
-
         public async Task<List<Tuple<string, decimal, List<string>>>> DoTimCongThuc(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
         {
             var result = new PatternDetailsResponseModel();
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
             var symbols = string.IsNullOrWhiteSpace(code)
-                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol).ToListAsync()
-                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+                ? await _context.StockSymbol.Where(s => s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
             var historiesStockCode = await _context.History
@@ -3530,7 +3460,7 @@ namespace DotNetCoreSqlDb.Controllers
                      *                                                                       >= 4 phiên gần đây     tín hiệu chuyển wa trend tăng mạnh
                      *                                                                       
                      *                                                 MA 20 tăng dần trong  >= 1 phiên gần đây     tín hiệu chuyển wa trend giảm nhẹ               
-                     *                                                                       >= 2 phiên gần đây     tín hiệu chuyển wa trend giảm trung bình                      
+                     *                                                                       >= 2 phiên gNhần đây     tín hiệu chuyển wa trend giảm trung bình                      
                      *                                                                       >= 3 phiên gần đây     tín hiệu chuyển wa trend giảm bền vững                    
                      *                                                                       >= 4 phiên gần đây     tín hiệu chuyển wa trend giảm mạnh                
                      *                                                                       
@@ -3839,86 +3769,785 @@ namespace DotNetCoreSqlDb.Controllers
         }
 
 
-        public async Task<List<string>> ToiUuLoiNhuan(string code, DateTime ngay, DateTime ngayCuoi)
+        public async Task<List<string>> ToiUuLoiNhuan(string code, DateTime toiNgay, DateTime tuNgay)
         {
+            var ma20vol = 100000;
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
             var historiesStockCode = await _context.History
-                .Where(ss => ss.StockSymbol == code
-                    && ss.Date <= ngay.AddDays(10) //calculate T
-                    && ss.Date >= ngayCuoi.AddDays(-60)) //caculate SRI
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= toiNgay.AddDays(10) //calculate T
+                    && ss.Date >= tuNgay.AddDays(-150)) //caculate SRI
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
 
-            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            //var histories = await _context.History
+            //    .Where(ss => ss.StockSymbol == code
+            //        && ss.Date <= ngay.AddDays(10) //calculate T
+            //        && ss.Date >= ngayCuoi.AddDays(-50)) //caculate SRI
+            //    .OrderBy(ss => ss.Date)
+            //    .ToListAsync();
 
             var result1 = new List<string>();
-            decimal tong = 0;
-            decimal dung = 0;
-            decimal sai = 0;
+            var NhậtKýMuaBán = new List<LearningRealDataModel>();
 
-            var NhậtKýMuaBán = new List<Tuple<string, DateTime, bool, decimal>>();
-
-            var historiesInPeriodOfTime = historiesStockCode
-                .Where(ss => ss.StockSymbol == code)
-                .OrderBy(h => h.Date)
-                .ToList();
-            if (historiesInPeriodOfTime.Count < 100) return null;
-
-
-            var ngayCuoiCuaMa = historiesInPeriodOfTime[0].Date.AddDays(30) > ngayCuoi
-                ? historiesInPeriodOfTime[0].Date.AddDays(30)
-                : ngayCuoi;
-
-            var histories = historiesInPeriodOfTime
-                .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoiCuaMa)
-                .OrderBy(h => h.Date)
-                .ToList();
-
-            var history = histories.FirstOrDefault(h => h.Date == ngay);
-            if (history == null) return null;
-
-            var root = 1;
-            var hasMoney = true;
-            var ngayMuaToiUu = new History();
-            var ngayMuaT3 = new History();
-
-            for (int i = 0; i < histories.Count; i++)
+            for (int s = 0; s < symbols.Count; s++)
             {
-                var phienHumNay = histories[i];
-                if (phienHumNay.Date < ngayMuaT3.Date) continue;
+                var byCodeList = historiesStockCode.Where(ss => ss.StockSymbol == symbols[s]._sc_).ToList();
+                var pastList = byCodeList.Where(ss => ss.Date <= tuNgay.AddDays(-100)).OrderByDescending(h => h.Date).ToList();
+                var firstDate = pastList.FirstOrDefault();
+                var ngayBatDauCuaCoPhieu = firstDate != null ? tuNgay : historiesStockCode.Where(ss => ss.StockSymbol == symbols[s]._sc_).OrderBy(h => h.Date).Skip(100).FirstOrDefault()?.Date;
+                if (!ngayBatDauCuaCoPhieu.HasValue) continue;
+                var histories = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbols[s]._sc_ && ss.Date >= ngayBatDauCuaCoPhieu.Value.AddDays(-50))
+                    .OrderBy(ss => ss.Date)
+                    .ToList();
 
-                var phienNgayMai = histories[i + 1];
-                var phienT3 = histories[i + 3];
-                var phienT4 = histories[i + 4];
+                decimal root = 1M;
+                var hasMoney = true;
+                var ngayMuaToiUu = new History();
+                var ngayMuaT3 = new History();
 
-                if (hasMoney)
+                var ngayBatDau = histories.First(h => h.Date >= ngayBatDauCuaCoPhieu);
+                var ngayDungLai = histories.OrderBy(h => h.Date).First(h => h.Date >= toiNgay);
+                var startedI = histories.IndexOf(ngayBatDau);
+                var stoppedI = histories.IndexOf(ngayDungLai);
+                for (int i = startedI; i <= stoppedI; i++)
                 {
-                    if (phienT3.C <= phienHumNay.C)
+                    try
                     {
-                        continue;
-                    }
-                    else
-                    {
-                        ngayMuaToiUu = phienHumNay;
-                        ngayMuaT3 = phienT3;
-                        hasMoney = false;
-                        result1.Add($"{phienHumNay.Date.ToShortDateString()} - MUA - {phienHumNay.C} - Vốn {root}");
-                    }
-                }
-                else
-                {
-                    if (phienT4.C <= phienNgayMai.C && phienNgayMai.C <= phienHumNay.C) //mua giá đóng cửa, bán giá mở cửa
-                    {
-                        hasMoney = true;
-                        ngayMuaToiUu = new History();
-                        ngayMuaT3 = new History();
+                        var phienHumKia = histories[i - 2];
+                        var phienHumWa = histories[i - 1];
+                        var phienHumNay = histories[i];
+                        if (phienHumNay.Date < ngayMuaT3.Date) continue;
+                        if (hasMoney && phienHumNay.VOL(histories, -20) < ma20vol) continue;
 
-                        result1.Add($"{phienHumNay.Date.ToShortDateString()} - BÁN - {phienHumNay.O} Lời {Math.Round((decimal)phienHumNay.O / (decimal)(ngayMuaToiUu.C), 2)}% - Vốn {Math.Round(1 * (Math.Round((decimal)phienHumNay.O / (decimal)(ngayMuaToiUu.O), 2)))}");
+                        var phienT1 = histories[i + 1];
+                        var phienT2 = histories[i + 2];
+                        var phienT3 = histories[i + 3];
+                        var phienT4 = histories[i + 4];
+
+                        if (hasMoney)
+                        {
+                            if (phienT3.C <= phienHumNay.C || (phienT1.C < phienHumNay.C && phienT1.C <= phienT4.C))
+                            {
+                                continue;
+                            }
+                            else
+                            {
+                                ngayMuaToiUu = phienHumNay;
+                                ngayMuaT3 = phienT3;
+                                hasMoney = false;
+                                result1.Add($"{phienHumNay.StockSymbol}-{phienHumNay.Date.ToShortDateString()} - MUA - {phienHumNay.C} - Vốn {root}");
+                                NhậtKýMuaBán.Add(new LearningRealDataModel(histories, phienHumNay, phienHumWa, phienHumKia, true, 0, root));
+                            }
+                        }
+                        else
+                        {
+                            var nextPhiens = new List<History>() { phienT1, phienT2, phienT3, phienT4 };
+                            if (nextPhiens.All(p => p.C <= phienHumNay.C))
+                            {
+                                hasMoney = true;
+                                var lời = ((Math.Round((decimal)phienHumNay.C / (decimal)(ngayMuaToiUu.C), 2)) - 1) * 100;
+                                root = root + (Math.Round((decimal)root * (decimal)(lời) / 100, 2));
+                                result1.Add($"{phienHumNay.StockSymbol}-{phienHumNay.Date.ToShortDateString()} - BÁN - {phienHumNay.C} Lời {lời}% - Vốn {root}");
+
+                                //update lời cho lần trước
+                                NhậtKýMuaBán.Last().Loi = lời;
+                                NhậtKýMuaBán.Add(new LearningRealDataModel(histories, phienHumNay, phienHumWa, phienHumKia, false, lời, root));
+                                ngayMuaToiUu = new History();
+                                ngayMuaT3 = new History();
+                                continue;
+                            }
+                        }
+
+                    }
+                    catch (Exception ex)
+                    {
+                        result1.Add($"{symbols[s]._sc_}-{histories[i].Date.ToShortDateString()} - Lỗi {ex.ToString()}");
                         continue;
                     }
                 }
             }
 
+            /*
+             * Tìm kịch bản cho những ngày trước khi mua/bán    (Done)
+             * Tìm kịch bản cho những ngày mua/bán              (thêm cột cho những ngày mua/bán)
+             * 
+             * [Vòng lặp]
+             *  -   duyệt lại kịch bản, chọn thông số phù hợp
+             *  -   chạy lại kịch bản dựa trên thông số phù hợp với điểm mua và bán
+             *  
+             * Chạy cho tất cả các mã
+             * [Vòng lặp]
+             *  -   duyệt lại kịch bản, chọn thông số phù hợp
+             *  -   chạy lại kịch bản dựa trên thông số phù hợp với điểm mua và bán
+             */
+
+            var folder = ConstantPath.Path;
+            var g = Guid.NewGuid();
+            var name = $@"{folder}{g}.xlsx";
+            NhậtKýMuaBán.ToDataTable().WriteToExcel(name);
+
             return result1;
+        }
+
+        public async Task<List<string>> KiemTraTileDungSaiTheoPattern(string code, DateTime tuNgay, DateTime toiNgay, LocCoPhieuRequest boloc)
+        {
+            var histories = await _context.History
+                .Where(ss => ss.StockSymbol == code
+                    && ss.Date <= toiNgay.AddDays(10)
+                    && ss.Date >= tuNgay.AddDays(-30))
+                .OrderBy(ss => ss.Date)
+                .ToListAsync();
+
+            var result1 = new List<string>();
+            var ngayBatDau = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= tuNgay);
+            for (int i = histories.IndexOf(ngayBatDau); i < histories.Count; i++)
+            {
+                ngayBatDau = histories[i];
+                if (ngayBatDau != null && ngayBatDau.HadAllIndicators())
+                {
+                    break;
+                }
+            }
+
+            var ngayMuaToiUu = new History();
+            var ngayMuaT3 = new History();
+
+            decimal dung = 0;
+            decimal sai = 0;
+            var ngayDungLai = histories.OrderBy(h => h.Date).First(h => h.Date >= toiNgay);
+            var startedI = histories.IndexOf(ngayBatDau);
+            var stoppedI = histories.IndexOf(ngayDungLai);
+            for (int i = startedI; i <= stoppedI; i++)
+            {
+                try
+                {
+                    if (startedI < 2) continue;
+                    var phienHumKia = histories[i - 2];
+                    var phienHumWa = histories[i - 1];
+                    var phienHumNay = histories[i];
+                    var result = ThỏaĐiềuKiệnLọc(boloc.Filter, histories, phienHumNay, phienHumWa);
+                    if (result == false) continue;
+
+                    //Ghi nhớ: Phiên hum nay nếu thỏa, thì ngày mai mới mua giá C của ngày hum nay, không mua đuổi (nếu giá mở của tạo GAP thì ko mua, bỏ phiên)
+
+                    /* SSI - 10-1-2020 - MUA Giá 33.000 - Bán T3 (13-1-22) Lời 2%, T5 (15-1-22) Lời 7% */
+
+                    var j = i + 4;
+                    for (j = i + 4; j < histories.Count - 3; j++)
+                    {
+                        if (j > i + 14) //Trong vòng 10 phiên vẫn chưa đạt được lãi kì vọng thì vứt
+                        {
+                            var ngaylaicaonhat = histories.Where(h => h.Date >= histories[i + 4].Date && h.Date <= histories[j - 1].Date).OrderByDescending(h => h.C).First();
+                            var tCong = histories.IndexOf(ngaylaicaonhat) - (i + 4);
+                            var laicaonhat = Math.Round(ngaylaicaonhat.C / phienHumNay.C, 2);
+
+                            result1.Add($"{code} - {phienHumNay.Date.ToShortDateString()} nhắc - Mua {histories[i + 1].Date.ToShortDateString()} Giá {phienHumNay.C} - Trong 10 Phiên tiếp theo ko đủ lãi kì vọng, cao nhất là {laicaonhat - 1} tại T+{3 + tCong} giá {ngaylaicaonhat.C.ToString("N2")}");
+                            sai++;
+                            break;
+                        }
+                        var phienDuocPhepBan = histories[j];
+                        if (phienDuocPhepBan.C >= phienHumNay.C * boloc.Suggestion.LãiMin)
+                        {
+                            var lãi = Math.Round(phienDuocPhepBan.C / phienHumNay.C, 2);
+
+                            result1.Add($"{code} - {phienHumNay.Date.ToShortDateString()} nhắc - Mua {histories[i + 1].Date.ToShortDateString()} Giá {phienHumNay.C} - Lãi cao nhất là {lãi - 1} tại T+{3 + j - (i + 4)}");
+
+                            dung++;
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result1.Add($"{code}-{histories[i].Date.ToShortDateString()} - Lỗi {ex.ToString()}");
+                    continue;
+                }
+            }
+
+            var tile = dung + sai > 0 ? Math.Round(dung / (dung + sai), 2) : 0;
+            result1.Insert(0, $"{code} - Tỉ lệ: {tile}");
+
+            return result1;
+        }
+
+        private LocCoPhieuFilterRequest CT0A = new LocCoPhieuFilterRequest
+        {
+            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
+            RSI = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon, Value = 60 },
+            MacdSoVoiSignal = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon },
+            Macd = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon, Value = 0 }
+        };
+        private LocCoPhieuFilterRequest CT0B = new LocCoPhieuFilterRequest
+        {
+            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
+            MA5TangLienTucTrongNPhien = 1,
+            NenTangGia = true,
+            NenTopSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+            NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+        };
+        private LocCoPhieuFilterRequest CT1A = new LocCoPhieuFilterRequest
+        {
+            NenTangGia = true,
+            MA5CatLenMA20 = true,
+            NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
+        };
+
+        private LocCoPhieuFilterRequest CT1B = new LocCoPhieuFilterRequest
+        {
+            NenTangGia = true,
+            MA5TangLienTucTrongNPhien = 1,
+            NenTopSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+            NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+            MA5SoVoiMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
+        };
+        private LocCoPhieuFilterRequest CT2 = new LocCoPhieuFilterRequest
+        {
+            MACDTangLienTucTrongNPhien = 1,
+            NenTangGia = true,
+            MACDMomentumTangLienTucTrongNPhien = 1,
+            NenTopSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+            NenBotSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+            GiaSoVoiDinhTrongVong40Ngay = new LocCoPhieuFilter { Value = 0.7M, Ope = LocCoPhieuFilterEnum.NhoHonHoacBang },
+            CachDayThapNhatCua40NgayTrongVongXNgay = 10
+        };
+
+
+        public async Task<List<string>> BoLocCoPhieu()
+        {
+            var code = "";
+            var ngay = new DateTime(2022, 6, 20);
+            var ngayBatDauKiemTraTiLeDungSai = new DateTime(2020, 1, 1);
+
+            var boloc = new LocCoPhieuRequest(code, ngay)
+            {
+                Filter = CT1A
+            };
+
+            var ma20vol = 100000;
+            var splitStringCode = string.IsNullOrWhiteSpace(boloc.Code) ? new string[0] : boloc.Code.Split(",");
+
+            //TODO: validation
+            if (boloc.Filter == null) return new List<string>() { "Bộ lọc cổ phiếu trống rỗng" };
+
+            var predicate = PredicateBuilder.New<StockSymbol>();
+            predicate.And(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false);
+
+            predicate = string.IsNullOrWhiteSpace(boloc.Code)
+                ? boloc.Filter.VolToiThieu != null
+                    ? boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHon
+                            ? predicate.And(s => s.MA20Vol > boloc.Filter.VolToiThieu.Value)
+                            : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHonHoacBang
+                                ? predicate.And(s => s.MA20Vol >= boloc.Filter.VolToiThieu.Value)
+                                : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.Bang
+                                    ? predicate.And(s => s.MA20Vol == boloc.Filter.VolToiThieu.Value)
+                                    : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.NhoHonHoacBang
+                                        ? predicate.And(s => s.MA20Vol <= boloc.Filter.VolToiThieu.Value)
+                                        : predicate.And(s => s.MA20Vol < boloc.Filter.VolToiThieu.Value)
+                    : predicate.And(s => s.MA20Vol > ma20vol)
+                : boloc.Filter.VolToiThieu != null
+                    ? boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHon
+                        ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol > boloc.Filter.VolToiThieu.Value)
+                        : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHonHoacBang
+                            ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol >= boloc.Filter.VolToiThieu.Value)
+                            : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.Bang
+                                ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol == boloc.Filter.VolToiThieu.Value)
+                                : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.NhoHonHoacBang
+                                    ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol <= boloc.Filter.VolToiThieu.Value)
+                                    : predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol < boloc.Filter.VolToiThieu.Value)
+                    : predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol > ma20vol);
+
+            var symbols = await _context.StockSymbol.Where(predicate).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var tuNgay = boloc.Ngay.AddDays(-200);
+            var today = boloc.Ngay;
+
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= today
+                    && ss.Date >= tuNgay.AddDays(-20))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var result1 = new List<string>();
+            var NhậtKýMuaBán = new List<LearningRealDataModel>();
+
+            for (int s = 0; s < symbols.Count; s++)
+            {
+                var histories = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbols[s]._sc_)
+                    .ToList();
+
+                var firstDate = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= tuNgay);
+                if (firstDate == null || !firstDate.HadAllIndicators()) continue;
+
+                var phienKiemTra = histories.Where(h => h.Date <= today).First();
+                var phienHumwa = histories.Where(h => h.Date < phienKiemTra.Date).First();
+
+                var result = ThỏaĐiềuKiệnLọc(boloc.Filter, histories, phienKiemTra, phienHumwa);
+
+                if (result)
+                {
+                    /*
+                     * Chạy về quá khứ kiểm tra dữ liệu đối với cùng pattern CÙNG MÃ        -> tỉ lệ đúng sai khi KN giá mua T3 / T5 / T7
+                     *      Example: 80% bán ở T3 có lời, 20% còn bán ở T5 có lời
+                     * Chạy về quá khứ kiểm tra dữ liệu đối với cùng pattern TẤT CẢ MÃ KHÁC -> tỉ lệ đúng sai khi KN giá mua
+                     *     "ACL - 27-05-2022 - Giá 26.700,00",
+                     */
+
+                    var duLieuQuaKhu = await KiemTraTileDungSaiTheoPattern(phienKiemTra.StockSymbol, ngayBatDauKiemTraTiLeDungSai, phienKiemTra.Date, boloc);
+
+                    result1.Add($"{phienKiemTra.StockSymbol} - {phienKiemTra.Date.ToShortDateString()} - Giá {phienKiemTra.C.ToString("N2")}");
+                    result1.AddRange(duLieuQuaKhu);
+                }
+            }
+
+            //var folder = ConstantPath.Path;
+            //var g = Guid.NewGuid();
+            //var name = $@"{folder}{g}.xlsx";
+            //NhậtKýMuaBán.ToDataTable().WriteToExcel(name);
+
+            return result1;
+        }
+
+        private static bool ThỏaĐiềuKiệnLọc(LocCoPhieuFilterRequest filter, List<History> histories, History phienKiemTra, History phienHumwa)
+        {
+            var result = true;
+            if (result && filter.NenTopSoVoiBandsTop != null)
+                result = histories.PropertySoSanh(phienKiemTra, "NenTop", "BandsTop", filter.NenTopSoVoiBandsTop.Ope);
+            if (result && filter.NenBotSoVoiBandsBot != null)
+                result = histories.PropertySoSanh(phienKiemTra, "NenBot", "BandsBot", filter.NenBotSoVoiBandsBot.Ope);
+            if (result && filter.NenTopSoVoiGiaMA20 != null)
+                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.NenTop, phienKiemTra.MA(histories, -20), filter.NenTopSoVoiGiaMA20.Ope);
+            if (result && filter.NenBotSoVoiGiaMA20 != null)
+                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.NenBot, phienKiemTra.MA(histories, -20), filter.NenBotSoVoiGiaMA20.Ope);
+            if (result && filter.NenTopSoVoiGiaMA5 != null)
+                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.NenTop, phienKiemTra.MA(histories, -5), filter.NenTopSoVoiGiaMA5.Ope);
+            if (result && filter.NenBotSoVoiGiaMA5 != null)
+                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.NenBot, phienKiemTra.MA(histories, -5), filter.NenBotSoVoiGiaMA5.Ope);
+            if (result && filter.NenTangGia.HasValue)
+            {
+                if (filter.NenTangGia.Value && !phienKiemTra.TangGia())
+                    result = false;// histories.Remove(phienKiemTra);
+                if (!filter.NenTangGia.Value && phienKiemTra.TangGia())
+                    result = false;// histories.Remove(phienKiemTra);
+            }
+            if (result && filter.NenBaoPhu != null)
+            {
+                if (filter.NenBaoPhu.Value && !phienKiemTra.IsNenBaoPhu(phienHumwa))
+                    result = false;// histories.Remove(phienKiemTra);
+                if (!filter.NenBaoPhu.Value && phienKiemTra.IsNenBaoPhu(phienHumwa))
+                    result = false;// histories.Remove(phienKiemTra);
+            }
+            if (result && filter.BandTopTangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyTangLienTucTrongNPhien(phienKiemTra, "BandsTop", filter.BandTopTangLienTucTrongNPhien.Value);
+            if (result && filter.BandTopGiamLienTucTrongNPhien.HasValue)
+                result = histories.PropertyGiamLienTucTrongNPhien(phienKiemTra, "BandsTop", filter.BandTopGiamLienTucTrongNPhien.Value);
+            if (result && filter.BandTopDiNgangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyDiNgangLienTucTrongNPhien(phienKiemTra, "BandsTop", filter.BandTopDiNgangLienTucTrongNPhien.Value);
+            if (result && filter.BandBotTangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyTangLienTucTrongNPhien(phienKiemTra, "BandsBot", filter.BandBotTangLienTucTrongNPhien.Value);
+            if (result && filter.BandBotGiamLienTucTrongNPhien.HasValue)
+                result = histories.PropertyGiamLienTucTrongNPhien(phienKiemTra, "BandsBot", filter.BandBotGiamLienTucTrongNPhien.Value);
+            if (result && filter.BandBotDiNgangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyDiNgangLienTucTrongNPhien(phienKiemTra, "BandsBot", filter.BandBotDiNgangLienTucTrongNPhien.Value);
+            if (result && filter.MA5TangLienTucTrongNPhien.HasValue)
+                result = histories.MA5TangLienTucTrongNPhien(phienKiemTra, filter.MA5TangLienTucTrongNPhien.Value);
+            if (result && filter.MA5GiamLienTucTrongNPhien.HasValue)
+                result = histories.MA5GiamLienTucTrongNPhien(phienKiemTra, filter.MA5GiamLienTucTrongNPhien.Value);
+            if (result && filter.MA5DiNgangLienTucTrongNPhien.HasValue)
+                result = histories.MA5DiNgangLienTucTrongNPhien(phienKiemTra, filter.MA5DiNgangLienTucTrongNPhien.Value);
+            if (result && filter.MA20TangLienTucTrongNPhien.HasValue)
+                result = histories.MA20TangLienTucTrongNPhien(phienKiemTra, filter.MA20TangLienTucTrongNPhien.Value);
+            if (result && filter.MA20GiamLienTucTrongNPhien.HasValue)
+                result = histories.MA20GiamLienTucTrongNPhien(phienKiemTra, filter.MA20GiamLienTucTrongNPhien.Value);
+            if (result && filter.MA20DiNgangLienTucTrongNPhien.HasValue)
+                result = histories.MA20DiNgangLienTucTrongNPhien(phienKiemTra, filter.MA20DiNgangLienTucTrongNPhien.Value);
+            if (result && filter.RSITangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyTangLienTucTrongNPhien(phienKiemTra, "RSI", filter.RSITangLienTucTrongNPhien.Value);
+            if (result && filter.RSIGiamLienTucTrongNPhien.HasValue)
+                result = histories.PropertyGiamLienTucTrongNPhien(phienKiemTra, "RSI", filter.RSIGiamLienTucTrongNPhien.Value);
+            if (result && filter.RSIDiNgangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyDiNgangLienTucTrongNPhien(phienKiemTra, "RSI", filter.RSIDiNgangLienTucTrongNPhien.Value);
+            if (result && filter.RSI != null)
+                result = histories.PropertyMongMuon(phienKiemTra, "RSI", filter.RSI);
+            if (result && filter.RSIHumWa != null)
+                result = histories.PropertyMongMuon(phienHumwa, "RSI", filter.RSIHumWa);
+            if (result && filter.Macd != null)
+                result = histories.PropertyMongMuon(phienKiemTra, "MACD", filter.Macd);
+            if (result && filter.MacdSoVoiSignal != null)
+                result = histories.PropertySoSanh(phienKiemTra, "MACD", "MACDSignal", filter.MacdSoVoiSignal.Ope);
+            if (result && filter.MacdSignal != null)
+                result = histories.PropertyMongMuon(phienKiemTra, "MACDSignal", filter.MacdSignal);
+            if (result && filter.MacdMomentum != null)
+                result = histories.PropertyMongMuon(phienKiemTra, "MACDMomentum", filter.MacdMomentum);
+            if (result && filter.MACDTangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyTangLienTucTrongNPhien(phienKiemTra, "MACD", filter.MACDTangLienTucTrongNPhien.Value);
+            if (result && filter.MACDGiamLienTucTrongNPhien.HasValue)
+                result = histories.PropertyGiamLienTucTrongNPhien(phienKiemTra, "MACD", filter.MACDGiamLienTucTrongNPhien.Value);
+            if (result && filter.MACDDiNgangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyDiNgangLienTucTrongNPhien(phienKiemTra, "MACD", filter.MACDDiNgangLienTucTrongNPhien.Value);
+            if (result && filter.MACDSignalTangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyTangLienTucTrongNPhien(phienKiemTra, "MACDSignal", filter.MACDSignalTangLienTucTrongNPhien.Value);
+            if (result && filter.MACDSignalGiamLienTucTrongNPhien.HasValue)
+                result = histories.PropertyGiamLienTucTrongNPhien(phienKiemTra, "MACDSignal", filter.MACDSignalGiamLienTucTrongNPhien.Value);
+            if (result && filter.MACDSignalDiNgangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyDiNgangLienTucTrongNPhien(phienKiemTra, "MACDSignal", filter.MACDSignalDiNgangLienTucTrongNPhien.Value);
+            if (result && filter.MACDMomentumTangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyTangLienTucTrongNPhien(phienKiemTra, "MACDMomentum", filter.MACDMomentumTangLienTucTrongNPhien.Value);
+            if (result && filter.MACDMomentumGiamLienTucTrongNPhien.HasValue)
+                result = histories.PropertyGiamLienTucTrongNPhien(phienKiemTra, "MACDMomentum", filter.MACDMomentumGiamLienTucTrongNPhien.Value);
+            if (result && filter.MACDMomentumDiNgangLienTucTrongNPhien.HasValue)
+                result = histories.PropertyDiNgangLienTucTrongNPhien(phienKiemTra, "MACDMomentum", filter.MACDMomentumDiNgangLienTucTrongNPhien.Value);
+            if (result && filter.VolSoVoiVolMA20 != null)
+                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.V, phienKiemTra.VOL(histories, -20), filter.VolSoVoiVolMA20.Ope);
+            if (result && filter.VolLonHonMA20LienTucTrongNPhien != null)
+                result = histories.VolTrenMA20LienTucTrongNPhien(phienKiemTra, filter.VolLonHonMA20LienTucTrongNPhien.Value);
+            if (result && filter.VolNhoHonMA20LienTucTrongNPhien != null)
+                result = histories.VolDuoiMA20LienTucTrongNPhien(phienKiemTra, filter.VolNhoHonMA20LienTucTrongNPhien.Value);
+            if (result && filter.IchiGiaSoVoiTenkan != null)
+                result = histories.PropertySoSanh(phienKiemTra, "C", "IchimokuTenKan", filter.IchiGiaSoVoiTenkan.Ope);
+            if (result && filter.IchiGiaSoVoiKijun != null)
+                result = histories.PropertySoSanh(phienKiemTra, "C", "IchimokuKijun", filter.IchiGiaSoVoiKijun.Ope);
+            if (result && filter.IchiGiaSoVoiSpanA != null)
+                result = histories.PropertySoSanh(phienKiemTra, "C", "IchimokuCloudTop", filter.IchiGiaSoVoiSpanA.Ope);
+            if (result && filter.IchiGiaSoVoiSpanB != null)
+                result = histories.PropertySoSanh(phienKiemTra, "C", "IchimokuCloudBot", filter.IchiGiaSoVoiSpanB.Ope);
+            if (result && filter.DoDaiThanNenToiBandsTop != null)
+                result = histories.PropertySoSanhTiLe(phienKiemTra, phienKiemTra.NenTop - phienKiemTra.NenBot, "NenTop", "BandsTop", filter.DoDaiThanNenToiBandsTop);
+            if (result && filter.DoDaiThanNenToiBandsBot != null)
+                result = histories.PropertySoSanhTiLe(phienKiemTra, phienKiemTra.NenTop - phienKiemTra.NenBot, "NenBot", "BandsBot", filter.DoDaiThanNenToiBandsBot);
+
+            if (result && filter.GiaSoVoiDinhTrongVong40Ngay != null)
+            {
+                var time40NgayTruoc = histories.OrderByDescending(h => h.Date).Where(h => h.Date < phienKiemTra.Date).Take(40).ToList();
+                var dinh40NgayTruoc = time40NgayTruoc.OrderByDescending(h => h.C).First();
+                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.C, dinh40NgayTruoc.C * filter.GiaSoVoiDinhTrongVong40Ngay.Value, filter.GiaSoVoiDinhTrongVong40Ngay.Ope);
+            }
+
+            if (result && filter.CachDayThapNhatCua40NgayTrongVongXNgay.HasValue)
+            {
+                var time40NgayTruoc = histories.OrderByDescending(h => h.Date).Where(h => h.Date < phienKiemTra.Date).Take(40).ToList();
+                var day40NgayTruoc = time40NgayTruoc.OrderBy(h => h.C).First();
+                var indexOfToday = histories.IndexOf(phienKiemTra);
+                var indexOfDay = histories.IndexOf(day40NgayTruoc);
+
+                result = indexOfToday - indexOfDay <= filter.CachDayThapNhatCua40NgayTrongVongXNgay.Value;
+            }
+
+            if (result && filter.MA5CatLenMA20.HasValue)
+            {
+                var phienHumNayMa20 = phienKiemTra.MA(histories, -20);
+                var phienHumNayMa05 = phienKiemTra.MA(histories, -5);
+                var phienHumWaMa05 = phienHumwa.MA(histories, -5);
+                var phienHumWaMa20 = phienHumwa.MA(histories, -20);
+
+                //var duongMa05CatLenTrenMa20 = phienHumWaMa05 < phienHumNayMa20 && phienHumNayMa05 > phienHumNayMa20;
+
+                result = histories.MA5CatLenMA20(phienHumWaMa05, phienHumWaMa20, phienHumNayMa20, phienHumNayMa05);
+            }
+            if (result && filter.MA5CatXuongMA20.HasValue)
+            {
+                var phienHumNayMa20 = phienKiemTra.MA(histories, -20);
+                var phienHumNayMa05 = phienKiemTra.MA(histories, -5);
+                var phienHumWaMa05 = phienHumwa.MA(histories, -5);
+                var phienHumWaMa20 = phienHumwa.MA(histories, -20);
+                result = histories.MA5CatXuongMA20(phienHumWaMa05, phienHumWaMa20, phienHumNayMa20, phienHumNayMa05);
+            }
+
+            if (result && filter.MA5SoVoiMA20 != null)
+            {
+                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.MA(histories, -5), phienKiemTra.MA(histories, -20), filter.MA5SoVoiMA20.Ope);
+            }
+
+
+            return result;
+        }
+
+
+        public async Task<List<Tuple<string, decimal, List<string>>>> CongThuc1(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
+        {
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10)
+                    && ss.Date >= ngayCuoi.AddDays(-100))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var result1 = new List<string>();
+                decimal tong = 0;
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var histories = historiesStockCode
+                                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                                    .OrderBy(h => h.Date)
+                                    .ToList();
+                var ngayBatDau = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngayCuoi);
+                for (int i = histories.IndexOf(ngayBatDau); i < histories.Count; i++)
+                {
+                    ngayBatDau = histories[i];
+                    if (ngayBatDau != null && ngayBatDau.HadAllIndicators())
+                    {
+                        break;
+                    }
+                }
+
+                var ngayDungLai = histories.OrderBy(h => h.Date).First(h => h.Date >= ngay);
+                var startedI = histories.IndexOf(ngayBatDau);
+                var stoppedI = histories.IndexOf(ngayDungLai);
+
+                for (int i = startedI; i < stoppedI; i++)
+                {
+                    var phienHumNay = histories[i];
+                    var phienHumWa = histories.Where(h => h.Date < phienHumNay.Date).OrderByDescending(h => h.Date).First();
+                    var phienHumKia = histories.Where(h => h.Date < phienHumWa.Date).OrderByDescending(h => h.Date).First();
+
+                    var phienHumNayMa20 = phienHumNay.MA(histories, -MACham);
+                    var phienHumNayMa05 = phienHumNay.MA(histories, -MANhanh);
+                    var phienHumWaMa05 = phienHumWa.MA(histories, -MANhanh);
+                    var phienHumWaMa20 = phienHumWa.MA(histories, -MACham);
+
+
+                    //tín hiệu mua
+                    var nenNamDuoiMA20 = phienHumNay.NenBot < phienHumNayMa20;                                                          //Giá nằm dưới MA 20
+                    var nenTangGia = phienHumNay.TangGia();
+                    var duongMa05CatLenTrenMa20 = phienHumWaMa05 < phienHumNayMa20 && phienHumNayMa05 > phienHumNayMa20;                //MA 05 cắt lên trên MA 20
+                    var MA05HuongLen = phienHumWaMa05 * 1.01m < phienHumNayMa05;
+                    var nenTangLenChamMa20 = phienHumNay.NenTop >= phienHumNayMa20 && phienHumNay.NenBot < phienHumNayMa20;             //Giá trong phiên MA 05 tăng lên chạm MA 20
+                    var râunếnTangLenChamMa20 = phienHumNay.H >= phienHumNayMa20 && phienHumNay.NenBot < phienHumNayMa20;               //Giá trong phiên MA 05 tăng lên chạm MA 20
+                    var Ma05DuoiMa20 = phienHumNayMa05 < phienHumNayMa20;
+
+
+                    //var CT1A1 = new LocCoPhieuFilterRequest
+                    //{
+                    //    //var muaTheoMA = nenTangGia && ((duongMa05CatLenTrenMa20 && nenNamDuoiMA20) || (MA05HuongLen && nenTangLenChamMa20 && Ma05DuoiMa20)); //86% HUT
+                    //    NenTangGia = true,
+                    //    MA5CatLenMA20 = true,
+                    //    NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
+                    //};
+
+                    //var CT1A2 = new LocCoPhieuFilterRequest
+                    //{
+                    //    //var muaTheoMA = nenTangGia && ((duongMa05CatLenTrenMa20 && nenNamDuoiMA20) || (MA05HuongLen && nenTangLenChamMa20 && Ma05DuoiMa20)); //86% HUT
+                    //    NenTangGia = true,
+                    //    MA5TangLienTucTrongNPhien = 1,
+                    //    NenTopSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+                    //    NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+                    //    MA5SoVoiMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
+                    //};
+
+                    //var muaTheoMA = nenTangGia && ((duongMa05CatLenTrenMa20 && nenNamDuoiMA20) || (MA05HuongLen && nenTangLenChamMa20 && Ma05DuoiMa20)); //86% HUT
+
+                    var muaTheoMA = ThỏaĐiềuKiệnLọc(CT1A, histories, phienHumNay, phienHumWa) || ThỏaĐiềuKiệnLọc(CT1B, histories, phienHumNay, phienHumWa);
+                    //var muaTheoMA = nenTangGia && MA05HuongLen && nenTangLenChamMa20 && Ma05DuoiMa20;
+                    //var muaTheoMA = ThỏaĐiềuKiệnLọc(CT1A2, histories, phienHumNay, phienHumWa);
+                    //var muaTheoMA = nenTangGia && ((duongMa05CatLenTrenMa20 && nenNamDuoiMA20) || (MA05HuongLen && nenTangLenChamMa20 && Ma05DuoiMa20)); //86% HUT
+                    if (!muaTheoMA) continue;
+
+                    var ngayMua = histories.Where(h => h.Date > phienHumNay.Date).OrderBy(h => h.Date).FirstOrDefault();
+                    if (ngayMua == null) ngayMua = new History() { Date = phienHumNay.Date.AddDays(1) };
+                    var giáĐặtMua = phienHumNay.C;
+
+                    var giữT = 3;
+                    var tPlus = histories.Where(h => h.Date >= ngayMua.Date)
+                        .OrderBy(h => h.Date)
+                        .Skip(3)
+                        .Take(giữT)
+                        .ToList();
+
+                    if (tPlus.Count < 3) //hiện tại
+                    {
+                        result1.Add($"{symbol._sc_} - Hiện tại điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    }
+                    else
+                    {
+                        if (tPlus.Any(t => t.C > ngayMua.O * (1M + percentProfit) || t.O > ngayMua.O * (1M + percentProfit)))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                        {
+                            dung++;
+                            result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                        else
+                        {
+                            sai++;
+                            result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                    }
+                }
+
+                if (result1.Any())
+                {
+                    tong = dung + sai;
+                    var tile = tong == 0 ? 0 : Math.Round(dung / tong, 2);
+                    tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, tile, result1));
+                }
+            });
+
+            tup = tup.OrderByDescending(t => t.Item2).ToList();
+
+            return tup;
+        }
+
+        public async Task<List<Tuple<string, decimal, List<string>>>> CongThuc2(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
+        {
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10)
+                    && ss.Date >= ngayCuoi.AddDays(-100))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            /* MACD đi ngang hoặc hướng lên ----> 38 item 100%
+            * Nến tăng
+            * Momentum tăng
+            * thân nến đè lên MA 5
+            * Giá so với đỉnh cao nhất trong 40 ngày < 70% từ đỉnh
+            */
+
+            /* MACD đi ngang hoặc hướng lên ----> 37 item 100
+            * Nến tăng
+            * Momentum tăng
+            * Giá so với đỉnh cao nhất trong 40 ngày < 70% từ đỉnh
+            * CachDayThapNhatCua40NgayTrongVongXNgay = 10
+            */
+
+            /* MACD đi ngang hoặc hướng lên ----> XXXXXXXXXXXX
+            * Nến tăng
+            * Momentum tăng
+            * thân nến đè lên MA 5          -> Phần nến trên MA 5 > phần nến dưới MA 5, phần nến dưới MA 5 ít nhất 1/3 thân nến
+            * cây nến hum wa cũng là cây nến tăng luôn
+            * Giá so với đỉnh cao nhất trong 40 ngày < 70% từ đỉnh
+            * CachDayThapNhatCua40NgayTrongVongXNgay = 10
+            */
+
+            LocCoPhieuFilterRequest filter = new LocCoPhieuFilterRequest
+            {
+                MACDTangLienTucTrongNPhien = 1,
+                NenTangGia = true,
+                MACDMomentumTangLienTucTrongNPhien = 1,
+                NenTopSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+                NenBotSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+                GiaSoVoiDinhTrongVong40Ngay = new LocCoPhieuFilter { Value = 0.7M, Ope = LocCoPhieuFilterEnum.NhoHonHoacBang },
+                CachDayThapNhatCua40NgayTrongVongXNgay = 10
+            };
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var result1 = new List<string>();
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var histories = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+                var ngayBatDau = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngayCuoi);
+                for (int i = histories.IndexOf(ngayBatDau); i < histories.Count; i++)
+                {
+                    ngayBatDau = histories[i];
+                    if (ngayBatDau != null && ngayBatDau.HadAllIndicators())
+                    {
+                        break;
+                    }
+                }
+
+                var ngayDungLai = histories.OrderBy(h => h.Date).First(h => h.Date >= ngay);
+                var startedI = histories.IndexOf(ngayBatDau);
+                var stoppedI = histories.IndexOf(ngayDungLai);
+
+                for (int i = startedI; i < stoppedI; i++)
+                {
+                    var phienHumNay = histories[i];
+                    var phienHumWa = histories[i - 1];
+
+                    var thoaDK = ThỏaĐiềuKiệnLọc(filter, histories, phienHumNay, phienHumWa);
+                    if (!thoaDK) continue;
+
+                    var ngayMua = histories[i + 1];
+                    var giáĐặtMua = ngayMua.O > phienHumNay.C
+                        ? phienHumNay.C
+                        : ngayMua.O;    //Đặt giá mở cửa hoặc ATO luôn - ko dc, mở GAP to là nát
+
+                    if (ngayMua.NenTop >= giáĐặtMua && ngayMua.NenBot <= giáĐặtMua)
+                    {
+                        var giữT = 3;
+                        var tPlus = histories.Where(h => h.Date >= ngayMua.Date)
+                            .OrderBy(h => h.Date)
+                            .Skip(3)
+                            .Take(giữT)
+                            .ToList();
+
+                        if (tPlus.Count < 3) //hiện tại
+                        {
+                            result1.Add($"{symbol._sc_} - Hiện tại điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                        else
+                        {
+                            if (tPlus.Any(t => t.C > ngayMua.O * (1M + percentProfit) || t.O > ngayMua.O * (1M + percentProfit)))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                            {
+                                dung++;
+                                result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                            }
+                            else
+                            {
+                                sai++;
+                                result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                            }
+                        }
+                    }
+                }
+
+                if (result1.Any())
+                {
+                    var tile = (dung + sai) == 0 ? 0 : Math.Round(dung / (dung + sai), 2);
+                    tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, tile, result1));
+                }
+            });
+
+            tup = tup.OrderByDescending(t => t.Item2).ToList();
+
+            return tup;
         }
     }
 }
+
+
+/*
+ * CEO:
+ *  + 20/1/22:  vol tăng lớn >= vol của 3 cây giảm liên tiếp trước đó * 0.95
+ *              + giá tăng, thân nến xanh dày
+ *              + giá bot ~ giá sàn * 0,2%
+ *              + RSI hướng lên
+ *          ==> Mua vô, trong vòng t5 bán nếu lời >= 15%, hoặc lỗ >= 5%
+ *  
+ *  1 - rsi phân kì âm ?
+ *  2 - MACD hướng lên trong N phiên
+ *  3 - MACD hướng xuống trong N phiên
+ */

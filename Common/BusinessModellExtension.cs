@@ -841,6 +841,19 @@ namespace DotNetCoreSqlDb.Common
         {
             return today.HadBands() && today.HadIchimoku() && today.HadMACD() && today.HadRsi();
         }
+
+        /// <summary>
+        /// Phiên hum nay (phiên 1) là nến bao phủ so với phiên hum wa (phiên 2) hay ko
+        /// </summary>
+        /// <param name="phien1"></param>
+        /// <param name="phien2"></param>
+        /// <returns></returns>
+        public static bool IsNenBaoPhu(this History phien1, History phien2)
+        {
+            return phien1.NenTop - phien1.NenBot > phien2.NenTop - phien2.NenBot &&
+                ((phien1.NenTop >= phien2.NenTop && phien1.NenBot <= phien2.NenBot + (phien2.NenTop - phien2.NenBot) * 0.75M)
+                || (phien1.NenBot <= phien2.NenBot && phien1.NenTop >= phien2.NenBot + (phien2.NenTop - phien2.NenBot) * 0.75M));
+        }
     }
 
 }
