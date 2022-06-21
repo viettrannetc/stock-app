@@ -30,14 +30,12 @@ namespace DotNetCoreSqlDb.Controllers
 
         private LocCoPhieuFilterRequest CT0A = new LocCoPhieuFilterRequest
         {
-            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
             RSI = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon, Value = 60 },
             MacdSoVoiSignal = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon },
             Macd = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon, Value = 0 }
         };
         private LocCoPhieuFilterRequest CT0B = new LocCoPhieuFilterRequest
         {
-            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
             MA5TangLienTucTrongNPhien = 1,
             NenTangGia = true,
             NenTopSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
@@ -45,7 +43,6 @@ namespace DotNetCoreSqlDb.Controllers
         };
         private LocCoPhieuFilterRequest CT1A = new LocCoPhieuFilterRequest
         {
-            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
             NenTangGia = true,
             MA5CatLenMA20 = true,
             NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
@@ -53,7 +50,6 @@ namespace DotNetCoreSqlDb.Controllers
 
         private LocCoPhieuFilterRequest CT1B = new LocCoPhieuFilterRequest
         {
-            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
             NenTangGia = true,
             MA5TangLienTucTrongNPhien = 1,
             NenTopSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
@@ -62,7 +58,6 @@ namespace DotNetCoreSqlDb.Controllers
         };
         private LocCoPhieuFilterRequest CT2 = new LocCoPhieuFilterRequest
         {
-            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
             MACDTangLienTucTrongNPhien = 1,
             NenTangGia = true,
             MACDMomentumTangLienTucTrongNPhien = 1,
@@ -74,15 +69,19 @@ namespace DotNetCoreSqlDb.Controllers
 
         private LocCoPhieuFilterRequest CT3 = new LocCoPhieuFilterRequest
         {
-            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
-            sosanh
-            MACDTangLienTucTrongNPhien = 1,
-            NenTangGia = true,
-            MACDMomentumTangLienTucTrongNPhien = 1,
-            NenTopSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
-            NenBotSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
-            GiaSoVoiDinhTrongVong40Ngay = new LocCoPhieuFilter { Value = 0.7M, Ope = LocCoPhieuFilterEnum.NhoHonHoacBang },
-            CachDayThapNhatCua40NgayTrongVongXNgay = 10
+            MA20TiLeVoiM5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHonHoacBang, Value = 1.09M },
+            RSITangLienTucTrongNPhien = 1,
+            MACDMomentumTangDanSoVoiNPhien = 1
+        };
+
+        private LocCoPhieuFilterRequest CT4 = new LocCoPhieuFilterRequest
+        {
+            MA20TiLeVoiM5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHonHoacBang, Value = 1.035M },
+            RSITangLienTucTrongNPhien = 1,
+            MACDMomentumTangDanSoVoiNPhien = 1,
+            ĐuôiNenThapHonBandDuoi = true,
+            ChieuDaiThanNenSoVoiRau = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 3.5M },
+            NenTangGia = true
         };
 
 
@@ -3955,7 +3954,7 @@ namespace DotNetCoreSqlDb.Controllers
             return result1;
         }
 
-        public async Task<List<string>> KiemTraTileDungSaiTheoPattern(string code, DateTime tuNgay, DateTime toiNgay, LocCoPhieuRequest boloc)
+        public async Task<List<string>> KiemTraTileDungSaiTheoPattern(string code, DateTime tuNgay, DateTime toiNgay, LocCoPhieuFilterRequest filter)
         {
             var histories = await _context.History
                 .Where(ss => ss.StockSymbol == code
@@ -3991,7 +3990,7 @@ namespace DotNetCoreSqlDb.Controllers
                     var phienHumKia = histories[i - 2];
                     var phienHumWa = histories[i - 1];
                     var phienHumNay = histories[i];
-                    var result = ThỏaĐiềuKiệnLọc(boloc.Filter, histories, phienHumNay, phienHumWa);
+                    var result = ThỏaĐiềuKiệnLọc(filter, histories, phienHumNay, phienHumWa);
                     if (result == false) continue;
 
                     //Ghi nhớ: Phiên hum nay nếu thỏa, thì ngày mai mới mua giá C của ngày hum nay, không mua đuổi (nếu giá mở của tạo GAP thì ko mua, bỏ phiên)
@@ -4012,7 +4011,7 @@ namespace DotNetCoreSqlDb.Controllers
                             break;
                         }
                         var phienDuocPhepBan = histories[j];
-                        if (phienDuocPhepBan.C >= phienHumNay.C * boloc.Suggestion.LãiMin)
+                        if (phienDuocPhepBan.C >= phienHumNay.C * 1.01M) //boloc.Suggestion.LãiMin)
                         {
                             var lãi = Math.Round(phienDuocPhepBan.C / phienHumNay.C, 2);
 
@@ -4044,40 +4043,42 @@ namespace DotNetCoreSqlDb.Controllers
 
             var boloc = new LocCoPhieuRequest(code, ngay)
             {
-                Filter = CT0A
+                Filters = new List<LocCoPhieuFilterRequest> {
+                    CT0A, CT0B, CT1A, CT1B, CT2, CT3, CT4
+                }
             };
 
             var ma20vol = 100000;
             var splitStringCode = string.IsNullOrWhiteSpace(boloc.Code) ? new string[0] : boloc.Code.Split(",");
 
             //TODO: validation
-            if (boloc.Filter == null) return new List<string>() { "Bộ lọc cổ phiếu trống rỗng" };
+            if (!boloc.Filters.Any()) return new List<string>() { "Bộ lọc cổ phiếu trống rỗng" };
 
             var predicate = PredicateBuilder.New<StockSymbol>();
             predicate.And(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false);
 
             predicate = string.IsNullOrWhiteSpace(boloc.Code)
-                ? boloc.Filter.VolToiThieu != null
-                    ? boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHon
-                            ? predicate.And(s => s.MA20Vol > boloc.Filter.VolToiThieu.Value)
-                            : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHonHoacBang
-                                ? predicate.And(s => s.MA20Vol >= boloc.Filter.VolToiThieu.Value)
-                                : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.Bang
-                                    ? predicate.And(s => s.MA20Vol == boloc.Filter.VolToiThieu.Value)
-                                    : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.NhoHonHoacBang
-                                        ? predicate.And(s => s.MA20Vol <= boloc.Filter.VolToiThieu.Value)
-                                        : predicate.And(s => s.MA20Vol < boloc.Filter.VolToiThieu.Value)
+                ? boloc.VolToiThieu != null
+                    ? boloc.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHon
+                            ? predicate.And(s => s.MA20Vol > boloc.VolToiThieu.Value)
+                            : boloc.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHonHoacBang
+                                ? predicate.And(s => s.MA20Vol >= boloc.VolToiThieu.Value)
+                                : boloc.VolToiThieu.Ope == LocCoPhieuFilterEnum.Bang
+                                    ? predicate.And(s => s.MA20Vol == boloc.VolToiThieu.Value)
+                                    : boloc.VolToiThieu.Ope == LocCoPhieuFilterEnum.NhoHonHoacBang
+                                        ? predicate.And(s => s.MA20Vol <= boloc.VolToiThieu.Value)
+                                        : predicate.And(s => s.MA20Vol < boloc.VolToiThieu.Value)
                     : predicate.And(s => s.MA20Vol > ma20vol)
-                : boloc.Filter.VolToiThieu != null
-                    ? boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHon
-                        ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol > boloc.Filter.VolToiThieu.Value)
-                        : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHonHoacBang
-                            ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol >= boloc.Filter.VolToiThieu.Value)
-                            : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.Bang
-                                ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol == boloc.Filter.VolToiThieu.Value)
-                                : boloc.Filter.VolToiThieu.Ope == LocCoPhieuFilterEnum.NhoHonHoacBang
-                                    ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol <= boloc.Filter.VolToiThieu.Value)
-                                    : predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol < boloc.Filter.VolToiThieu.Value)
+                : boloc.VolToiThieu != null
+                    ? boloc.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHon
+                        ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol > boloc.VolToiThieu.Value)
+                        : boloc.VolToiThieu.Ope == LocCoPhieuFilterEnum.LonHonHoacBang
+                            ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol >= boloc.VolToiThieu.Value)
+                            : boloc.VolToiThieu.Ope == LocCoPhieuFilterEnum.Bang
+                                ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol == boloc.VolToiThieu.Value)
+                                : boloc.VolToiThieu.Ope == LocCoPhieuFilterEnum.NhoHonHoacBang
+                                    ? predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol <= boloc.VolToiThieu.Value)
+                                    : predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol < boloc.VolToiThieu.Value)
                     : predicate.And(s => splitStringCode.Contains(s._sc_) && s.MA20Vol > ma20vol);
 
             var symbols = await _context.StockSymbol.Where(predicate).ToListAsync();
@@ -4097,36 +4098,39 @@ namespace DotNetCoreSqlDb.Controllers
             var result1 = new List<string>();
             var NhậtKýMuaBán = new List<LearningRealDataModel>();
 
-            for (int s = 0; s < symbols.Count; s++)
+            foreach (var filter in boloc.Filters)
             {
-                var histories = historiesStockCode
-                    .Where(ss => ss.StockSymbol == symbols[s]._sc_)
-                    .ToList();
-
-                var firstDate = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= tuNgay);
-                if (firstDate == null || !firstDate.HadAllIndicators()) continue;
-
-                var phienKiemTra = histories.Where(h => h.Date <= today).First();
-                var phienHumwa = histories.Where(h => h.Date < phienKiemTra.Date).First();
-
-                var result = ThỏaĐiềuKiệnLọc(boloc.Filter, histories, phienKiemTra, phienHumwa);
-
-                if (result)
+                for (int s = 0; s < symbols.Count; s++)
                 {
-                    /*
-                     * Chạy về quá khứ kiểm tra dữ liệu đối với cùng pattern CÙNG MÃ        -> tỉ lệ đúng sai khi KN giá mua T3 / T5 / T7
-                     *      Example: 80% bán ở T3 có lời, 20% còn bán ở T5 có lời
-                     * Chạy về quá khứ kiểm tra dữ liệu đối với cùng pattern TẤT CẢ MÃ KHÁC -> tỉ lệ đúng sai khi KN giá mua
-                     *     "ACL - 27-05-2022 - Giá 26.700,00",
-                     */
+                    var histories = historiesStockCode
+                        .Where(ss => ss.StockSymbol == symbols[s]._sc_)
+                        .ToList();
 
-                    var duLieuQuaKhu = await KiemTraTileDungSaiTheoPattern(phienKiemTra.StockSymbol, ngayBatDauKiemTraTiLeDungSai, phienKiemTra.Date, boloc);
+                    var firstDate = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= tuNgay);
+                    if (firstDate == null || !firstDate.HadAllIndicators()) continue;
 
-                    result1.Add($"{phienKiemTra.StockSymbol} - {phienKiemTra.Date.ToShortDateString()} - Giá {phienKiemTra.C.ToString("N2")}");
-                    result1.AddRange(duLieuQuaKhu);
+                    var phienKiemTra = histories.Where(h => h.Date <= today).First();
+                    var phienHumwa = histories.Where(h => h.Date < phienKiemTra.Date).First();
+
+                    var result = ThỏaĐiềuKiệnLọc(filter, histories, phienKiemTra, phienHumwa);
+
+                    if (result)
+                    {
+                        /*
+                         * Chạy về quá khứ kiểm tra dữ liệu đối với cùng pattern CÙNG MÃ        -> tỉ lệ đúng sai khi KN giá mua T3 / T5 / T7
+                         *      Example: 80% bán ở T3 có lời, 20% còn bán ở T5 có lời
+                         * Chạy về quá khứ kiểm tra dữ liệu đối với cùng pattern TẤT CẢ MÃ KHÁC -> tỉ lệ đúng sai khi KN giá mua
+                         *     "ACL - 27-05-2022 - Giá 26.700,00",
+                         */
+
+                        var duLieuQuaKhu = await KiemTraTileDungSaiTheoPattern(phienKiemTra.StockSymbol, ngayBatDauKiemTraTiLeDungSai, phienKiemTra.Date, filter);
+
+                        result1.Add($"{phienKiemTra.StockSymbol} - {phienKiemTra.Date.ToShortDateString()} - Giá {phienKiemTra.C.ToString("N2")}");
+                        result1.AddRange(duLieuQuaKhu);
+                    }
                 }
             }
-
+            
             //var folder = ConstantPath.Path;
             //var g = Guid.NewGuid();
             //var name = $@"{folder}{g}.xlsx";
@@ -4144,13 +4148,13 @@ namespace DotNetCoreSqlDb.Controllers
             if (result && filter.NenBotSoVoiBandsBot != null)
                 result = histories.PropertySoSanh(phienKiemTra, "NenBot", "BandsBot", filter.NenBotSoVoiBandsBot.Ope);
             if (result && filter.NenTopSoVoiGiaMA20 != null)
-                result = histories.PropertySoSanhDuLieu( phienKiemTra.NenTop, phienKiemTra.MA(histories, -20), filter.NenTopSoVoiGiaMA20.Ope);
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.NenTop, phienKiemTra.MA(histories, -20), filter.NenTopSoVoiGiaMA20.Ope);
             if (result && filter.NenBotSoVoiGiaMA20 != null)
-                result = histories.PropertySoSanhDuLieu( phienKiemTra.NenBot, phienKiemTra.MA(histories, -20), filter.NenBotSoVoiGiaMA20.Ope);
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.NenBot, phienKiemTra.MA(histories, -20), filter.NenBotSoVoiGiaMA20.Ope);
             if (result && filter.NenTopSoVoiGiaMA5 != null)
-                result = histories.PropertySoSanhDuLieu( phienKiemTra.NenTop, phienKiemTra.MA(histories, -5), filter.NenTopSoVoiGiaMA5.Ope);
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.NenTop, phienKiemTra.MA(histories, -5), filter.NenTopSoVoiGiaMA5.Ope);
             if (result && filter.NenBotSoVoiGiaMA5 != null)
-                result = histories.PropertySoSanhDuLieu( phienKiemTra.NenBot, phienKiemTra.MA(histories, -5), filter.NenBotSoVoiGiaMA5.Ope);
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.NenBot, phienKiemTra.MA(histories, -5), filter.NenBotSoVoiGiaMA5.Ope);
             if (result && filter.NenTangGia.HasValue)
             {
                 if (filter.NenTangGia.Value && !phienKiemTra.TangGia())
@@ -4226,7 +4230,7 @@ namespace DotNetCoreSqlDb.Controllers
             if (result && filter.MACDMomentumDiNgangLienTucTrongNPhien.HasValue)
                 result = histories.PropertyDiNgangLienTucTrongNPhien(phienKiemTra, "MACDMomentum", filter.MACDMomentumDiNgangLienTucTrongNPhien.Value);
             if (result && filter.VolSoVoiVolMA20 != null)
-                result = histories.PropertySoSanhDuLieu( phienKiemTra.V, phienKiemTra.VOL(histories, -20), filter.VolSoVoiVolMA20.Ope);
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.V, phienKiemTra.VOL(histories, -20), filter.VolSoVoiVolMA20.Ope);
             if (result && filter.VolLonHonMA20LienTucTrongNPhien != null)
                 result = histories.VolTrenMA20LienTucTrongNPhien(phienKiemTra, filter.VolLonHonMA20LienTucTrongNPhien.Value);
             if (result && filter.VolNhoHonMA20LienTucTrongNPhien != null)
@@ -4248,7 +4252,7 @@ namespace DotNetCoreSqlDb.Controllers
             {
                 var time40NgayTruoc = histories.OrderByDescending(h => h.Date).Where(h => h.Date < phienKiemTra.Date).Take(40).ToList();
                 var dinh40NgayTruoc = time40NgayTruoc.OrderByDescending(h => h.C).First();
-                result = histories.PropertySoSanhDuLieu( phienKiemTra.C, dinh40NgayTruoc.C * filter.GiaSoVoiDinhTrongVong40Ngay.Value, filter.GiaSoVoiDinhTrongVong40Ngay.Ope);
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.C, dinh40NgayTruoc.C * filter.GiaSoVoiDinhTrongVong40Ngay.Value, filter.GiaSoVoiDinhTrongVong40Ngay.Ope);
             }
 
             if (result && filter.CachDayThapNhatCua40NgayTrongVongXNgay.HasValue)
@@ -4296,9 +4300,13 @@ namespace DotNetCoreSqlDb.Controllers
             }
             if (result && filter.MACDMomentumTangDanSoVoiNPhien.HasValue)   //TODO: hiện tại chỉ work với 1 phiên
             {
-                result = histories.PropertySoSanhDuLieu(phienKiemTra.MACDMomentum - phienHumwa.MACDMomentum, phienHumwa.MACDMomentum - phienHumKia.MACDMomentum, LocCoPhieuFilterEnum.LonHon);
+                result = histories.PropertyTangDanTrongNPhien(phienKiemTra, "MACDMomentum", filter.MACDMomentumTangDanSoVoiNPhien.Value);
             }
 
+            if (result && filter.ĐuôiNenThapHonBandDuoi.HasValue)
+            {
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.L, phienKiemTra.BandsBot, LocCoPhieuFilterEnum.NhoHon);
+            }
 
             return result;
         }

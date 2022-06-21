@@ -1,4 +1,7 @@
-﻿namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
+﻿using System;
+using System.Collections.Generic;
+
+namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
 {
     public enum LocCoPhieuFilterEnum
     {
@@ -43,6 +46,7 @@
         public bool? NenTangGia { get; set; }
         public bool? NenBaoPhu { get; set; }
         public LocCoPhieuFilter ChieuDaiThanNenSoVoiRau { get; set; }
+        public bool? ĐuôiNenThapHonBandDuoi { get; set; }
         public int? BandTopTangLienTucTrongNPhien { get; set; }
         public int? BandTopGiamLienTucTrongNPhien { get; set; }
         public int? BandTopDiNgangLienTucTrongNPhien { get; set; }
@@ -93,7 +97,7 @@
         public LocCoPhieuFilter IchiGiaSoVoiSpanA { get; set; }
         public LocCoPhieuFilter IchiGiaSoVoiSpanB { get; set; }
         public LocCoPhieuFilter GiaSoVoiDinhTrongVong40Ngay { get; set; }
-        public LocCoPhieuFilter VolToiThieu { get; set; }
+
         public int? CachDayThapNhatCua40NgayTrongVongXNgay { get; set; }
     }
 
@@ -123,11 +127,13 @@
             {
                 LãiMin = 1.01M
             };
+            Filters = new List<LocCoPhieuFilterRequest>();
+            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 };
         }
         public string Code { get; set; }
         public DateTime Ngay { get; set; }
-        //public LocCoPhieuHumNayRequest Filter { get; set; }
-        public LocCoPhieuFilterRequest Filter { get; set; }
+        public LocCoPhieuFilter VolToiThieu { get; set; }
+        public List<LocCoPhieuFilterRequest> Filters { get; set; }
         public LocCoPhieuKiVongRequest Suggestion { get; set; }
     }
 }

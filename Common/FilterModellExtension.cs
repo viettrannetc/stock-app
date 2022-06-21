@@ -504,6 +504,42 @@ namespace DotNetCoreSqlDb.Common
         {
             return phienHumWaMa05 > phienHumWaMa20 && phienHumNayMa05 < phienHumNayMa20;
         }
+
+        public static bool PropertyTangDanTrongNPhien(this List<History> histories, History checkingDate, string propertyChecking, int soPhienKiemTra)
+        {
+            var checkingDateOrdered = histories.OrderByDescending(h => h.Date <= checkingDate.Date).ToList();
+
+            for (int i = 1; i < checkingDateOrdered.Count() - 2; i++)
+            {
+                var dulieuT0 = (decimal)checkingDateOrdered[i].GetPropValue(propertyChecking);
+                var dulieuT1Am = (decimal)checkingDateOrdered[i + 1].GetPropValue(propertyChecking);
+                var dulieuT2Am = (decimal)checkingDateOrdered[i + 1].GetPropValue(propertyChecking);
+                if (dulieuT0 - dulieuT1Am > dulieuT1Am - dulieuT2Am && i >= soPhienKiemTra)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static bool PropertyGiamDanTrongNPhien(this List<History> histories, History checkingDate, string propertyChecking, int soPhienKiemTra)
+        {
+            var checkingDateOrdered = histories.OrderByDescending(h => h.Date <= checkingDate.Date).ToList();
+
+            for (int i = 1; i < checkingDateOrdered.Count() - 2; i++)
+            {
+                var dulieuT0 = (decimal)checkingDateOrdered[i].GetPropValue(propertyChecking);
+                var dulieuT1Am = (decimal)checkingDateOrdered[i + 1].GetPropValue(propertyChecking);
+                var dulieuT2Am = (decimal)checkingDateOrdered[i + 1].GetPropValue(propertyChecking);
+                if (dulieuT0 - dulieuT1Am < dulieuT1Am - dulieuT2Am && i >= soPhienKiemTra)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
     }
 
 }

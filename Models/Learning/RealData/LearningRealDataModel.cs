@@ -1,4 +1,7 @@
 ﻿using DotNetCoreSqlDb.Common;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace DotNetCoreSqlDb.Models.Learning.RealData
 {
