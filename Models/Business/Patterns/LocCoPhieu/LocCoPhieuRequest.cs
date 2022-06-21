@@ -42,6 +42,7 @@
         public LocCoPhieuFilter NenBotSoVoiGiaMA5 { get; set; }
         public bool? NenTangGia { get; set; }
         public bool? NenBaoPhu { get; set; }
+        public LocCoPhieuFilter ChieuDaiThanNenSoVoiRau { get; set; }
         public int? BandTopTangLienTucTrongNPhien { get; set; }
         public int? BandTopGiamLienTucTrongNPhien { get; set; }
         public int? BandTopDiNgangLienTucTrongNPhien { get; set; }
@@ -54,6 +55,7 @@
         public bool? MA5CatLenMA20 { get; set; }
         public bool? MA5CatXuongMA20 { get; set; }
         public LocCoPhieuFilter MA5SoVoiMA20 { get; set; }
+        public LocCoPhieuFilter MA20TiLeVoiM5 { get; set; }
         public int? MA20TangLienTucTrongNPhien { get; set; }
         public int? MA20GiamLienTucTrongNPhien { get; set; }
         public int? MA20DiNgangLienTucTrongNPhien { get; set; }
@@ -81,6 +83,7 @@
         public int? MACDSignalDiNgangLienTucTrongNPhien { get; set; }
         public int? MACDMomentumTangLienTucTrongNPhien { get; set; }
         public int? MACDMomentumGiamLienTucTrongNPhien { get; set; }
+        public int? MACDMomentumTangDanSoVoiNPhien { get; set; }
         public int? MACDMomentumDiNgangLienTucTrongNPhien { get; set; }
         public LocCoPhieuFilter VolSoVoiVolMA20 { get; set; }
         public int? VolLonHonMA20LienTucTrongNPhien { get; set; }

@@ -392,7 +392,7 @@ namespace DotNetCoreSqlDb.Common
             return false;
         }
 
-        public static bool PropertySoSanhDuLieu(this List<History> histories, History checkingDate, decimal dulieuThucTe1, decimal dulieuThucTe2, LocCoPhieuFilterEnum filter)
+        public static bool PropertySoSanhDuLieu(this List<History> histories, decimal dulieuThucTe1, decimal dulieuThucTe2, LocCoPhieuFilterEnum filter)
         {
             switch (filter)
             {
@@ -413,7 +413,34 @@ namespace DotNetCoreSqlDb.Common
                     break;
             }
 
-            //histories.Remove(checkingDate);
+            return false;
+        }
+
+        /// <summary>
+        /// filter.Value = 1.035
+        /// </summary>
+        public static bool PropertySoSanhDuLieu(this List<History> histories, decimal dulieuThucTe1, decimal dulieuThucTe2, LocCoPhieuFilter filter)
+        {
+            var tileChenhLech = Math.Abs(dulieuThucTe1) / dulieuThucTe2;
+            switch (filter.Ope)
+            {
+                case LocCoPhieuFilterEnum.Bang:
+                    if (tileChenhLech == filter.Value) return true;
+                    break;
+                case LocCoPhieuFilterEnum.NhoHon:
+                    if (tileChenhLech < filter.Value) return true;
+                    break;
+                case LocCoPhieuFilterEnum.LonHon:
+                    if (tileChenhLech > filter.Value) return true;
+                    break;
+                case LocCoPhieuFilterEnum.NhoHonHoacBang:
+                    if (tileChenhLech <= filter.Value) return true;
+                    break;
+                case LocCoPhieuFilterEnum.LonHonHoacBang:
+                    if (tileChenhLech >= filter.Value) return true;
+                    break;
+            }
+
             return false;
         }
 

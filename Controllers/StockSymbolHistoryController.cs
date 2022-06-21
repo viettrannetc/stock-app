@@ -67,7 +67,7 @@ namespace DotNetCoreSqlDb.Controllers
             var result = new List<History>();
             var latestHistory = _context.History.OrderByDescending(r => r.Date).FirstOrDefault();
             var currentLatestDate = latestHistory == null ? new DateTime(2000, 1, 1) : latestHistory.Date;
-            var from = tuNgay < new DateTime(2000, 1, 1) ? currentLatestDate : tuNgay;
+            var from = tuNgay < new DateTime(2000, 1, 1) ? currentLatestDate.AddDays(1) : tuNgay;
             var to = DateTime.Now.WithoutHours();
 
             var service = new Service();

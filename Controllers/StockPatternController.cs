@@ -28,6 +28,64 @@ namespace DotNetCoreSqlDb.Controllers
     {
         private readonly MyDatabaseContext _context;
 
+        private LocCoPhieuFilterRequest CT0A = new LocCoPhieuFilterRequest
+        {
+            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
+            RSI = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon, Value = 60 },
+            MacdSoVoiSignal = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon },
+            Macd = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon, Value = 0 }
+        };
+        private LocCoPhieuFilterRequest CT0B = new LocCoPhieuFilterRequest
+        {
+            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
+            MA5TangLienTucTrongNPhien = 1,
+            NenTangGia = true,
+            NenTopSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+            NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+        };
+        private LocCoPhieuFilterRequest CT1A = new LocCoPhieuFilterRequest
+        {
+            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
+            NenTangGia = true,
+            MA5CatLenMA20 = true,
+            NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
+        };
+
+        private LocCoPhieuFilterRequest CT1B = new LocCoPhieuFilterRequest
+        {
+            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
+            NenTangGia = true,
+            MA5TangLienTucTrongNPhien = 1,
+            NenTopSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+            NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+            MA5SoVoiMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
+        };
+        private LocCoPhieuFilterRequest CT2 = new LocCoPhieuFilterRequest
+        {
+            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
+            MACDTangLienTucTrongNPhien = 1,
+            NenTangGia = true,
+            MACDMomentumTangLienTucTrongNPhien = 1,
+            NenTopSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+            NenBotSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+            GiaSoVoiDinhTrongVong40Ngay = new LocCoPhieuFilter { Value = 0.7M, Ope = LocCoPhieuFilterEnum.NhoHonHoacBang },
+            CachDayThapNhatCua40NgayTrongVongXNgay = 10
+        };
+
+        private LocCoPhieuFilterRequest CT3 = new LocCoPhieuFilterRequest
+        {
+            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
+            sosanh
+            MACDTangLienTucTrongNPhien = 1,
+            NenTangGia = true,
+            MACDMomentumTangLienTucTrongNPhien = 1,
+            NenTopSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+            NenBotSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+            GiaSoVoiDinhTrongVong40Ngay = new LocCoPhieuFilter { Value = 0.7M, Ope = LocCoPhieuFilterEnum.NhoHonHoacBang },
+            CachDayThapNhatCua40NgayTrongVongXNgay = 10
+        };
+
+
         public StockPatternController(MyDatabaseContext context)
         {
             _context = context;
@@ -3978,48 +4036,6 @@ namespace DotNetCoreSqlDb.Controllers
             return result1;
         }
 
-        private LocCoPhieuFilterRequest CT0A = new LocCoPhieuFilterRequest
-        {
-            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
-            RSI = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon, Value = 60 },
-            MacdSoVoiSignal = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon },
-            Macd = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon, Value = 0 }
-        };
-        private LocCoPhieuFilterRequest CT0B = new LocCoPhieuFilterRequest
-        {
-            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 },
-            MA5TangLienTucTrongNPhien = 1,
-            NenTangGia = true,
-            NenTopSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
-            NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
-        };
-        private LocCoPhieuFilterRequest CT1A = new LocCoPhieuFilterRequest
-        {
-            NenTangGia = true,
-            MA5CatLenMA20 = true,
-            NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
-        };
-
-        private LocCoPhieuFilterRequest CT1B = new LocCoPhieuFilterRequest
-        {
-            NenTangGia = true,
-            MA5TangLienTucTrongNPhien = 1,
-            NenTopSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
-            NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
-            MA5SoVoiMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
-        };
-        private LocCoPhieuFilterRequest CT2 = new LocCoPhieuFilterRequest
-        {
-            MACDTangLienTucTrongNPhien = 1,
-            NenTangGia = true,
-            MACDMomentumTangLienTucTrongNPhien = 1,
-            NenTopSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
-            NenBotSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
-            GiaSoVoiDinhTrongVong40Ngay = new LocCoPhieuFilter { Value = 0.7M, Ope = LocCoPhieuFilterEnum.NhoHonHoacBang },
-            CachDayThapNhatCua40NgayTrongVongXNgay = 10
-        };
-
-
         public async Task<List<string>> BoLocCoPhieu()
         {
             var code = "";
@@ -4028,7 +4044,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             var boloc = new LocCoPhieuRequest(code, ngay)
             {
-                Filter = CT1A
+                Filter = CT0A
             };
 
             var ma20vol = 100000;
@@ -4121,19 +4137,20 @@ namespace DotNetCoreSqlDb.Controllers
 
         private static bool ThỏaĐiềuKiệnLọc(LocCoPhieuFilterRequest filter, List<History> histories, History phienKiemTra, History phienHumwa)
         {
+            var phienHumKia = histories.OrderByDescending(h => h.Date).First(h => h.Date < phienHumwa.Date);
             var result = true;
             if (result && filter.NenTopSoVoiBandsTop != null)
                 result = histories.PropertySoSanh(phienKiemTra, "NenTop", "BandsTop", filter.NenTopSoVoiBandsTop.Ope);
             if (result && filter.NenBotSoVoiBandsBot != null)
                 result = histories.PropertySoSanh(phienKiemTra, "NenBot", "BandsBot", filter.NenBotSoVoiBandsBot.Ope);
             if (result && filter.NenTopSoVoiGiaMA20 != null)
-                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.NenTop, phienKiemTra.MA(histories, -20), filter.NenTopSoVoiGiaMA20.Ope);
+                result = histories.PropertySoSanhDuLieu( phienKiemTra.NenTop, phienKiemTra.MA(histories, -20), filter.NenTopSoVoiGiaMA20.Ope);
             if (result && filter.NenBotSoVoiGiaMA20 != null)
-                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.NenBot, phienKiemTra.MA(histories, -20), filter.NenBotSoVoiGiaMA20.Ope);
+                result = histories.PropertySoSanhDuLieu( phienKiemTra.NenBot, phienKiemTra.MA(histories, -20), filter.NenBotSoVoiGiaMA20.Ope);
             if (result && filter.NenTopSoVoiGiaMA5 != null)
-                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.NenTop, phienKiemTra.MA(histories, -5), filter.NenTopSoVoiGiaMA5.Ope);
+                result = histories.PropertySoSanhDuLieu( phienKiemTra.NenTop, phienKiemTra.MA(histories, -5), filter.NenTopSoVoiGiaMA5.Ope);
             if (result && filter.NenBotSoVoiGiaMA5 != null)
-                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.NenBot, phienKiemTra.MA(histories, -5), filter.NenBotSoVoiGiaMA5.Ope);
+                result = histories.PropertySoSanhDuLieu( phienKiemTra.NenBot, phienKiemTra.MA(histories, -5), filter.NenBotSoVoiGiaMA5.Ope);
             if (result && filter.NenTangGia.HasValue)
             {
                 if (filter.NenTangGia.Value && !phienKiemTra.TangGia())
@@ -4209,7 +4226,7 @@ namespace DotNetCoreSqlDb.Controllers
             if (result && filter.MACDMomentumDiNgangLienTucTrongNPhien.HasValue)
                 result = histories.PropertyDiNgangLienTucTrongNPhien(phienKiemTra, "MACDMomentum", filter.MACDMomentumDiNgangLienTucTrongNPhien.Value);
             if (result && filter.VolSoVoiVolMA20 != null)
-                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.V, phienKiemTra.VOL(histories, -20), filter.VolSoVoiVolMA20.Ope);
+                result = histories.PropertySoSanhDuLieu( phienKiemTra.V, phienKiemTra.VOL(histories, -20), filter.VolSoVoiVolMA20.Ope);
             if (result && filter.VolLonHonMA20LienTucTrongNPhien != null)
                 result = histories.VolTrenMA20LienTucTrongNPhien(phienKiemTra, filter.VolLonHonMA20LienTucTrongNPhien.Value);
             if (result && filter.VolNhoHonMA20LienTucTrongNPhien != null)
@@ -4231,7 +4248,7 @@ namespace DotNetCoreSqlDb.Controllers
             {
                 var time40NgayTruoc = histories.OrderByDescending(h => h.Date).Where(h => h.Date < phienKiemTra.Date).Take(40).ToList();
                 var dinh40NgayTruoc = time40NgayTruoc.OrderByDescending(h => h.C).First();
-                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.C, dinh40NgayTruoc.C * filter.GiaSoVoiDinhTrongVong40Ngay.Value, filter.GiaSoVoiDinhTrongVong40Ngay.Ope);
+                result = histories.PropertySoSanhDuLieu( phienKiemTra.C, dinh40NgayTruoc.C * filter.GiaSoVoiDinhTrongVong40Ngay.Value, filter.GiaSoVoiDinhTrongVong40Ngay.Ope);
             }
 
             if (result && filter.CachDayThapNhatCua40NgayTrongVongXNgay.HasValue)
@@ -4266,7 +4283,20 @@ namespace DotNetCoreSqlDb.Controllers
 
             if (result && filter.MA5SoVoiMA20 != null)
             {
-                result = histories.PropertySoSanhDuLieu(phienKiemTra, phienKiemTra.MA(histories, -5), phienKiemTra.MA(histories, -20), filter.MA5SoVoiMA20.Ope);
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.MA(histories, -5), phienKiemTra.MA(histories, -20), filter.MA5SoVoiMA20.Ope);
+            }
+
+            if (result && filter.MA20TiLeVoiM5 != null)
+            {
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.MA(histories, -20), phienKiemTra.MA(histories, -5), filter.MA20TiLeVoiM5);
+            }
+            if (result && filter.ChieuDaiThanNenSoVoiRau != null)
+            {
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.H - phienKiemTra.L, Math.Abs(phienKiemTra.C - phienKiemTra.O), filter.ChieuDaiThanNenSoVoiRau);
+            }
+            if (result && filter.MACDMomentumTangDanSoVoiNPhien.HasValue)   //TODO: hiện tại chỉ work với 1 phiên
+            {
+                result = histories.PropertySoSanhDuLieu(phienKiemTra.MACDMomentum - phienHumwa.MACDMomentum, phienHumwa.MACDMomentum - phienHumKia.MACDMomentum, LocCoPhieuFilterEnum.LonHon);
             }
 
 
