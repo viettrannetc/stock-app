@@ -814,7 +814,7 @@ namespace DotNetCoreSqlDb.Common
 
         public static bool HadBands(this History today)
         {
-            return today.BandsBot != 0 || today.BandsTop != 0;
+            return today.BandsBot != 0 || today.BandsTop != 0 || today.BandsMid != 0;
         }
 
         public static bool HadIchimoku(this History today)
@@ -823,6 +823,11 @@ namespace DotNetCoreSqlDb.Common
                 || today.IchimokuCloudTop != 0
                 || today.IchimokuTenKan != 0
                 || today.IchimokuKijun != 0;
+        }
+
+        public static bool HadMA5(this History today)
+        {
+            return today.GiaMA05 != 0;
         }
 
         public static bool HadRsi(this History today)
@@ -839,7 +844,7 @@ namespace DotNetCoreSqlDb.Common
 
         public static bool HadAllIndicators(this History today)
         {
-            return today.HadBands() && today.HadIchimoku() && today.HadMACD() && today.HadRsi();
+            return today.HadMA5() && today.HadBands() && today.HadIchimoku() && today.HadMACD() && today.HadRsi();
         }
 
         /// <summary>

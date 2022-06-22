@@ -13,10 +13,27 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         LonHonHoacBang
     }
 
+    public enum OperationEnum
+    {
+        Add,
+        Minus,
+        Multiply,
+        Divide
+    }
+
     public class LocCoPhieuFilter
     {
         public LocCoPhieuFilterEnum Ope { get; set; }
         public decimal Value { get; set; }
+    }
+
+    public class LocCoPhieuCompareFilter
+    {
+        public string Property1 { get; set; }
+        public string Property2 { get; set; }
+        public OperationEnum Operation { get; set; }
+        public LocCoPhieuFilterEnum ComparisonSign { get; set; }
+        public decimal Result { get; set; }
     }
 
 
@@ -35,6 +52,12 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
 
     public class LocCoPhieuFilterRequest
     {
+        public LocCoPhieuFilterRequest(string name)
+        {
+            Name = name;
+            PropertiesComparison = new List<LocCoPhieuCompareFilter>();
+        }
+        public string Name { get; set; }
         public LocCoPhieuFilter DoDaiThanNenToiBandsTop { get; set; }
         public LocCoPhieuFilter DoDaiThanNenToiBandsBot { get; set; }
         public LocCoPhieuFilter NenTopSoVoiBandsTop { get; set; }
@@ -72,8 +95,15 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         public int? RSITangLienTucTrongNPhien { get; set; }
         public int? RSIGiamLienTucTrongNPhien { get; set; }
         public int? RSIDiNgangLienTucTrongNPhien { get; set; }
-        //TODO
-        public bool? RSIPhanKyAm { get; set; }
+
+        /// <summary>
+        /// TODO
+        /// </summary>
+        public bool? RSIPhanKyGiam { get; set; }
+        /// <summary>
+        /// TODO
+        /// </summary>
+        public bool? RSIPhanKyTang { get; set; }
 
         public LocCoPhieuFilter Macd { get; set; }
         public LocCoPhieuFilter MacdSoVoiSignal { get; set; }
@@ -89,6 +119,10 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         public int? MACDMomentumGiamLienTucTrongNPhien { get; set; }
         public int? MACDMomentumTangDanSoVoiNPhien { get; set; }
         public int? MACDMomentumDiNgangLienTucTrongNPhien { get; set; }
+        public bool? MACDPhanKiGiam { get; set; }
+        public bool? MACDPhanKiTang { get; set; }
+
+
         public LocCoPhieuFilter VolSoVoiVolMA20 { get; set; }
         public int? VolLonHonMA20LienTucTrongNPhien { get; set; }
         public int? VolNhoHonMA20LienTucTrongNPhien { get; set; }
@@ -99,6 +133,8 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         public LocCoPhieuFilter GiaSoVoiDinhTrongVong40Ngay { get; set; }
 
         public int? CachDayThapNhatCua40NgayTrongVongXNgay { get; set; }
+
+        public List<LocCoPhieuCompareFilter> PropertiesComparison { get; set; }
     }
 
     public class LocCoPhieuKiVongRequest
@@ -128,7 +164,7 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
                 LãiMin = 1.01M
             };
             Filters = new List<LocCoPhieuFilterRequest>();
-            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 100000 };
+            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 1000000 };
         }
         public string Code { get; set; }
         public DateTime Ngay { get; set; }

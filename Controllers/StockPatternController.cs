@@ -28,27 +28,27 @@ namespace DotNetCoreSqlDb.Controllers
     {
         private readonly MyDatabaseContext _context;
 
-        private LocCoPhieuFilterRequest CT0A = new LocCoPhieuFilterRequest
+        private LocCoPhieuFilterRequest CT0A = new LocCoPhieuFilterRequest("CT0A")
         {
             RSI = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon, Value = 60 },
             MacdSoVoiSignal = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon },
             Macd = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHon, Value = 0 }
         };
-        private LocCoPhieuFilterRequest CT0B = new LocCoPhieuFilterRequest
+        private LocCoPhieuFilterRequest CT0B = new LocCoPhieuFilterRequest("CT0B")
         {
             MA5TangLienTucTrongNPhien = 1,
             NenTangGia = true,
             NenTopSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
             NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
         };
-        private LocCoPhieuFilterRequest CT1A = new LocCoPhieuFilterRequest
+        private LocCoPhieuFilterRequest CT1A = new LocCoPhieuFilterRequest("CT1A")
         {
             NenTangGia = true,
             MA5CatLenMA20 = true,
             NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
         };
 
-        private LocCoPhieuFilterRequest CT1B = new LocCoPhieuFilterRequest
+        private LocCoPhieuFilterRequest CT1B = new LocCoPhieuFilterRequest("CT1B")
         {
             NenTangGia = true,
             MA5TangLienTucTrongNPhien = 1,
@@ -56,7 +56,7 @@ namespace DotNetCoreSqlDb.Controllers
             NenBotSoVoiGiaMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
             MA5SoVoiMA20 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon }
         };
-        private LocCoPhieuFilterRequest CT2 = new LocCoPhieuFilterRequest
+        private LocCoPhieuFilterRequest CT2 = new LocCoPhieuFilterRequest("CT2")
         {
             MACDTangLienTucTrongNPhien = 1,
             NenTangGia = true,
@@ -67,16 +67,27 @@ namespace DotNetCoreSqlDb.Controllers
             CachDayThapNhatCua40NgayTrongVongXNgay = 10
         };
 
-        private LocCoPhieuFilterRequest CT3 = new LocCoPhieuFilterRequest
+        private LocCoPhieuFilterRequest CT3 = new LocCoPhieuFilterRequest("CT3")
         {
-            MA20TiLeVoiM5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHonHoacBang, Value = 1.09M },
+            MA20TiLeVoiM5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 1.09M },
             RSITangLienTucTrongNPhien = 1,
             MACDMomentumTangDanSoVoiNPhien = 1
         };
 
-        private LocCoPhieuFilterRequest CT4 = new LocCoPhieuFilterRequest
+        private LocCoPhieuFilterRequest CT4 = new LocCoPhieuFilterRequest("CT4")
         {
-            MA20TiLeVoiM5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHonHoacBang, Value = 1.035M },
+            MA20TiLeVoiM5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 1.035M },
+            RSITangLienTucTrongNPhien = 1,
+            MACDMomentumTangDanSoVoiNPhien = 1,
+            ĐuôiNenThapHonBandDuoi = true,
+            ChieuDaiThanNenSoVoiRau = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 3.5M },
+            NenTangGia = true
+        };
+
+
+        private LocCoPhieuFilterRequest CT5 = new LocCoPhieuFilterRequest("CT5")        //RSI Phân kì
+        {
+            MA20TiLeVoiM5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 1.035M },
             RSITangLienTucTrongNPhien = 1,
             MACDMomentumTangDanSoVoiNPhien = 1,
             ĐuôiNenThapHonBandDuoi = true,
@@ -4035,16 +4046,18 @@ namespace DotNetCoreSqlDb.Controllers
             return result1;
         }
 
-        public async Task<List<string>> BoLocCoPhieu()
+        public async Task<List<string>> BoLocCoPhieu(string code, DateTime ngay)
         {
-            var code = "";
-            var ngay = new DateTime(2022, 6, 20);
+            //var code = "";
+            //var ngay = new DateTime(2022, 6, 21);
             var ngayBatDauKiemTraTiLeDungSai = new DateTime(2020, 1, 1);
 
             var boloc = new LocCoPhieuRequest(code, ngay)
             {
                 Filters = new List<LocCoPhieuFilterRequest> {
-                    CT0A, CT0B, CT1A, CT1B, CT2, CT3, CT4
+                    //CT0A,                     CT0B, CT1A, CT1B,                     CT2
+                    CT3
+                    //, CT4
                 }
             };
 
@@ -4130,7 +4143,7 @@ namespace DotNetCoreSqlDb.Controllers
                     }
                 }
             }
-            
+
             //var folder = ConstantPath.Path;
             //var g = Guid.NewGuid();
             //var name = $@"{folder}{g}.xlsx";
@@ -4143,6 +4156,22 @@ namespace DotNetCoreSqlDb.Controllers
         {
             var phienHumKia = histories.OrderByDescending(h => h.Date).First(h => h.Date < phienHumwa.Date);
             var result = true;
+
+
+            //foreach (var compareItem in filter.PropertiesComparison)
+            //{
+            //    var property1 = 
+            //}
+
+
+
+
+
+
+
+
+
+
             if (result && filter.NenTopSoVoiBandsTop != null)
                 result = histories.PropertySoSanh(phienKiemTra, "NenTop", "BandsTop", filter.NenTopSoVoiBandsTop.Ope);
             if (result && filter.NenBotSoVoiBandsBot != null)
@@ -4485,16 +4514,134 @@ namespace DotNetCoreSqlDb.Controllers
             * CachDayThapNhatCua40NgayTrongVongXNgay = 10
             */
 
-            LocCoPhieuFilterRequest filter = new LocCoPhieuFilterRequest
+            Parallel.ForEach(symbols, symbol =>
             {
-                MACDTangLienTucTrongNPhien = 1,
-                NenTangGia = true,
-                MACDMomentumTangLienTucTrongNPhien = 1,
-                NenTopSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
-                NenBotSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
-                GiaSoVoiDinhTrongVong40Ngay = new LocCoPhieuFilter { Value = 0.7M, Ope = LocCoPhieuFilterEnum.NhoHonHoacBang },
-                CachDayThapNhatCua40NgayTrongVongXNgay = 10
-            };
+                var result1 = new List<string>();
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var histories = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+                var ngayBatDau = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngayCuoi);
+                for (int i = histories.IndexOf(ngayBatDau); i < histories.Count; i++)
+                {
+                    ngayBatDau = histories[i];
+                    if (ngayBatDau != null && ngayBatDau.HadAllIndicators())
+                    {
+                        break;
+                    }
+                }
+
+                var ngayDungLai = histories.OrderBy(h => h.Date).First(h => h.Date >= ngay);
+                var startedI = histories.IndexOf(ngayBatDau);
+                var stoppedI = histories.IndexOf(ngayDungLai);
+
+                for (int i = startedI; i < stoppedI; i++)
+                {
+                    var phienHumNay = histories[i];
+                    var phienHumWa = histories[i - 1];
+
+                    var thoaDK = ThỏaĐiềuKiệnLọc(CT2, histories, phienHumNay, phienHumWa);
+                    if (!thoaDK) continue;
+
+                    var ngayMua = histories[i + 1];
+                    var giáĐặtMua = ngayMua.O > phienHumNay.C
+                        ? phienHumNay.C
+                        : ngayMua.O;    //Đặt giá mở cửa hoặc ATO luôn - ko dc, mở GAP to là nát
+
+                    if (ngayMua.NenTop >= giáĐặtMua && ngayMua.NenBot <= giáĐặtMua)
+                    {
+                        var giữT = 3;
+                        var tPlus = histories.Where(h => h.Date >= ngayMua.Date)
+                            .OrderBy(h => h.Date)
+                            .Skip(3)
+                            .Take(giữT)
+                            .ToList();
+
+                        if (tPlus.Count < 3) //hiện tại
+                        {
+                            result1.Add($"{symbol._sc_} - Hiện tại điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                        else
+                        {
+                            if (tPlus.Any(t => t.C > ngayMua.O * (1M + percentProfit) || t.O > ngayMua.O * (1M + percentProfit)))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                            {
+                                dung++;
+                                result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                            }
+                            else
+                            {
+                                sai++;
+                                result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                            }
+                        }
+                    }
+                }
+
+                if (result1.Any())
+                {
+                    var tile = (dung + sai) == 0 ? 0 : Math.Round(dung / (dung + sai), 2);
+                    tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, tile, result1));
+                }
+            });
+
+            tup = tup.OrderByDescending(t => t.Item2).ToList();
+
+            return tup;
+        }
+
+        public async Task<List<Tuple<string, decimal, List<string>>>> CongThuc3(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
+        {
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10)
+                    && ss.Date >= ngayCuoi.AddDays(-100))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            /* MACD đi ngang hoặc hướng lên ----> 38 item 100%
+            * Nến tăng
+            * Momentum tăng
+            * thân nến đè lên MA 5
+            * Giá so với đỉnh cao nhất trong 40 ngày < 70% từ đỉnh
+            */
+
+            /* MACD đi ngang hoặc hướng lên ----> 37 item 100
+            * Nến tăng
+            * Momentum tăng
+            * Giá so với đỉnh cao nhất trong 40 ngày < 70% từ đỉnh
+            * CachDayThapNhatCua40NgayTrongVongXNgay = 10
+            */
+
+            /* MACD đi ngang hoặc hướng lên ----> XXXXXXXXXXXX
+            * Nến tăng
+            * Momentum tăng
+            * thân nến đè lên MA 5          -> Phần nến trên MA 5 > phần nến dưới MA 5, phần nến dưới MA 5 ít nhất 1/3 thân nến
+            * cây nến hum wa cũng là cây nến tăng luôn
+            * Giá so với đỉnh cao nhất trong 40 ngày < 70% từ đỉnh
+            * CachDayThapNhatCua40NgayTrongVongXNgay = 10
+            */
+
+            //LocCoPhieuFilterRequest filter = new LocCoPhieuFilterRequest
+            //{
+            //    MACDTangLienTucTrongNPhien = 1,
+            //    NenTangGia = true,
+            //    MACDMomentumTangLienTucTrongNPhien = 1,
+            //    NenTopSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+            //    NenBotSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+            //    GiaSoVoiDinhTrongVong40Ngay = new LocCoPhieuFilter { Value = 0.7M, Ope = LocCoPhieuFilterEnum.NhoHonHoacBang },
+            //    CachDayThapNhatCua40NgayTrongVongXNgay = 10
+            //};
 
             Parallel.ForEach(symbols, symbol =>
             {
@@ -4525,7 +4672,113 @@ namespace DotNetCoreSqlDb.Controllers
                     var phienHumNay = histories[i];
                     var phienHumWa = histories[i - 1];
 
-                    var thoaDK = ThỏaĐiềuKiệnLọc(filter, histories, phienHumNay, phienHumWa);
+                    var thoaDK = ThỏaĐiềuKiệnLọc(CT3, histories, phienHumNay, phienHumWa);
+                    if (!thoaDK) continue;
+
+                    var ngayMua = histories[i + 1];
+                    var giáĐặtMua = ngayMua.O > phienHumNay.C
+                        ? phienHumNay.C
+                        : ngayMua.O;    //Đặt giá mở cửa hoặc ATO luôn - ko dc, mở GAP to là nát
+
+                    if (ngayMua.NenTop >= giáĐặtMua && ngayMua.NenBot <= giáĐặtMua)
+                    {
+                        var giữT = 3;
+                        var tPlus = histories.Where(h => h.Date >= ngayMua.Date)
+                            .OrderBy(h => h.Date)
+                            .Skip(3)
+                            .Take(giữT)
+                            .ToList();
+
+                        if (tPlus.Count < 3) //hiện tại
+                        {
+                            result1.Add($"{symbol._sc_} - Hiện tại điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                        else
+                        {
+                            if (tPlus.Any(t => t.C > ngayMua.O * (1M + percentProfit) || t.O > ngayMua.O * (1M + percentProfit)))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                            {
+                                dung++;
+                                result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                            }
+                            else
+                            {
+                                sai++;
+                                result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                            }
+                        }
+                    }
+                }
+
+                if (result1.Any())
+                {
+                    var tile = (dung + sai) == 0 ? 0 : Math.Round(dung / (dung + sai), 2);
+                    tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, tile, result1));
+                }
+            });
+
+            tup = tup.OrderByDescending(t => t.Item2).ToList();
+
+            return tup;
+        }
+
+        public async Task<List<Tuple<string, decimal, List<string>>>> CongThuc4(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
+        {
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10)
+                    && ss.Date >= ngayCuoi.AddDays(-100))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            //LocCoPhieuFilterRequest filter = new LocCoPhieuFilterRequest
+            //{
+            //    MACDTangLienTucTrongNPhien = 1,
+            //    NenTangGia = true,
+            //    MACDMomentumTangLienTucTrongNPhien = 1,
+            //    NenTopSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang },
+            //    NenBotSoVoiGiaMA5 = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.NhoHon },
+            //    GiaSoVoiDinhTrongVong40Ngay = new LocCoPhieuFilter { Value = 0.7M, Ope = LocCoPhieuFilterEnum.NhoHonHoacBang },
+            //    CachDayThapNhatCua40NgayTrongVongXNgay = 10
+            //};
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var result1 = new List<string>();
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var histories = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+                var ngayBatDau = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngayCuoi);
+                for (int i = histories.IndexOf(ngayBatDau); i < histories.Count; i++)
+                {
+                    ngayBatDau = histories[i];
+                    if (ngayBatDau != null && ngayBatDau.HadAllIndicators())
+                    {
+                        break;
+                    }
+                }
+
+                var ngayDungLai = histories.OrderBy(h => h.Date).First(h => h.Date >= ngay);
+                var startedI = histories.IndexOf(ngayBatDau);
+                var stoppedI = histories.IndexOf(ngayDungLai);
+
+                for (int i = startedI; i < stoppedI; i++)
+                {
+                    var phienHumNay = histories[i];
+                    var phienHumWa = histories[i - 1];
+
+                    var thoaDK = ThỏaĐiềuKiệnLọc(CT4, histories, phienHumNay, phienHumWa);
                     if (!thoaDK) continue;
 
                     var ngayMua = histories[i + 1];

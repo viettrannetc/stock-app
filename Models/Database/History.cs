@@ -20,7 +20,10 @@ namespace DotNetCoreSqlDb.Models
         public decimal NenBot { get; set; }
         public decimal BandsTop { get; set; }
         public decimal BandsBot { get; set; }
-
+        /// <summary>
+        /// defined as price MA 20
+        /// </summary>
+        public decimal BandsMid { get; set; }
         /// <summary>
         /// 12/26
         /// </summary>
@@ -38,7 +41,7 @@ namespace DotNetCoreSqlDb.Models
         public decimal IchimokuKijun { get; set; }
         public decimal IchimokuCloudTop { get; set; }
         public decimal IchimokuCloudBot { get; set; }
-
+        public decimal GiaMA05 { get; set; }
         public string StockSymbol { get; set; }
         public DateTime Date { get; set; }
     }

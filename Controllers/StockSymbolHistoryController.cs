@@ -190,6 +190,8 @@ namespace DotNetCoreSqlDb.Controllers
                 var macd = qoutes.GetMacd();
                 var rsis = qoutes.GetRsi();
                 var bands = qoutes.GetBollingerBands();
+                var ma5 = qoutes.GetSma(5);
+
 
                 var test = new List<History>();
                 for (int i = 0; i < historiesInPeriodOfTime.Count; i++)
@@ -232,12 +234,14 @@ namespace DotNetCoreSqlDb.Controllers
                         //    newHistory.MACDMomentum = sameDateMacd.Histogram.HasValue ? (decimal)sameDateMacd.Histogram.Value : 0;
                         //}
 
-
-
-
                         if (historiesInPeriodOfTime[i].HadAllIndicators()) continue;
 
-                        //Update Ichimoku
+                        var sameDateMA5 = ma5.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        if (sameDateMA5 != null && !historiesInPeriodOfTime[i].HadMA5())
+                        {
+                            historiesInPeriodOfTime[i].GiaMA05 = sameDateMA5.Sma.HasValue ? (decimal)sameDateMA5.Sma.Value : 0;
+                        }
+
                         var sameDateIchi = ichimoku.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
                         if (sameDateIchi != null && !historiesInPeriodOfTime[i].HadIchimoku())
                         {
@@ -250,22 +254,20 @@ namespace DotNetCoreSqlDb.Controllers
                         historiesInPeriodOfTime[i].NenBot = historiesInPeriodOfTime[i].TangGia() ? historiesInPeriodOfTime[i].O : historiesInPeriodOfTime[i].C;
                         historiesInPeriodOfTime[i].NenTop = historiesInPeriodOfTime[i].TangGia() ? historiesInPeriodOfTime[i].C : historiesInPeriodOfTime[i].O;
 
-                        //Update RSI
                         var sameDateRSI = rsis.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
                         if (sameDateRSI != null && !historiesInPeriodOfTime[i].HadRsi())
                         {
                             historiesInPeriodOfTime[i].RSI = sameDateRSI.Rsi.HasValue ? (decimal)sameDateRSI.Rsi.Value : 0;
                         }
 
-                        //Update Bands
                         var sameDateBands = bands.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
                         if (sameDateBands != null && !historiesInPeriodOfTime[i].HadBands())
                         {
                             historiesInPeriodOfTime[i].BandsTop = sameDateBands.UpperBand.HasValue ? (decimal)sameDateBands.UpperBand.Value : 0;
                             historiesInPeriodOfTime[i].BandsBot = sameDateBands.LowerBand.HasValue ? (decimal)sameDateBands.LowerBand.Value : 0;
+                            historiesInPeriodOfTime[i].BandsMid = sameDateBands.Sma.HasValue ? (decimal)sameDateBands.Sma.Value : 0;
                         }
 
-                        //Update MACD
                         var sameDateMacd = macd.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
                         if (sameDateMacd != null && !historiesInPeriodOfTime[i].HadMACD())
                         {

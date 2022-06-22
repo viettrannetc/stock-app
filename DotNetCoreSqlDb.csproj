@@ -6,6 +6,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Schedule\**" />
+    <Content Remove="Schedule\**" />
+    <EmbeddedResource Remove="Schedule\**" />
+    <EntityDeploy Remove="Schedule\**" />
+    <None Remove="Schedule\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Migrations\20220614052926_DropTableHistory.cs" />
   </ItemGroup>
 
