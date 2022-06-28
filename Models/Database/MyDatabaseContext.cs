@@ -14,7 +14,9 @@ namespace DotNetCoreSqlDb.Models
         {
         }
 
+        public DbSet<HistoryHour> HistoryHour { get; set; }
         public DbSet<History> History { get; set; }
+
         public DbSet<StockSymbol> StockSymbol { get; set; }
         //public DbSet<StockSymbolHistory> StockSymbolHistory { get; set; }
         /// <summary>

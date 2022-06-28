@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
 {
-    public enum LocCoPhieuFilterEnum
+    public enum SoSanhEnum
     {
         Unknow = 0,
         Bang,
@@ -18,24 +18,44 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         Add,
         Minus,
         Multiply,
-        Divide
+        Divide,
+        CrossUp,
+        CrossDown,
+        ThayDoiTangNPhien,
+        ThayDoiGiamNPhien,
+        ThayDoiNgangNPhien,
+        SoSanh,
+        TrongVong
+        /// <summary>
+        /// Toán từ này được dùng trong việc xác định giá bán
+        /// Toán tử này kì vọng giá hum nay sẽ đem đi so sánh với giá quá khứ ở 1 mức (>=) bao nhiêu đó %
+        /// Nếu là số > 1: điểm lời để chốt
+        /// Nếu là số < 1: điểm lỗ để cắt
+        /// </summary>
+        //KiVong
     }
 
     public class LocCoPhieuFilter
     {
-        public LocCoPhieuFilterEnum Ope { get; set; }
+        public SoSanhEnum Ope { get; set; }
         public decimal Value { get; set; }
     }
 
-    public class LocCoPhieuCompareFilter
+    public class LocCoPhieuCompareModel
     {
+        /// <summary>
+        /// Default = 0; 
+        /// Số Âm là ngày quá khứ
+        /// </summary>
+        public int Ngay { get; set; }
+        public bool Day2 { get; set; }
+
         public string Property1 { get; set; }
         public string Property2 { get; set; }
         public OperationEnum Operation { get; set; }
-        public LocCoPhieuFilterEnum ComparisonSign { get; set; }
+        public SoSanhEnum Sign { get; set; }
         public decimal Result { get; set; }
     }
-
 
     public class LocCoPhieuQuaKhuRequest
     {
@@ -44,58 +64,31 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         public LocCoPhieuFilterRequest Filter { get; set; }
     }
 
-    //public class LocCoPhieuHumNayRequest
-    //{
-    //    public DateTime? Ngay { get; set; }
-    //    public LocCoPhieuFilterRequest Filter { get; set; }
-    //}
-
     public class LocCoPhieuFilterRequest
     {
         public LocCoPhieuFilterRequest(string name)
         {
             Name = name;
-            PropertiesComparison = new List<LocCoPhieuCompareFilter>();
+            PropertiesSoSanh = new List<LocCoPhieuCompareModel>();
+            PriceMongDoi = new List<LocCoPhieuCompareModel>();
         }
         public string Name { get; set; }
-        public LocCoPhieuFilter DoDaiThanNenToiBandsTop { get; set; }
-        public LocCoPhieuFilter DoDaiThanNenToiBandsBot { get; set; }
-        public LocCoPhieuFilter NenTopSoVoiBandsTop { get; set; }
-        public LocCoPhieuFilter NenBotSoVoiBandsBot { get; set; }
-        public LocCoPhieuFilter NenTopSoVoiGiaMA20 { get; set; }
-        public LocCoPhieuFilter NenBotSoVoiGiaMA20 { get; set; }
-        public LocCoPhieuFilter NenTopSoVoiGiaMA5 { get; set; }
-        public LocCoPhieuFilter NenBotSoVoiGiaMA5 { get; set; }
-        public bool? NenTangGia { get; set; }
-        public bool? NenBaoPhu { get; set; }
-        public LocCoPhieuFilter ChieuDaiThanNenSoVoiRau { get; set; }
-        public bool? ĐuôiNenThapHonBandDuoi { get; set; }
-        public int? BandTopTangLienTucTrongNPhien { get; set; }
-        public int? BandTopGiamLienTucTrongNPhien { get; set; }
-        public int? BandTopDiNgangLienTucTrongNPhien { get; set; }
-        public int? BandBotTangLienTucTrongNPhien { get; set; }
-        public int? BandBotGiamLienTucTrongNPhien { get; set; }
-        public int? BandBotDiNgangLienTucTrongNPhien { get; set; }
-        public int? MA5TangLienTucTrongNPhien { get; set; }
-        public int? MA5GiamLienTucTrongNPhien { get; set; }
-        public int? MA5DiNgangLienTucTrongNPhien { get; set; }
-        public bool? MA5CatLenMA20 { get; set; }
-        public bool? MA5CatXuongMA20 { get; set; }
-        public LocCoPhieuFilter MA5SoVoiMA20 { get; set; }
-        public LocCoPhieuFilter MA20TiLeVoiM5 { get; set; }
-        public int? MA20TangLienTucTrongNPhien { get; set; }
-        public int? MA20GiamLienTucTrongNPhien { get; set; }
-        public int? MA20DiNgangLienTucTrongNPhien { get; set; }
-        public LocCoPhieuFilter RSIHumWa { get; set; }
-        public LocCoPhieuFilter RSI { get; set; }
-        /// <summary>
-        /// % - tăng hoặc giảm so với phiên trước
-        /// </summary>        
-        //public LocCoPhieuFilter RSINaySoVoiWa { get; set; }
-        public int? RSITangLienTucTrongNPhien { get; set; }
-        public int? RSIGiamLienTucTrongNPhien { get; set; }
-        public int? RSIDiNgangLienTucTrongNPhien { get; set; }
 
+        public bool? NenBaoPhuDaoChieuTrungBinh { get; set; }
+        /// <summary>
+        /// False: đảo chieu giảm
+        /// True: đảo chiều tăng
+        /// </summary>
+        public bool? NenBaoPhuDaoChieuManh { get; set; }
+        /// <summary>
+        /// Toán từ này được dùng trong việc xác định giá bán
+        /// Toán tử này kì vọng giá hum nay sẽ đem đi so sánh với giá quá khứ ở 1 mức (>=) bao nhiêu đó %
+        /// Nếu là số > 1: điểm lời để chốt
+        /// Nếu là số < 1: điểm lỗ để cắt
+        /// </summary>
+        public LocCoPhieuCompareModel KiVong { get; set; }
+        public LocCoPhieuFilter ChieuDaiThanNenSoVoiRau { get; set; }
+        public LocCoPhieuFilter RSIHumWa { get; set; }
         /// <summary>
         /// TODO
         /// </summary>
@@ -104,37 +97,29 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         /// TODO
         /// </summary>
         public bool? RSIPhanKyTang { get; set; }
-
-        public LocCoPhieuFilter Macd { get; set; }
-        public LocCoPhieuFilter MacdSoVoiSignal { get; set; }
-        public LocCoPhieuFilter MacdSignal { get; set; }
-        public LocCoPhieuFilter MacdMomentum { get; set; }
-        public int? MACDTangLienTucTrongNPhien { get; set; }
-        public int? MACDGiamLienTucTrongNPhien { get; set; }
-        public int? MACDDiNgangLienTucTrongNPhien { get; set; }
-        public int? MACDSignalTangLienTucTrongNPhien { get; set; }
-        public int? MACDSignalGiamLienTucTrongNPhien { get; set; }
-        public int? MACDSignalDiNgangLienTucTrongNPhien { get; set; }
-        public int? MACDMomentumTangLienTucTrongNPhien { get; set; }
-        public int? MACDMomentumGiamLienTucTrongNPhien { get; set; }
-        public int? MACDMomentumTangDanSoVoiNPhien { get; set; }
-        public int? MACDMomentumDiNgangLienTucTrongNPhien { get; set; }
+        public int? PhanKyXayRaTrongNPhien { get; set; }
+        public bool? TrongThoiGianPhanKyDeuLaNenTang { get; set; }
+        public bool? TrongThoiGianPhanKyDeuLaNenGiam { get; set; }
         public bool? MACDPhanKiGiam { get; set; }
         public bool? MACDPhanKiTang { get; set; }
-
-
         public LocCoPhieuFilter VolSoVoiVolMA20 { get; set; }
         public int? VolLonHonMA20LienTucTrongNPhien { get; set; }
         public int? VolNhoHonMA20LienTucTrongNPhien { get; set; }
-        public LocCoPhieuFilter IchiGiaSoVoiTenkan { get; set; }
-        public LocCoPhieuFilter IchiGiaSoVoiKijun { get; set; }
-        public LocCoPhieuFilter IchiGiaSoVoiSpanA { get; set; }
-        public LocCoPhieuFilter IchiGiaSoVoiSpanB { get; set; }
         public LocCoPhieuFilter GiaSoVoiDinhTrongVong40Ngay { get; set; }
-
         public int? CachDayThapNhatCua40NgayTrongVongXNgay { get; set; }
+        public List<LocCoPhieuCompareModel> PropertiesSoSanh { get; set; }
 
-        public List<LocCoPhieuCompareFilter> PropertiesComparison { get; set; }
+        /// <summary>
+        /// CT Bắt đáy khi giảm mạnh
+        /// <para> + Tính RSI hiện tại, đếm ngược lại những ngày trước đó mà RSI vẫn đang giảm và các nến đều là nến đỏ</para>
+        /// <para> + Đi ngược lại tìm nến cao nhất</para>
+        /// <para> + Tính từ giá đóng của của cây nến đỏ cao nhất, so với giá hiện tại, nếu hiện tại giá đã giảm > 20%</para>
+        /// <para> -> thì cây sau mua bắt giá thấp nhất, giá cao nhất để mua cũng chỉ <= giá đóng của hum nay + 1/5 thân nên hum nay, tuyệt đối ko mua nếu giá mở cửa có tạo GAP cao hơn giá mở cửa của phiên hum nay</para>
+        /// </summary>
+        public bool? BatDay1 { get; set; }
+
+
+        public List<LocCoPhieuCompareModel> PriceMongDoi { get; set; }
     }
 
     public class LocCoPhieuKiVongRequest
@@ -143,13 +128,6 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         public decimal NgayMuaKichBanVolSoVoiVolPhienTruoc { get; set; }
         public decimal NgayMuaKichBanGiaMoCuaSoVoiPhienTruoc { get; set; }
         public decimal NgayMuaKichBanGiaMoCuaSoVoiMA20PhienTruoc { get; set; }
-
-        //public bool Mua { get; set; }
-        //public decimal Gia { get; set; }
-        //public decimal Loi { get; set; }
-        //public decimal Von { get; set; }
-
-
         public decimal LãiMin { get; set; }
     }
 
@@ -164,12 +142,16 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
                 LãiMin = 1.01M
             };
             Filters = new List<LocCoPhieuFilterRequest>();
-            VolToiThieu = new LocCoPhieuFilter { Ope = LocCoPhieuFilterEnum.LonHonHoacBang, Value = 1000000 };
+            VolToiThieu = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 1000000 };
+            GiaToiThieu = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 6000 };
+            ShowHistory = true;
         }
         public string Code { get; set; }
         public DateTime Ngay { get; set; }
         public LocCoPhieuFilter VolToiThieu { get; set; }
+        public LocCoPhieuFilter GiaToiThieu { get; set; }
         public List<LocCoPhieuFilterRequest> Filters { get; set; }
         public LocCoPhieuKiVongRequest Suggestion { get; set; }
+        public bool ShowHistory { get; set; }
     }
 }

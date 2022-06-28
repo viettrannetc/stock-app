@@ -10,7 +10,7 @@ using Skender.Stock.Indicators;
 
 namespace DotNetCoreSqlDb.Controllers
 {
-    public class StockSymbolHistoryController : Controller
+    public partial class StockSymbolHistoryController : Controller
     {
         private readonly MyDatabaseContext _context;
 
@@ -198,42 +198,6 @@ namespace DotNetCoreSqlDb.Controllers
                 {
                     try
                     {
-                        //var newHistory = new History();
-
-                        ////Update Ichimoku
-                        //var sameDateIchi = ichimoku.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        //if (sameDateIchi != null)
-                        //{
-                        //    newHistory.IchimokuCloudBot = sameDateIchi.SenkouSpanB.HasValue ? (decimal)sameDateIchi.SenkouSpanB.Value : 0;
-                        //    newHistory.IchimokuCloudTop = sameDateIchi.SenkouSpanA.HasValue ? (decimal)sameDateIchi.SenkouSpanA.Value : 0;
-                        //    newHistory.IchimokuTenKan = sameDateIchi.TenkanSen.HasValue ? (decimal)sameDateIchi.TenkanSen.Value : 0;
-                        //    newHistory.IchimokuKijun = sameDateIchi.KijunSen.HasValue ? (decimal)sameDateIchi.KijunSen.Value : 0;
-                        //}
-
-                        ////Update RSI
-                        //var sameDateRSI = rsis.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        //if (sameDateRSI != null)
-                        //{
-                        //    newHistory.RSI = sameDateRSI.Rsi.HasValue ? (decimal)sameDateRSI.Rsi.Value : 0;
-                        //}
-
-                        ////Update Bands
-                        //var sameDateBands = bands.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        //if (sameDateBands != null)
-                        //{
-                        //    newHistory.BandsTop = sameDateBands.UpperBand.HasValue ? (decimal)sameDateBands.UpperBand.Value : 0;
-                        //    newHistory.BandsBot = sameDateBands.LowerBand.HasValue ? (decimal)sameDateBands.LowerBand.Value : 0;
-                        //}
-
-                        ////Update MACD
-                        //var sameDateMacd = macd.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        //if (sameDateMacd != null)
-                        //{
-                        //    newHistory.MACD = sameDateMacd.Macd.HasValue ? (decimal)sameDateMacd.Macd.Value : 0;
-                        //    newHistory.MACDSignal = sameDateMacd.Signal.HasValue ? (decimal)sameDateMacd.Signal.Value : 0;
-                        //    newHistory.MACDMomentum = sameDateMacd.Histogram.HasValue ? (decimal)sameDateMacd.Histogram.Value : 0;
-                        //}
-
                         if (historiesInPeriodOfTime[i].HadAllIndicators()) continue;
 
                         var sameDateMA5 = ma5.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
@@ -347,6 +311,47 @@ namespace DotNetCoreSqlDb.Controllers
                     total_squares -= Math.Pow((double)histories[i - period + 1].C, 2);
                 }
             }
+        }
+
+
+
+
+        // GET: History/Create
+        // Form Data:
+        //      code: A32
+        //      from: 01-01-1970  (12 AM as default)
+        //      to: 15-02-2022    (12 AM as default)
+        [HttpPost]
+        public async Task<string> CreateByHour(string code)
+        {
+            var restService = new RestServiceHelper();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000).OrderByDescending(s => s._sc_).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000 && splitStringCode.Contains(s._sc_)).OrderByDescending(s => s._sc_).ToListAsync();
+
+            var result = new List<History>();
+            
+            var latestHistory = _context.HistoryHour.OrderByDescending(r => r.Date).FirstOrDefault();            
+            var currentLatestDate = latestHistory == null ? new DateTime(2000, 1, 1) : latestHistory.Date;
+
+            var from = new DateTime(2000, 1, 1);
+            var to = DateTime.Now;
+
+            var service = new Service();
+            await service.GetV(result, symbols, from, to, from, 0);
+
+            result = result.Where(r => r.Date > currentLatestDate).ToList();
+
+            if (result.Any())
+            {
+                await _context.History.AddRangeAsync(result);
+                await _context.SaveChangesAsync();
+                await UpdateIndicators(currentLatestDate);
+            }
+
+            return string.Empty;
         }
     }
 }

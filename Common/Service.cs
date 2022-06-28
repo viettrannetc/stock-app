@@ -136,5 +136,104 @@ namespace DotNetCoreSqlDb.Common
 
             return history;
         }
+
+
+
+
+
+
+        public async Task GetVHours(List<HistoryHour> result, List<StockSymbol> allSymbols, DateTime from, DateTime to, DateTime currentLatestDate, int count)
+        {
+            var restService = new RestServiceHelper();
+
+            foreach (var item in allSymbols)
+            {
+                await GetStockDataByHour(item, restService, result, from, to);
+            }
+
+            result = result.Where(r => r.Date >= currentLatestDate).ToList();   //TODO: consider whether it should be ">=" or ">"
+
+            var updated = result.Select(r => r.StockSymbol).ToList();
+
+            var notFetchedSymbols = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
+
+            if (notFetchedSymbols.Any() && count <= 3)
+            {
+                if (notFetchedSymbols.Count() == allSymbols.Count())
+                    count++;
+                await GetVHours(result, notFetchedSymbols, from, to, currentLatestDate, count);
+            }
+        }
+
+        private async Task GetStockDataByHour(StockSymbol item, RestServiceHelper restService, List<HistoryHour> result, DateTime from, DateTime to)
+        {
+            var requestModel = new VietStockSymbolHistoryResquestModel();
+            requestModel.code = item._sc_;
+            requestModel.from = from;
+            requestModel.to = to;
+
+            var url = string.Format(VietStock_GetDetailsBySymbolCode,
+                            requestModel.code,
+                            "D",
+                            requestModel.from.ConvertToPhpInt(),
+                            requestModel.to.ConvertToPhpInt()
+                            );
+            var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
+            if (allSharePointsObjects == null) return;
+
+            var numberOfT = allSharePointsObjects.t.Count();
+
+            var histories = new List<HistoryHour>();
+            for (int i = 0; i < numberOfT; i++)
+            {
+                var history = new HistoryHour();
+                history.T = allSharePointsObjects.t[i];
+                history.Date = allSharePointsObjects.t[i].PhpIntConvertToDateTime();
+                history.O = allSharePointsObjects.o[i];
+                history.C = allSharePointsObjects.c[i];
+                history.H = allSharePointsObjects.h[i];
+                history.L = allSharePointsObjects.l[i];
+                history.V = allSharePointsObjects.v[i];
+                history.StockSymbol = requestModel.code;
+
+                histories.Add(history);
+            }
+
+            result.AddRange(histories);
+
+            if (numberOfT >= 5000)
+            {
+                await GetStockDataByHour(item, restService, result, histories.OrderByDescending(h => h.Date).First().Date, to);
+            }
+        }
+
+        public async Task<HistoryHour> GetStockDataByHour(string stockCode, RestServiceHelper restService, DateTime missingDate)
+        {
+            var requestModel = new VietStockSymbolHistoryResquestModel();
+            requestModel.code = stockCode;
+            requestModel.from = missingDate;
+            requestModel.to = missingDate;
+
+            var url = string.Format(VietStock_GetDetailsBySymbolCode,
+                            requestModel.code,
+                            "60",
+                            requestModel.from.ConvertToPhpInt(),
+                            requestModel.to.ConvertToPhpInt()
+                            );
+            var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
+            if (allSharePointsObjects == null || !allSharePointsObjects.t.Any()) return null;
+
+            var history = new HistoryHour();
+            history.T = allSharePointsObjects.t[0];
+            history.Date = allSharePointsObjects.t[0].PhpIntConvertToDateTime();
+            history.O = allSharePointsObjects.o[0];
+            history.C = allSharePointsObjects.c[0];
+            history.H = allSharePointsObjects.h[0];
+            history.L = allSharePointsObjects.l[0];
+            history.V = allSharePointsObjects.v[0];
+            history.StockSymbol = requestModel.code;
+
+            return history;
+        }
     }
 }
