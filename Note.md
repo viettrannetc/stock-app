@@ -1,6 +1,6 @@
 # Run migrate database:
-Add-Migration InitialCreate
-Update-Database
+EntityFrameworkCore\Add-Migration InitialCreate
+EntityFrameworkCore\Update-Database
 
 
 # Run to get date value between c# & Php

@@ -174,7 +174,7 @@ namespace DotNetCoreSqlDb.Common
 
             var url = string.Format(VietStock_GetDetailsBySymbolCode,
                             requestModel.code,
-                            "D",
+                            "60",
                             requestModel.from.ConvertToPhpInt(),
                             requestModel.to.ConvertToPhpInt()
                             );
@@ -198,42 +198,15 @@ namespace DotNetCoreSqlDb.Common
 
                 histories.Add(history);
             }
+            histories = histories.OrderBy(h => h.Date).ToList();
 
             result.AddRange(histories);
 
-            if (numberOfT >= 5000)
+            if (numberOfT > 0)
             {
-                await GetStockDataByHour(item, restService, result, histories.OrderByDescending(h => h.Date).First().Date, to);
+                to = histories.OrderBy(h => h.Date).First().Date.AddDays(-1).WithoutHours();
+                await GetStockDataByHour(item, restService, result, from, to);
             }
-        }
-
-        public async Task<HistoryHour> GetStockDataByHour(string stockCode, RestServiceHelper restService, DateTime missingDate)
-        {
-            var requestModel = new VietStockSymbolHistoryResquestModel();
-            requestModel.code = stockCode;
-            requestModel.from = missingDate;
-            requestModel.to = missingDate;
-
-            var url = string.Format(VietStock_GetDetailsBySymbolCode,
-                            requestModel.code,
-                            "60",
-                            requestModel.from.ConvertToPhpInt(),
-                            requestModel.to.ConvertToPhpInt()
-                            );
-            var allSharePointsObjects = await restService.Get<VietStockSymbolHistoryResponseModel>(url, true);
-            if (allSharePointsObjects == null || !allSharePointsObjects.t.Any()) return null;
-
-            var history = new HistoryHour();
-            history.T = allSharePointsObjects.t[0];
-            history.Date = allSharePointsObjects.t[0].PhpIntConvertToDateTime();
-            history.O = allSharePointsObjects.o[0];
-            history.C = allSharePointsObjects.c[0];
-            history.H = allSharePointsObjects.h[0];
-            history.L = allSharePointsObjects.l[0];
-            history.V = allSharePointsObjects.v[0];
-            history.StockSymbol = requestModel.code;
-
-            return history;
         }
     }
 }

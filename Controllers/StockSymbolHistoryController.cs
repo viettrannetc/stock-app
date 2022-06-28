@@ -269,10 +269,25 @@ namespace DotNetCoreSqlDb.Controllers
                 qoutes.Add(new Quote
                 {
                     Date = h.Date,
-                    //Close = Math.Round(h.C / 1000, 2),                    
-                    //High = Math.Round(h.H / 1000, 2),
-                    //Low = Math.Round(h.L / 1000, 2),
-                    //Open = Math.Round(h.O / 1000, 2),
+                    Close = h.C,
+                    High = h.H,
+                    Low = h.L,
+                    Open = h.O,
+                    Volume = h.V,
+                });
+            }
+
+            return qoutes;
+        }
+
+        public IEnumerable<Quote> MACDConvertHistory(List<HistoryHour> histories)
+        {
+            var qoutes = new List<Quote>();
+            foreach (var h in histories)
+            {
+                qoutes.Add(new Quote
+                {
+                    Date = h.Date,
                     Close = h.C,
                     High = h.H,
                     Low = h.L,
@@ -331,7 +346,7 @@ namespace DotNetCoreSqlDb.Controllers
                 ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000).OrderByDescending(s => s._sc_).ToListAsync()
                 : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000 && splitStringCode.Contains(s._sc_)).OrderByDescending(s => s._sc_).ToListAsync();
 
-            var result = new List<History>();
+            var result = new List<HistoryHour>();
             
             var latestHistory = _context.HistoryHour.OrderByDescending(r => r.Date).FirstOrDefault();            
             var currentLatestDate = latestHistory == null ? new DateTime(2000, 1, 1) : latestHistory.Date;
@@ -340,18 +355,133 @@ namespace DotNetCoreSqlDb.Controllers
             var to = DateTime.Now;
 
             var service = new Service();
-            await service.GetV(result, symbols, from, to, from, 0);
+            await service.GetVHours(result, symbols, from, to, from, 0);
 
             result = result.Where(r => r.Date > currentLatestDate).ToList();
 
             if (result.Any())
             {
-                await _context.History.AddRangeAsync(result);
+                await _context.HistoryHour.AddRangeAsync(result);
                 await _context.SaveChangesAsync();
                 await UpdateIndicators(currentLatestDate);
             }
 
             return string.Empty;
+        }
+
+
+        public async Task<string> UpdateIndicatorsHour()
+        {
+            var symbols = await _context.StockSymbol
+                .Where(s => s.BiChanGiaoDich == false && s.MA20Vol > 100000)
+                //.Where(s => s._sc_ == "VIC")
+                .OrderByDescending(s => s._sc_)
+                .ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.HistoryHour
+                .Where(ss => stockCodes.Contains(ss.StockSymbol))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            int rsiPeriod = 14;
+            int bandsPeriod = 20;
+            int bandsFactor = 2;
+
+            foreach (var symbol in symbols)
+            {
+                //Update stock
+                //var histories = historiesStockCode
+                //    .Where(ss => ss.StockSymbol == symbol._sc_)
+                //    .OrderByDescending(h => h.Date)
+                //    .ToList();
+
+                //var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
+                //var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
+                //symbol.BiChanGiaoDich = biCanhCao;
+
+                //var avarageOfLastXXPhien = histories.Take(20).Sum(h => h.V) / 20;
+                //symbol.MA20Vol = avarageOfLastXXPhien;
+                //_context.StockSymbol.Update(symbol);
+
+
+
+                //Update indicators - Done
+                var historiesInPeriodOfTime = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+
+                if (!historiesInPeriodOfTime.Any()) continue;
+
+                var qoutes = MACDConvertHistory(historiesInPeriodOfTime);
+
+                var ichimoku = qoutes.GetIchimoku();
+                var macd = qoutes.GetMacd();
+                var rsis = qoutes.GetRsi();
+                var bands = qoutes.GetBollingerBands();
+                var ma5 = qoutes.GetSma(5);
+
+
+                var test = new List<HistoryHour>();
+                for (int i = 0; i < historiesInPeriodOfTime.Count; i++)
+                {
+                    try
+                    {
+                        if (historiesInPeriodOfTime[i].HadAllIndicators()) continue;
+
+                        var sameDateMA5 = ma5.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        if (sameDateMA5 != null && !historiesInPeriodOfTime[i].HadMA5())
+                        {
+                            historiesInPeriodOfTime[i].GiaMA05 = sameDateMA5.Sma.HasValue ? (decimal)sameDateMA5.Sma.Value : 0;
+                        }
+
+                        var sameDateIchi = ichimoku.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        if (sameDateIchi != null && !historiesInPeriodOfTime[i].HadIchimoku())
+                        {
+                            historiesInPeriodOfTime[i].IchimokuCloudBot = sameDateIchi.SenkouSpanB.HasValue ? (decimal)sameDateIchi.SenkouSpanB.Value : 0;
+                            historiesInPeriodOfTime[i].IchimokuCloudTop = sameDateIchi.SenkouSpanA.HasValue ? (decimal)sameDateIchi.SenkouSpanA.Value : 0;
+                            historiesInPeriodOfTime[i].IchimokuTenKan = sameDateIchi.TenkanSen.HasValue ? (decimal)sameDateIchi.TenkanSen.Value : 0;
+                            historiesInPeriodOfTime[i].IchimokuKijun = sameDateIchi.KijunSen.HasValue ? (decimal)sameDateIchi.KijunSen.Value : 0;
+                        }
+
+                        historiesInPeriodOfTime[i].NenBot = historiesInPeriodOfTime[i].TangGia() ? historiesInPeriodOfTime[i].O : historiesInPeriodOfTime[i].C;
+                        historiesInPeriodOfTime[i].NenTop = historiesInPeriodOfTime[i].TangGia() ? historiesInPeriodOfTime[i].C : historiesInPeriodOfTime[i].O;
+
+                        var sameDateRSI = rsis.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        if (sameDateRSI != null && !historiesInPeriodOfTime[i].HadRsi())
+                        {
+                            historiesInPeriodOfTime[i].RSI = sameDateRSI.Rsi.HasValue ? (decimal)sameDateRSI.Rsi.Value : 0;
+                        }
+
+                        var sameDateBands = bands.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        if (sameDateBands != null && !historiesInPeriodOfTime[i].HadBands())
+                        {
+                            historiesInPeriodOfTime[i].BandsTop = sameDateBands.UpperBand.HasValue ? (decimal)sameDateBands.UpperBand.Value : 0;
+                            historiesInPeriodOfTime[i].BandsBot = sameDateBands.LowerBand.HasValue ? (decimal)sameDateBands.LowerBand.Value : 0;
+                            historiesInPeriodOfTime[i].BandsMid = sameDateBands.Sma.HasValue ? (decimal)sameDateBands.Sma.Value : 0;
+                        }
+
+                        var sameDateMacd = macd.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
+                        if (sameDateMacd != null && !historiesInPeriodOfTime[i].HadMACD())
+                        {
+                            historiesInPeriodOfTime[i].MACD = sameDateMacd.Macd.HasValue ? (decimal)sameDateMacd.Macd.Value : 0;
+                            historiesInPeriodOfTime[i].MACDSignal = sameDateMacd.Signal.HasValue ? (decimal)sameDateMacd.Signal.Value : 0;
+                            historiesInPeriodOfTime[i].MACDMomentum = sameDateMacd.Histogram.HasValue ? (decimal)sameDateMacd.Histogram.Value : 0;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        continue;
+                    }
+
+                    _context.HistoryHour.Update(historiesInPeriodOfTime[i]);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return "true";
         }
     }
 }
