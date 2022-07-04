@@ -1707,11 +1707,10 @@ namespace DotNetCoreSqlDb.Controllers
                 result = histories.KiemTraTangManhTuDay(phienKiemTra);
             }
 
-            //if (result && filter.MACDPhanKiTang.HasValue && filter.KiemTraTangManhTuDay.Value)
-            //{
-            //    result = histories.KiemTraTangManhTuDay(phienKiemTra);
-            //}
-
+            if (result && filter.FullMargin.HasValue && filter.FullMargin.Value)
+            {
+                result = histories.FullMargin(phienKiemTra);
+            }
 
             return result;
         }
@@ -2301,10 +2300,10 @@ namespace DotNetCoreSqlDb.Controllers
                     var phienHumWa = histories[i - 1];
                     var lstBan = new List<Tuple<string, bool>>();
 
-                    var thoaDK = ThỏaĐiềuKiệnLọc(CongThuc.CTNT1, histories, phienHumNay);
+                    var thoaDK = ThỏaĐiềuKiệnLọc(CongThuc.CTNT3, histories, phienHumNay);
                     if (!thoaDK) continue;
 
-                    lstBan.Add(new Tuple<string, bool>("CTNT1", thoaDK));
+                    lstBan.Add(new Tuple<string, bool>("CTNT3", thoaDK));
 
                     var giaMua = TimGiaMuaMongMuon(histories, phienHumNay, lstBan);
 

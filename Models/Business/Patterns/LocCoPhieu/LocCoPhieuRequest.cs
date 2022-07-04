@@ -177,6 +177,9 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         ///         + MSN 25/05/22 - 06                   14-15% - SAU TĂNG NỮA LÊN TỚI 24% - Bands rộng rãi thoải mái cho tăng
         /// </summary>
         public bool? KiemTraTangManhTuDay { get; set; }
+
+        public bool? FullMargin { get; set; }
+        
     }
 
     public class LocCoPhieuKiVongRequest

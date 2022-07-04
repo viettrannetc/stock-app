@@ -79,17 +79,12 @@ namespace DotNetCoreSqlDb.Common
         };
 
         /// <summary>
-        /// Phan ki duong MACD, gia vuot MA 20
+        /// Trong vong 7 phien, co 2 đáy MACD 
+        /// TODO: chưa xai dc 
         /// </summary>
         public static LocCoPhieuFilterRequest CTNT3 = new LocCoPhieuFilterRequest("CTNT3")
         {
-            //MACDPhanKiTang = true,
-            PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
-                new LocCoPhieuCompareModel { Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
-                new LocCoPhieuCompareModel { Day2 = true, Property1 = "MACD", Operation = OperationEnum.TrongVong, Result = 2  },
-                new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 1 },
-                new LocCoPhieuCompareModel { Property1 = "NenTop", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  }
-            },
+            FullMargin = true
         };
     }
 }
