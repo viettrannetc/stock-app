@@ -16,6 +16,13 @@ namespace DotNetCoreSqlDb.Common
 {
     public static class ExcelExtension
     {
+        public static DataTable ToDataTable(this List<Tuple<string, string, decimal, string>> dlist)
+        {
+            var json = JsonConvert.SerializeObject(dlist);
+            DataTable dataTable = (DataTable)JsonConvert.DeserializeObject(json, (typeof(DataTable)));
+            return dataTable;
+        }
+
         public static DataTable ToDataTable(this List<LearningRealDataModel> dlist)
         {
             //= new List<dynamic>();

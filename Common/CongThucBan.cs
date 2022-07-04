@@ -6,14 +6,7 @@ namespace DotNetCoreSqlDb.Common
 {
     public static partial class CongThuc
     {
-        public static List<LocCoPhieuFilterRequest> allCongThuc = new List<LocCoPhieuFilterRequest>()
-        {
-            //CTB1A, CTB1B, CTB1C1, CTB1C2, CTB1D, CTB1E, CTB1F,
-            //CT2A, 
-
-            CT1A, CT1B, CT1C, CT1D, CT1B2, CT1B3,
-            CT2B,CT2C, CT2D,CT2E, CT2F
-        };
+        
 
 
 
@@ -82,5 +75,10 @@ namespace DotNetCoreSqlDb.Common
         };
 
 
+        public static List<LocCoPhieuFilterRequest> allCongThuc = new List<LocCoPhieuFilterRequest>()
+        {
+            CT1A, CT1B, CT1C, CT3, CT1B2, CT1B3,
+            CT2B,CT2C, CT2D,CT2E, CT2F
+        };
     }
 }

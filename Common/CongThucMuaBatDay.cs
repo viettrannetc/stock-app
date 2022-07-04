@@ -108,7 +108,7 @@ namespace DotNetCoreSqlDb.Common
         };
 
 
-        public static LocCoPhieuFilterRequest CT3 = new LocCoPhieuFilterRequest("CT3")        //RSI Phân kì
+        public static LocCoPhieuFilterRequest CT2G = new LocCoPhieuFilterRequest("CT2G")        //RSI Phân kì
         {
             RSIPhanKyTang = true
         };

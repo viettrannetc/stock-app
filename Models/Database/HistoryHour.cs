@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DotNetCoreSqlDb.Models
 {
@@ -44,6 +45,24 @@ namespace DotNetCoreSqlDb.Models
         public decimal GiaMA05 { get; set; }
         public string StockSymbol { get; set; }
         public DateTime Date { get; set; }
+
+        [NotMapped]
+        public decimal IchimokuTop
+        {
+            get
+            {
+                return Math.Max(IchimokuCloudTop, IchimokuCloudBot);
+            }
+        }
+
+        [NotMapped]
+        public decimal IchimokuBot
+        {
+            get
+            {
+                return Math.Min(IchimokuCloudTop, IchimokuCloudBot);
+            }
+        }
     }
 }
 

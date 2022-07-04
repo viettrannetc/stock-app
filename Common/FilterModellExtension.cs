@@ -11,110 +11,6 @@ namespace DotNetCoreSqlDb.Common
 {
     public static class FilterModellExtension
     {
-        //public static bool NenTopVsGiaMa20(this List<History> histories, History checkingDate, LocCoPhieuFilterEnum filter)
-        //{
-        //    switch (filter)
-        //    {
-        //        case LocCoPhieuFilterEnum.Bang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenTop == checkingDate.MA(histories, -20)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.NhoHon:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenTop < checkingDate.MA(histories, -20)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.LonHon:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenTop > checkingDate.MA(histories, -20)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.NhoHonHoacBang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenTop <= checkingDate.MA(histories, -20)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.LonHonHoacBang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenTop >= checkingDate.MA(histories, -20)).ToList();
-        //            break;
-        //        default:
-        //            break;
-        //    }
-
-        //    return histories;
-        //}
-
-        //public static bool NenBotVsGiaMa20(this List<History> histories, History checkingDate, LocCoPhieuFilterEnum filter)
-        //{
-        //    switch (filter)
-        //    {
-        //        case LocCoPhieuFilterEnum.Bang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenBot == checkingDate.MA(histories, -20)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.NhoHon:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenBot < checkingDate.MA(histories, -20)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.LonHon:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenBot > checkingDate.MA(histories, -20)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.NhoHonHoacBang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenBot <= checkingDate.MA(histories, -20)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.LonHonHoacBang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenBot >= checkingDate.MA(histories, -20)).ToList();
-        //            break;
-        //        default:
-        //            break;
-        //    }
-
-        //    return histories;
-        //}
-
-        //public static bool NenTopVsGiaMa5(this List<History> histories, History checkingDate, LocCoPhieuFilterEnum filter)
-        //{
-        //    switch (filter)
-        //    {
-        //        case LocCoPhieuFilterEnum.Bang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenTop == checkingDate.MA(histories, -5)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.NhoHon:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenTop < checkingDate.MA(histories, -5)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.LonHon:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenTop > checkingDate.MA(histories, -5)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.NhoHonHoacBang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenTop <= checkingDate.MA(histories, -5)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.LonHonHoacBang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenTop >= checkingDate.MA(histories, -5)).ToList();
-        //            break;
-        //        default:
-        //            break;
-        //    }
-
-        //    return histories;
-        //}
-
-        //public static bool NenBotVsGiaMa5(this List<History> histories, History checkingDate, LocCoPhieuFilterEnum filter)
-        //{
-        //    switch (filter)
-        //    {
-        //        case LocCoPhieuFilterEnum.Bang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenBot == checkingDate.MA(histories, -5)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.NhoHon:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenBot < checkingDate.MA(histories, -5)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.LonHon:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenBot > checkingDate.MA(histories, -5)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.NhoHonHoacBang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenBot <= checkingDate.MA(histories, -5)).ToList();
-        //            break;
-        //        case LocCoPhieuFilterEnum.LonHonHoacBang:
-        //            histories = histories.Where(h => h.Date == checkingDate.Date && h.NenBot >= checkingDate.MA(histories, -5)).ToList();
-        //            break;
-        //        default:
-        //            break;
-        //    }
-
-        //    return histories;
-        //}
-
         public static bool VolTrenMA20LienTucTrongNPhien(this List<History> histories, History checkingDate, int expected)
         {
             var counter = 0;
@@ -641,9 +537,9 @@ namespace DotNetCoreSqlDb.Common
 
         public static bool PropertyChecking(this LocCoPhieuCompareModel soSanhDuLieu, List<History> histories, History checkingDate)
         {
-            var ngayKiemTra = soSanhDuLieu.Ngay == 0
+            var ngayKiemTra = !soSanhDuLieu.Phien.HasValue || soSanhDuLieu.Phien >= 0
                 ? checkingDate
-                : histories.OrderByDescending(h => h.Date).Where(h => h.Date < checkingDate.Date).Take(Math.Abs(soSanhDuLieu.Ngay)).First();
+                : histories.OrderByDescending(h => h.Date).Where(h => h.Date < checkingDate.Date).Take(Math.Abs(soSanhDuLieu.Phien.Value)).First();
 
             var property1 = (decimal)ngayKiemTra.GetPropValue(soSanhDuLieu.Property1);
             var property2 = string.IsNullOrEmpty(soSanhDuLieu.Property2) ? 0 : (decimal)ngayKiemTra.GetPropValue(soSanhDuLieu.Property2);
@@ -681,7 +577,10 @@ namespace DotNetCoreSqlDb.Common
 
                     var crossPoint = lineProperty1.FindIntersection(lineProperty2);
 
-                    return crossPoint != null && property2 < property1;
+                    var cut = crossPoint != null && property2 < property1;
+                    return soSanhDuLieu.Result >= 0 ? cut : !cut;
+
+
                 case OperationEnum.CrossDown:
                     lineProperty1 = new Line();
                     lineProperty1.x1 = 0;  //x là trục tung - trục đối xứng - trục thời gian                    
@@ -697,7 +596,11 @@ namespace DotNetCoreSqlDb.Common
 
                     crossPoint = lineProperty1.FindIntersection(lineProperty2);
 
-                    return crossPoint != null && property2 > property1;
+                    cut = crossPoint != null && property2 > property1;
+
+                    return soSanhDuLieu.Result >= 0 ? cut : !cut;
+
+
                 case OperationEnum.ThayDoiTangNPhien:
                     return histories.PropertyTangLienTucTrongNPhien(ngayKiemTra, soSanhDuLieu.Property1, (int)soSanhDuLieu.Result, soSanhDuLieu.Sign, 1);
                 case OperationEnum.ThayDoiGiamNPhien:
@@ -835,6 +738,68 @@ namespace DotNetCoreSqlDb.Common
             //var canBatDay = priceOfNgayHienTai <= priceOfNgayBatDauGiam * 0.8M;
             //return canBatDay;
         }
+
+
+        /// <summary>
+        /// /*  Giá của phiên hiện tại so với giá đỉnh của phiên quá khứ trong vòng 60 phiên phải có sự tương quan
+        ///  *  Ví dụ:
+        ///  *      Giá phiên hiện tại so với đỉnh quá khứ  > : 
+        ///  *                                              = : 
+        ///  *                                         be hon : MUA: nếu Giá hiện tại <= Giá quá khứ * (1 - ((RSI quá khứ / RSI hiện tại) / 100)        - TODO: chưa làm
+        ///  *                                                  MUA: nếu Giá hiện tại <= Giá quá khứ * (1 - ((MACD quá khứ / MACD hiện tại) / 100)      - làm trong CT này
+        ///  *                                              
+        ///  */
+        /// </summary>
+        public static bool TuongQuanGiuaGiaVaMACD(this List<History> histories, History history)
+        {
+            var checkingHistories = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= history.Date).Take(60).ToList();
+            if (!checkingHistories.Any()) return false;
+            var dinhCaoNhat = checkingHistories.OrderByDescending(h => h.NenTop).First();
+
+
+            if (history.C <= dinhCaoNhat.C)
+            {
+                return history.C <= dinhCaoNhat.C * (1 - (dinhCaoNhat.MACD / history.MACD) / 100);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Biến thể từ CT1A nhưng 
+        /// Nếu nến xuất hiện trong chu kì tăng từ đáy tới MA 20                                                                                                CT1A5
+        /// + Từ ngày hum nay quay trở lại ngày đáy > 7 phiên -> bỏ đi, vì tăng quá yếu, MA 20 lúc này sẽ là kháng cự rồi, trong 7 phiên rùi mà chưa chạm lại dc MA 20
+        /// + Nhưng cũng ko nên tăng quá 30%,
+        ///     Ví dụ: 
+        ///         + HSG 27/05/22 - 08 thanh mà chỉ tăng 9%     - chết nặng
+        ///         + SCR 30/05/22 - 09                   11-12% - chết nặng
+        ///         + IPA 30/05/22 - 08                   14-15% - chết nặng
+        ///         + ITQ 30/05/22 - 10                   16-17% - chết nặng
+        ///         + TDC 11/02/22 - 06                   20.15% - chết nặng
+        ///         + DDV 21/12/21 - 11                   05-06% - chết nặng
+        ///         + HUT 16/05/22 - 05                   20-21% - SAU TĂNG NỮA LÊN TỚI 53% - Bands rộng rãi thoải mái cho tăng
+        ///         + MSN 25/05/22 - 06                   14-15% - SAU TĂNG NỮA LÊN TỚI 24% - Bands rộng rãi thoải mái cho tăng
+        /// </summary>
+        public static bool KiemTraTangManhTuDay(this List<History> histories, History history)
+        {
+            var checkingHistories = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= history.Date).Take(20).ToList();
+            if (!checkingHistories.Any()) return false;
+
+            var dayThapNhat = checkingHistories.OrderBy(h => h.NenBot).First();
+
+            var indexNgayKiemTra = histories.IndexOf(history);
+            var indexDayThapNhat = histories.IndexOf(dayThapNhat);
+
+            if (indexNgayKiemTra - indexDayThapNhat > 7) return false;
+            if (history.C <= dayThapNhat.NenTop) return false;
+
+            var khoangCachMongMuon = history.C / dayThapNhat.NenTop;
+            if (khoangCachMongMuon <= 1.1M) return false;
+
+            return true;
+        }
+
+
     }
 
 }

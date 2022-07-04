@@ -952,7 +952,7 @@ namespace DotNetCoreSqlDb.Common
             var propertyValueĐáy1 = (decimal)đáy1.GetPropValue(propertyPhanky);
 
             //if (propertyValueĐáy1 + Math.Abs(propertyValueĐáy1 * CL2D) >= propertyValueĐáy2) return null;
-            //if (propertyValueĐáy2 < propertyValueĐáy1) return null;
+            if (propertyValueĐáy2 < propertyValueĐáy1) return null;                                       //PVS 13/4/21 - 22/4/21
 
             var đáy1Minus1Value = (decimal)đáy1Minus1.GetPropValue(propertyPhanky);
             var đáy1Add1Value = (decimal)đáy1Add1.GetPropValue(propertyPhanky);
@@ -1138,7 +1138,7 @@ namespace DotNetCoreSqlDb.Common
                 var rangeFromDay1ToiDay2 = Math.Abs(indexDay1 - indexDay2);
                 var averageNumberEachDay = (propertyĐáy2 - propertyValueĐáy1) / rangeFromDay1ToiDay2;
                 var coPointDeuBenDuoiLine = false;
-                for (int i = 1; i < rangeFromDay1ToiDay2; i++)
+                for (int i = 1; i < rangeFromDay1ToiDay2 - 1; i++)
                 {
                     var checkingDayPropertyValue = (decimal)middlePoints[i - 1].GetPropValue(property);
                     var comparedValue = propertyValueĐáy1 + averageNumberEachDay * i;

@@ -19,6 +19,7 @@ using Skender.Stock.Indicators;
 using DotNetCoreSqlDb.Models.Learning.RealData;
 using DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu;
 using LinqKit;
+using System.Data;
 
 namespace DotNetCoreSqlDb.Controllers
 {
@@ -1426,7 +1427,7 @@ namespace DotNetCoreSqlDb.Controllers
 
                 lstBan.Add(new Tuple<string, bool>(filter.Name, thoaDK));
 
-                var giaMua = XacDinhGiaBan(histories, phienHumNay, lstBan);
+                var giaMua = TimGiaMuaMongMuon(histories, phienHumNay, lstBan);
 
                 if (!giaMua.Item3.HasValue)
                 {
@@ -1443,7 +1444,7 @@ namespace DotNetCoreSqlDb.Controllers
                     continue;
                 }
 
-                XácDinhDiemBan(code, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
+                TimThoiGianBan(code, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
             }
 
             if (result1.Any())
@@ -1468,7 +1469,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             CongThuc.allCongThuc.Clear();
             CongThuc.allCongThuc.AddRange(new List<LocCoPhieuFilterRequest>() {
-                CongThuc.CT1A, CongThuc.CT1B, CongThuc.CT1C, CongThuc.CT1D, CongThuc.CT1B2, CongThuc.CT1B3,
+                CongThuc.CT1A, CongThuc.CT1B, CongThuc.CT1C, CongThuc.CT3, CongThuc.CT1B2, CongThuc.CT1B3,
                 CongThuc.CT2B,CongThuc.CT2C, CongThuc.CT2D,CongThuc.CT2E, CongThuc.CT2F
             });
 
@@ -1595,7 +1596,7 @@ namespace DotNetCoreSqlDb.Controllers
                             continue;
                         }
 
-                        var giaMua = XacDinhGiaBan(histories, phienKiemTra, new List<Tuple<string, bool>>() { new Tuple<string, bool>(filter.Name, false) });
+                        var giaMua = TimGiaMuaMongMuon(histories, phienKiemTra, new List<Tuple<string, bool>>() { new Tuple<string, bool>(filter.Name, false) });
                         if (!giaMua.Item3.HasValue)
                         {
                             result1.Add($"{item} - {filter.Name} - Mua phiên sau (hum nay {phienKiemTra.Date.ToShortDateString()}) tại giá {giaMua.Item1} tới giá {giaMua.Item2} - Chưa đủ dữ liệu T3 để tính toán giá bán.");
@@ -1627,7 +1628,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             var result = true;
 
-            foreach (var compareItem in filter.PropertiesSoSanh)
+            foreach (var compareItem in filter.Properties)
             {
                 result = compareItem.PropertyChecking(histories, phienKiemTra);
                 if (!result) break;
@@ -1696,16 +1697,31 @@ namespace DotNetCoreSqlDb.Controllers
                 result = histories.BatDayDcChua(phienKiemTra);
             }
 
+            if (result && filter.KiemTraGiaVsMACD.HasValue && filter.KiemTraGiaVsMACD.Value)
+            {
+                result = histories.TuongQuanGiuaGiaVaMACD(phienKiemTra);
+            }
+
+            if (result && filter.KiemTraTangManhTuDay.HasValue && filter.KiemTraTangManhTuDay.Value)
+            {
+                result = histories.KiemTraTangManhTuDay(phienKiemTra);
+            }
+
+            //if (result && filter.MACDPhanKiTang.HasValue && filter.KiemTraTangManhTuDay.Value)
+            //{
+            //    result = histories.KiemTraTangManhTuDay(phienKiemTra);
+            //}
+
+
             return result;
         }
 
-        private void XácDinhDiemBan(string code, List<string> result1, ref decimal dung, ref decimal sai,
+        private void TimThoiGianBan(string code, List<string> result1, ref decimal dung, ref decimal sai,
             List<History> histories,
             History phienHumNay,
             decimal giáĐặtMua,
             List<Tuple<string, bool>> ctMua)
         {
-            //var lstNgayCoTheBan = histories.Where(h => h.Date >= ngayMua.Date).OrderBy(h => h.Date).Skip(3).ToList();
             var lstNgayCoTheBan = histories.Where(h => h.Date > phienHumNay.Date).OrderBy(h => h.Date).Skip(3).ToList();
             var stringCTMua = string.Join(",", ctMua.Where(ct => ct.Item2).Select(ct => ct.Item1).ToList());
             if (!lstNgayCoTheBan.Any())
@@ -1764,17 +1780,15 @@ namespace DotNetCoreSqlDb.Controllers
                         if (chenhLechGia > 1)
                         {
                             sentence = "Lời";
-                            //dung++;
                             dung += phanTramChenhLech;
                         }
                         else
                         {
-                            //sai++;
                             sai += phanTramChenhLech;
                             sentence = "Lỗ";
                         }
 
-                        result1.Add($"{code} - {stringCTMua} - {sentence} {phanTramChenhLech.ToString("N2")}% - Nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua} - Bán - {ctBan} - {ngayBanGiaDinh.Date.ToShortDateString()} ở giá {giaBan}");
+                        result1.Add($"{code} - {stringCTMua} - {sentence} {phanTramChenhLech.ToString("N2")}% - Nhắc mua: {phienHumNay.Date.ToShortDateString()} ở {giáĐặtMua} - Bán - {ctBan} - {ngayBanGiaDinh.Date.ToShortDateString()} ở {giaBan}");
                         break;
                     }
                 }
@@ -1785,6 +1799,40 @@ namespace DotNetCoreSqlDb.Controllers
                 }
             }
 
+        }
+
+        private bool? BanTCongCoLai(string code, List<string> result1, List<History> histories,
+            History phienHumNay,
+            decimal giáĐặtMua,
+            List<Tuple<string, bool>> ctMua, int TCong)
+        {
+            var lstNgayCoTheBan = histories.Where(h => h.Date > phienHumNay.Date).OrderBy(h => h.Date).Skip(3).ToList();
+            var stringCTMua = string.Join(",", ctMua.Where(ct => ct.Item2).Select(ct => ct.Item1).ToList());
+            if (!lstNgayCoTheBan.Any())
+            {
+                //Dữ liệu chưa có đủ cho T3 - phải chờ
+                result1.Add($"{code} - {stringCTMua} - Mua: {phienHumNay.Date.ToShortDateString()} tại giá {giáĐặtMua} - Chưa đủ dữ liệu T3");
+                return null;
+            }
+            else
+            {
+                var lstNgaySeBan = lstNgayCoTheBan.Take(TCong).ToList();
+
+                var sentence = string.Empty;
+                var ngayBanGiaDinh = lstNgaySeBan.FirstOrDefault(h => h.C > giáĐặtMua * 1.01M);
+                if (ngayBanGiaDinh != null)
+                {
+                    sentence = "Lời";
+                    result1.Add($"{code} - {stringCTMua} - {sentence} - Nhắc mua: {phienHumNay.Date.ToShortDateString()} ở {giáĐặtMua}");
+                    return true;
+                }
+                else
+                {
+                    sentence = "Lỗ";
+                    result1.Add($"{code} - {stringCTMua} - {sentence} - Nhắc mua: {phienHumNay.Date.ToShortDateString()} ở {giáĐặtMua}");
+                    return false;
+                }
+            }
         }
 
         public async Task<List<Tuple<string, decimal, List<string>>>> CongThuc1(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
@@ -1804,7 +1852,7 @@ namespace DotNetCoreSqlDb.Controllers
 
             var tup = new List<Tuple<string, decimal, List<string>>>();
 
-            Parallel.ForEach(symbols, symbol =>
+            Parallel.ForEach(symbols, (Action<StockSymbol>)(symbol =>
             {
                 var result1 = new List<string>();
                 decimal tong = 0;
@@ -1847,16 +1895,16 @@ namespace DotNetCoreSqlDb.Controllers
                     var dk1 = ThỏaĐiềuKiệnLọc(CongThuc.CT1A, histories, phienHumNay);
                     var dk2 = ThỏaĐiềuKiệnLọc(CongThuc.CT1B, histories, phienHumNay);
                     var dk3 = ThỏaĐiềuKiệnLọc(CongThuc.CT1C, histories, phienHumNay);
-                    var dk4 = ThỏaĐiềuKiệnLọc(CongThuc.CT1D, histories, phienHumNay);
+                    var dk4 = ThỏaĐiềuKiệnLọc((LocCoPhieuFilterRequest)CongThuc.CT3, histories, phienHumNay);
 
                     lstBan.Add(new Tuple<string, bool>("CT1A", dk1));
                     lstBan.Add(new Tuple<string, bool>("CT1B", dk2));
                     lstBan.Add(new Tuple<string, bool>("CT1C", dk3));
-                    lstBan.Add(new Tuple<string, bool>("CT1D", dk4));
+                    lstBan.Add(new Tuple<string, bool>("CT3", dk4));
 
                     if (!lstBan.Any(t => t.Item2)) continue;
 
-                    var giaMua = XacDinhGiaBan(histories, phienHumNay, lstBan);
+                    var giaMua = TimGiaMuaMongMuon(histories, phienHumNay, lstBan);
 
                     if (!giaMua.Item3.HasValue)
                     {
@@ -1873,7 +1921,7 @@ namespace DotNetCoreSqlDb.Controllers
                         continue;
                     }
 
-                    XácDinhDiemBan(symbol._sc_, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
+                    TimThoiGianBan(symbol._sc_, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
                 }
 
                 if (result1.Any())
@@ -1882,7 +1930,7 @@ namespace DotNetCoreSqlDb.Controllers
                     var winRate = tong == 0 ? 0 : Math.Round(dung / tong, 2);
                     tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, winRate, result1));
                 }
-            });
+            }));
 
             tup = tup.OrderByDescending(t => t.Item2).ToList();
 
@@ -1962,7 +2010,7 @@ namespace DotNetCoreSqlDb.Controllers
 
                     if (!lstBan.Any(t => t.Item2)) continue;
 
-                    var giaMua = XacDinhGiaBan(histories, phienHumNay, lstBan);
+                    var giaMua = TimGiaMuaMongMuon(histories, phienHumNay, lstBan);
 
                     if (!giaMua.Item3.HasValue)
                     {
@@ -1979,7 +2027,7 @@ namespace DotNetCoreSqlDb.Controllers
                         continue;
                     }
 
-                    XácDinhDiemBan(symbol._sc_, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
+                    TimThoiGianBan(symbol._sc_, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
                 }
 
                 if (result1.Any())
@@ -1998,7 +2046,7 @@ namespace DotNetCoreSqlDb.Controllers
         {
             CongThuc.allCongThuc.Clear();
             CongThuc.allCongThuc.AddRange(new List<LocCoPhieuFilterRequest>() {
-                       CongThuc.CT1A, CongThuc.CT1B, CongThuc.CT1C, CongThuc.CT1D, CongThuc.CT1B2, CongThuc.CT1B3, CongThuc.CT2B,CongThuc.CT2C, CongThuc.CT2D,CongThuc.CT2E, CongThuc.CT2F}
+                       CongThuc.CT1A, CongThuc.CT1B, CongThuc.CT1C, CongThuc.CT3, CongThuc.CT1B2, CongThuc.CT1B3, CongThuc.CT2B,CongThuc.CT2C, CongThuc.CT2D,CongThuc.CT2E, CongThuc.CT2F}
             );
 
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
@@ -2055,15 +2103,15 @@ namespace DotNetCoreSqlDb.Controllers
 
 
 
-                    foreach (var item in CongThuc.allCongThuc)
+                    foreach (var congThuc in CongThuc.allCongThuc)
                     {
-                        var dk = ThỏaĐiềuKiệnLọc(item, histories, phienHumNay);
-                        lstBan.Add(new Tuple<string, bool>(item.Name, dk));
+                        var dk = ThỏaĐiềuKiệnLọc(congThuc, histories, phienHumNay);
+                        lstBan.Add(new Tuple<string, bool>(congThuc.Name, dk));
                     }
 
                     if (!lstBan.Any(t => t.Item2)) continue;
 
-                    var giaMua = XacDinhGiaBan(histories, phienHumNay, lstBan);
+                    var giaMua = TimGiaMuaMongMuon(histories, phienHumNay, lstBan);
 
                     if (!giaMua.Item3.HasValue)
                     {
@@ -2080,7 +2128,7 @@ namespace DotNetCoreSqlDb.Controllers
                         continue;
                     }
 
-                    XácDinhDiemBan(symbol._sc_, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
+                    TimThoiGianBan(symbol._sc_, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
                 }
 
                 if (result1.Any())
@@ -2104,7 +2152,7 @@ namespace DotNetCoreSqlDb.Controllers
         /// <param name="phienHumNay"></param>
         /// <param name="lstConditions"></param>
         /// <returns></returns>
-        private Tuple<decimal, decimal, decimal?> XacDinhGiaBan(List<History> histories, History phienHumNay, List<Tuple<string, bool>> lstConditions)
+        private Tuple<decimal, decimal, decimal?> TimGiaMuaMongMuon(List<History> histories, History phienHumNay, List<Tuple<string, bool>> lstConditions)
         {
             var giaMongDoiCuoiCung = 0M;
             var giaCaoNhatCuoiCung = 0M;
@@ -2118,6 +2166,13 @@ namespace DotNetCoreSqlDb.Controllers
                 switch (item.Item1)
                 {
                     case "CT1A":
+                    case "CT1A1":
+                    case "CT1A2":
+                    case "CT1A3A":
+                    case "CT1A3B":
+                    case "CT1A4":
+                    case "CTKH":
+                    case "CTNT1":
                         giaMongDoi = phienHumNay.O + (phienHumNay.NenTop - phienHumNay.NenBot) / 2;
                         giaCaoNhat = phienHumNay.C + (phienHumNay.NenTop - phienHumNay.NenBot) / 5;
                         break;
@@ -2134,7 +2189,7 @@ namespace DotNetCoreSqlDb.Controllers
                         giaMongDoi = phienHumNay.GiaMA05;
                         giaCaoNhat = phienHumNay.BandsMid;
                         break;
-                    case "CT1D":
+                    case "CT3":
                         giaMongDoi = phienHumNay.O + (phienHumNay.NenTop - phienHumNay.NenBot) / 2;
                         giaCaoNhat = phienHumNay.C + (phienHumNay.NenTop - phienHumNay.NenBot) / 5;
                         break;
@@ -2246,12 +2301,12 @@ namespace DotNetCoreSqlDb.Controllers
                     var phienHumWa = histories[i - 1];
                     var lstBan = new List<Tuple<string, bool>>();
 
-                    var thoaDK = ThỏaĐiềuKiệnLọc(CongThuc.CT1C, histories, phienHumNay);
+                    var thoaDK = ThỏaĐiềuKiệnLọc(CongThuc.CTNT1, histories, phienHumNay);
                     if (!thoaDK) continue;
 
-                    lstBan.Add(new Tuple<string, bool>("CT1C", thoaDK));
+                    lstBan.Add(new Tuple<string, bool>("CTNT1", thoaDK));
 
-                    var giaMua = XacDinhGiaBan(histories, phienHumNay, lstBan);
+                    var giaMua = TimGiaMuaMongMuon(histories, phienHumNay, lstBan);
 
                     if (!giaMua.Item3.HasValue)
                     {
@@ -2268,7 +2323,7 @@ namespace DotNetCoreSqlDb.Controllers
                         continue;
                     }
 
-                    XácDinhDiemBan(symbol._sc_, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
+                    TimThoiGianBan(symbol._sc_, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
                 }
 
                 if (result1.Any())
@@ -2284,9 +2339,245 @@ namespace DotNetCoreSqlDb.Controllers
 
             return tup;
         }
+
+        public async Task<List<Tuple<string, string, decimal, string>>> TimCongThucPhuHopVsCoPhieu(string code, DateTime ngay, DateTime ngayCuoiCungOQuaKhu, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
+        {
+            CongThuc.allCongThuc.Clear();
+            //CongThuc.allCongThuc.AddRange(new List<LocCoPhieuFilterRequest>() {
+            //    CongThuc.CT1A, CongThuc.CT1B, CongThuc.CT1C, CongThuc.CT1B2, CongThuc.CT1B3,
+            //    CongThuc.CT1A1, CongThuc.CT1A2, CongThuc.CT1A3A, CongThuc.CT1A3B, CongThuc.CT1A4,
+            //    CongThuc.CT2B,CongThuc.CT2C, CongThuc.CT2D,CongThuc.CT2E, CongThuc.CT2F,
+            //    CongThuc.CT3,
+            //});
+
+            var ct1KetHop = new LocCoPhieuFilterRequest("CTKH");
+            ct1KetHop.PropertiesSoSanh.AddRange(CongThuc.CT1A.PropertiesSoSanh);
+            ct1KetHop.PropertiesSoSanh.AddRange(CongThuc.CT1A1.PropertiesSoSanh);
+            ct1KetHop.PropertiesSoSanh.AddRange(CongThuc.CT1A2.PropertiesSoSanh);
+            //ct1KetHop.PropertiesSoSanh.AddRange(CongThuc.CT1A3A.PropertiesSoSanh);//bỏ 2 thằng này lời 1111, lỗ 863
+            //ct1KetHop.PropertiesSoSanh.AddRange(CongThuc.CT1A3B.PropertiesSoSanh);//có 2 thằng này lời 254, lỗ 243
+            ct1KetHop.PropertiesSoSanh.AddRange(CongThuc.CT1A4.PropertiesSoSanh);
+            ct1KetHop.PropertiesSoSanh.AddRange(CongThuc.CT1A5.PropertiesSoSanh);
+            //ct1KetHop.KiemTraTangManhTuDay = true;                                  //có thằng này vô 0 ra kq luôn
+            ct1KetHop.KiemTraGiaVsMACD = true;
+
+            //CongThuc.allCongThuc.AddRange(new List<LocCoPhieuFilterRequest>() {
+            //    CongThuc.CT1A,
+            //    CongThuc.CT1A1, CongThuc.CT1A2, CongThuc.CT1A3A, CongThuc.CT1A3B, CongThuc.CT1A4
+            //});
+
+            CongThuc.allCongThuc.AddRange(new List<LocCoPhieuFilterRequest>() {
+                ct1KetHop
+            });
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10)
+                    && ss.Date >= ngayCuoiCungOQuaKhu.AddDays(-100))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, string, decimal, string>>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var histories = historiesStockCode.Where(ss => ss.StockSymbol == symbol._sc_).OrderBy(h => h.Date).ToList();
+                if (!histories.Any()) return;
+
+                var ngayBatDauXetCongThuc = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngayCuoiCungOQuaKhu);
+                for (int i = histories.IndexOf(ngayBatDauXetCongThuc); i < histories.Count; i++)
+                {
+                    ngayBatDauXetCongThuc = histories[i];
+                    if (ngayBatDauXetCongThuc != null && ngayBatDauXetCongThuc.HadAllIndicators())
+                    {
+                        break;
+                    }
+                }
+
+                var ngayDungLai = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngay);
+                if (ngayDungLai == null) //đang nhập ngày trong tương lai -> dời về hiện tại vì tương lai chưa có dữ liệu
+                {
+                    ngayDungLai = histories.OrderByDescending(h => h.Date).First();
+                }
+
+                var startedI = histories.IndexOf(ngayBatDauXetCongThuc);
+                var stoppedI = histories.IndexOf(ngayDungLai);
+
+                foreach (var congThuc in CongThuc.allCongThuc)
+                {
+                    var explanation = new List<string>();
+                    decimal dung = 0;
+                    decimal sai = 0;
+
+                    for (int i = startedI; i < stoppedI; i++)
+                    {
+                        var phienHumNay = histories[i];
+                        var phienHumWa = histories.Where(h => h.Date < phienHumNay.Date).OrderByDescending(h => h.Date).First();
+
+                        var lstBan = new List<Tuple<string, bool>>();
+
+                        var dk = ThỏaĐiềuKiệnLọc(congThuc, histories, phienHumNay);
+                        lstBan.Add(new Tuple<string, bool>(congThuc.Name, dk));
+
+
+                        if (!lstBan.Any(t => t.Item2)) continue;
+
+                        var giaMua = TimGiaMuaMongMuon(histories, phienHumNay, lstBan);
+
+                        if (!giaMua.Item3.HasValue)
+                        {
+                            var stringCTMua = string.Join(",", lstBan.Where(ct => ct.Item2).Select(ct => ct.Item1).ToList());
+                            explanation.Add($"{symbol._sc_} - {stringCTMua} - Mua: {phienHumNay.Date.ToShortDateString()} từ {giaMua.Item1} tới {giaMua.Item2} - Chưa đủ dữ liệu T3 để tính toán giá bán.");
+                            continue;
+                        }
+
+                        if (giaMua.Item3.HasValue && giaMua.Item3.Value < 0)
+                        {
+                            var ngayMua = histories.Where(h => h.Date > phienHumNay.Date).OrderBy(h => h.Date).First();
+                            var stringCTMua = string.Join(",", lstBan.Where(ct => ct.Item2).Select(ct => ct.Item1).ToList());
+
+                            var dung1 = BanTCongCoLai(symbol._sc_, explanation, histories, phienHumNay, ngayMua.O, lstBan, 2);
+                            if (!dung1.HasValue) continue;
+
+                            var text = dung1.Value ? "Lời" : "Lỗ";
+                            explanation.Add($"{symbol._sc_} - {stringCTMua} - Mua: {phienHumNay.Date.ToShortDateString()} từ {giaMua.Item1} tới {giaMua.Item2} - Nhưng thực tế giá thấp nhất ở {ngayMua.L} - Mua ATO {text}");
+                            continue;
+                        }
+
+                        //TimThoiGianBan(symbol._sc_, explanation, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
+                        var ctDung = BanTCongCoLai(symbol._sc_, explanation, histories, phienHumNay, giaMua.Item3.Value, lstBan, 2);
+
+                        if (!ctDung.HasValue) continue;
+
+                        if (ctDung.Value) dung++;
+                        else sai++;
+                    }
+
+                    if (explanation.Any())
+                    {
+                        var tong = dung + sai;
+                        var winRate = tong > 0 ? Math.Round(dung / tong, 2) : 0;
+                        tup.Add(new Tuple<string, string, decimal, string>(symbol._sc_, congThuc.Name, winRate, string.Join(Environment.NewLine, explanation)));
+                    }
+                }
+            });
+
+            tup = tup.OrderByDescending(t => t.Item2).ToList();
+
+            //var folder = ConstantPath.Path;
+            //var g = Guid.NewGuid();
+            //var name = $@"{folder}{g}.xlsx";
+            //ToDataTable(tup).WriteToExcel(name);
+
+            return tup;
+        }
+
+
+        public DataTable ToDataTable(List<Tuple<string, string, decimal, string>> dlist)
+        {
+            var json = JsonConvert.SerializeObject(dlist);
+            DataTable dataTable = (DataTable)JsonConvert.DeserializeObject(json, (typeof(DataTable)));
+            return dataTable;
+        }
+
+
+        public async Task<List<string>> CongThucLungTung()
+        {
+            var symbols = await _context.StockSymbol
+                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 500000)
+                //.Where(h => h._sc_ == "VKC")
+                .ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= new DateTime(2022, 1, 1))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+            /* 1 CP 
+             * 2 Nhom Nganh 
+             * 3 Gia
+             * 4 So sánh với Mây
+             * 5 So sánh với MA 20
+             * 6 So sánh với đáy T6
+             * 7 manh/yeu
+             */
+
+            var tup = new List<Tuple<string, string, decimal, decimal, decimal, decimal, bool>>();
+            var result1 = new List<string>();
+            Parallel.ForEach(symbols, (Action<StockSymbol>)(symbol =>
+            {
+                var histories = historiesStockCode
+                                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                                    .OrderBy(h => h.Date)
+                                    .ToList();
+
+                var dayT5 = histories.Where(h => h.Date >= new DateTime(2022, 5, 1) && h.Date <= new DateTime(2022, 6, 1)).OrderBy(h => h.L).First();
+                var cpCoThungDayT5TrongT6 = histories.Any(h => h.Date >= new DateTime(2022, 6, 1) && h.NenBot <= dayT5.L);
+
+                if (cpCoThungDayT5TrongT6)
+                {
+                    var dayT6 = histories.Where(h => h.Date >= new DateTime(2022, 6, 1) && h.NenBot <= dayT5.L).OrderBy(h => h.L).First().L;
+                    var today = histories.OrderByDescending(h => h.Date).First();
+
+                    var khangMay = today.IchimokuBot > today.NenTop
+                        ? ((today.IchimokuBot / today.NenTop) - 1) * -1  //Đang dưới mây bot
+                        : (today.NenTop / today.IchimokuBot) - 1;        //Đang trên mây bot
+
+                    var ma20 = today.BandsMid / today.NenTop > 0
+                        ? ((today.BandsMid / today.NenTop) - 1) * -1     //Đang dưới MA20
+                        : (today.NenTop / today.IchimokuBot) - 1;        //Đang trên MA20
+
+                    var soDayT6 = (today.L / dayT6) - 1;        //Đang trên MA20
+
+                    var dinhT5 = histories.Where(h => h.Date >= dayT5.Date && h.Date <= new DateTime(2022, 6, 1)).OrderByDescending(h => h.H).First();
+                    var tileChenhLenhTrongT5 = dinhT5.H / dayT5.L;
+                    
+                    if (tileChenhLenhTrongT5 >= 1.2M)
+                        tup.Add(new Tuple<string, string, decimal, decimal, decimal, decimal, bool>(
+                            symbol._sc_, symbol._in_, today.C, khangMay * 100, ma20 * 100, soDayT6 * 100, today.V > today.VOL(histories, -20)
+                        ));
+
+                }
+            }));
+
+            tup = tup
+                .OrderBy(h => h.Item2)
+                .ThenBy(h => h.Item7)
+                .ThenBy(h => h.Item6)
+                .ThenBy(h => h.Item5)                
+                .ThenBy(h => h.Item4)
+                .ThenBy(h => h.Item3).ThenBy(h => h.Item1).ToList();
+
+            foreach (var item in tup)
+            {
+                var textMa20 = item.Item5 > 0 ? $"Trên MA 20 {Math.Abs(item.Item5).ToString("N2")}%" : $"Dưới MA 20 {Math.Abs(item.Item5).ToString("N2")}%";
+                var textDay = item.Item6 == 1
+                    ? $"Đang ở đáy T6"
+                    : item.Item6 > 0 ? $"Trên Đáy {Math.Abs(item.Item6).ToString("N2")}%" : $"Dưới Đáy {Math.Abs(item.Item6).ToString("N2")}%";
+                var textMay = item.Item4 > 0 ? $"Trên Mây {Math.Abs(item.Item4).ToString("N2")}%" : $"Dưới Mây {Math.Abs(item.Item4).ToString("N2")}%";
+
+                //var textManhYeu = item.Item7 ? $"Trong T5 Mạnh từ đáy" : $"Trong T5 Yếu từ đáy";
+                var volTo = item.Item7 ? $"Vol TO" : $"Vol Bé";
+
+                result1.Add($"{item.Item2} - {volTo} - {textDay} - {textMa20} - {textMay} - {item.Item3} - {item.Item1}");
+            }
+
+            return result1;
+        }
+
     }
 }
 
+/*
+ * 
+ 
+ */
 
 /*
  * CEO:

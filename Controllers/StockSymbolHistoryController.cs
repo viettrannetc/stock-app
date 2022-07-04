@@ -142,7 +142,7 @@ namespace DotNetCoreSqlDb.Controllers
         {
             var symbols = await _context.StockSymbol
                 .Where(s => s.BiChanGiaoDich == false && s.MA20Vol > 100000)
-                //.Where(s => s._sc_ == "VND")
+                .Where(s => s._sc_ == "HMC")
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
@@ -198,16 +198,16 @@ namespace DotNetCoreSqlDb.Controllers
                 {
                     try
                     {
-                        if (historiesInPeriodOfTime[i].HadAllIndicators()) continue;
+                        //if (historiesInPeriodOfTime[i].HadAllIndicators()) continue;
 
                         var sameDateMA5 = ma5.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDateMA5 != null && !historiesInPeriodOfTime[i].HadMA5())
+                        if (sameDateMA5 != null)// && !historiesInPeriodOfTime[i].HadMA5())
                         {
                             historiesInPeriodOfTime[i].GiaMA05 = sameDateMA5.Sma.HasValue ? (decimal)sameDateMA5.Sma.Value : 0;
                         }
 
                         var sameDateIchi = ichimoku.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDateIchi != null && !historiesInPeriodOfTime[i].HadIchimoku())
+                        if (sameDateIchi != null)// && !historiesInPeriodOfTime[i].HadIchimoku())
                         {
                             historiesInPeriodOfTime[i].IchimokuCloudBot = sameDateIchi.SenkouSpanB.HasValue ? (decimal)sameDateIchi.SenkouSpanB.Value : 0;
                             historiesInPeriodOfTime[i].IchimokuCloudTop = sameDateIchi.SenkouSpanA.HasValue ? (decimal)sameDateIchi.SenkouSpanA.Value : 0;
@@ -215,17 +215,17 @@ namespace DotNetCoreSqlDb.Controllers
                             historiesInPeriodOfTime[i].IchimokuKijun = sameDateIchi.KijunSen.HasValue ? (decimal)sameDateIchi.KijunSen.Value : 0;
                         }
 
-                        historiesInPeriodOfTime[i].NenBot = historiesInPeriodOfTime[i].TangGia() ? historiesInPeriodOfTime[i].O : historiesInPeriodOfTime[i].C;
-                        historiesInPeriodOfTime[i].NenTop = historiesInPeriodOfTime[i].TangGia() ? historiesInPeriodOfTime[i].C : historiesInPeriodOfTime[i].O;
+                        historiesInPeriodOfTime[i].NenBot = Math.Min(historiesInPeriodOfTime[i].O, historiesInPeriodOfTime[i].C);
+                        historiesInPeriodOfTime[i].NenTop = Math.Max(historiesInPeriodOfTime[i].O, historiesInPeriodOfTime[i].C);
 
                         var sameDateRSI = rsis.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDateRSI != null && !historiesInPeriodOfTime[i].HadRsi())
+                        if (sameDateRSI != null)// && !historiesInPeriodOfTime[i].HadRsi())
                         {
                             historiesInPeriodOfTime[i].RSI = sameDateRSI.Rsi.HasValue ? (decimal)sameDateRSI.Rsi.Value : 0;
                         }
 
                         var sameDateBands = bands.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDateBands != null && !historiesInPeriodOfTime[i].HadBands())
+                        if (sameDateBands != null)// && !historiesInPeriodOfTime[i].HadBands())
                         {
                             historiesInPeriodOfTime[i].BandsTop = sameDateBands.UpperBand.HasValue ? (decimal)sameDateBands.UpperBand.Value : 0;
                             historiesInPeriodOfTime[i].BandsBot = sameDateBands.LowerBand.HasValue ? (decimal)sameDateBands.LowerBand.Value : 0;
@@ -233,7 +233,7 @@ namespace DotNetCoreSqlDb.Controllers
                         }
 
                         var sameDateMacd = macd.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDateMacd != null && !historiesInPeriodOfTime[i].HadMACD())
+                        if (sameDateMacd != null)// && !historiesInPeriodOfTime[i].HadMACD())
                         {
                             historiesInPeriodOfTime[i].MACD = sameDateMacd.Macd.HasValue ? (decimal)sameDateMacd.Macd.Value : 0;
                             historiesInPeriodOfTime[i].MACDSignal = sameDateMacd.Signal.HasValue ? (decimal)sameDateMacd.Signal.Value : 0;
@@ -347,11 +347,14 @@ namespace DotNetCoreSqlDb.Controllers
                 : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000 && splitStringCode.Contains(s._sc_)).OrderByDescending(s => s._sc_).ToListAsync();
 
             var result = new List<HistoryHour>();
-            
-            var latestHistory = _context.HistoryHour.OrderByDescending(r => r.Date).FirstOrDefault();            
+
+            var latestHistory = _context.HistoryHour.OrderByDescending(r => r.Date).FirstOrDefault();
             var currentLatestDate = latestHistory == null ? new DateTime(2000, 1, 1) : latestHistory.Date;
 
-            var from = new DateTime(2000, 1, 1);
+            //var from = new DateTime(2000, 1, 1);
+            //var to = DateTime.Now;
+
+            var from = currentLatestDate.WithoutHours();
             var to = DateTime.Now;
 
             var service = new Service();
@@ -374,7 +377,7 @@ namespace DotNetCoreSqlDb.Controllers
         {
             var symbols = await _context.StockSymbol
                 .Where(s => s.BiChanGiaoDich == false && s.MA20Vol > 100000)
-                //.Where(s => s._sc_ == "VIC")
+                .Where(s => s._sc_ == "HMC")
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
@@ -428,16 +431,16 @@ namespace DotNetCoreSqlDb.Controllers
                 {
                     try
                     {
-                        if (historiesInPeriodOfTime[i].HadAllIndicators()) continue;
+                        //if (historiesInPeriodOfTime[i].HadAllIndicators()) continue;
 
                         var sameDateMA5 = ma5.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDateMA5 != null && !historiesInPeriodOfTime[i].HadMA5())
+                        if (sameDateMA5 != null)// && !historiesInPeriodOfTime[i].HadMA5())
                         {
                             historiesInPeriodOfTime[i].GiaMA05 = sameDateMA5.Sma.HasValue ? (decimal)sameDateMA5.Sma.Value : 0;
                         }
 
                         var sameDateIchi = ichimoku.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDateIchi != null && !historiesInPeriodOfTime[i].HadIchimoku())
+                        if (sameDateIchi != null)// && !historiesInPeriodOfTime[i].HadIchimoku())
                         {
                             historiesInPeriodOfTime[i].IchimokuCloudBot = sameDateIchi.SenkouSpanB.HasValue ? (decimal)sameDateIchi.SenkouSpanB.Value : 0;
                             historiesInPeriodOfTime[i].IchimokuCloudTop = sameDateIchi.SenkouSpanA.HasValue ? (decimal)sameDateIchi.SenkouSpanA.Value : 0;
@@ -449,13 +452,13 @@ namespace DotNetCoreSqlDb.Controllers
                         historiesInPeriodOfTime[i].NenTop = historiesInPeriodOfTime[i].TangGia() ? historiesInPeriodOfTime[i].C : historiesInPeriodOfTime[i].O;
 
                         var sameDateRSI = rsis.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDateRSI != null && !historiesInPeriodOfTime[i].HadRsi())
+                        if (sameDateRSI != null)// && !historiesInPeriodOfTime[i].HadRsi())
                         {
                             historiesInPeriodOfTime[i].RSI = sameDateRSI.Rsi.HasValue ? (decimal)sameDateRSI.Rsi.Value : 0;
                         }
 
                         var sameDateBands = bands.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDateBands != null && !historiesInPeriodOfTime[i].HadBands())
+                        if (sameDateBands != null)// && !historiesInPeriodOfTime[i].HadBands())
                         {
                             historiesInPeriodOfTime[i].BandsTop = sameDateBands.UpperBand.HasValue ? (decimal)sameDateBands.UpperBand.Value : 0;
                             historiesInPeriodOfTime[i].BandsBot = sameDateBands.LowerBand.HasValue ? (decimal)sameDateBands.LowerBand.Value : 0;
@@ -463,7 +466,7 @@ namespace DotNetCoreSqlDb.Controllers
                         }
 
                         var sameDateMacd = macd.Where(r => r.Date == historiesInPeriodOfTime[i].Date).FirstOrDefault();
-                        if (sameDateMacd != null && !historiesInPeriodOfTime[i].HadMACD())
+                        if (sameDateMacd != null)// && !historiesInPeriodOfTime[i].HadMACD())
                         {
                             historiesInPeriodOfTime[i].MACD = sameDateMacd.Macd.HasValue ? (decimal)sameDateMacd.Macd.Value : 0;
                             historiesInPeriodOfTime[i].MACDSignal = sameDateMacd.Signal.HasValue ? (decimal)sameDateMacd.Signal.Value : 0;
