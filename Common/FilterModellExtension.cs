@@ -801,7 +801,7 @@ namespace DotNetCoreSqlDb.Common
 
         public static bool FullMargin(this List<History> histories, History history)
         {
-            var soNgayMuonKiemTraTrongQuaKhu = 7;
+            var soNgayMuonKiemTraTrongQuaKhu = 11;
             var soNgayKiemTra = histories.OrderByDescending(h => h.Date).Where(h => h.Date < history.Date).Take(soNgayMuonKiemTraTrongQuaKhu).ToList();
             var day2 = new History();
             for (int i = 0; i < soNgayKiemTra.Count; i++)
@@ -818,11 +818,13 @@ namespace DotNetCoreSqlDb.Common
 
             var lstNgayTuDay2ToiHienTai = histories.OrderByDescending(h => h.Date).Where(h => h.Date < history.Date && h.Date >= day2.Date).ToList();
 
-            var propertyTangLienTuc = lstNgayTuDay2ToiHienTai.PropertyTangDanTrongNPhien(history, "MACD", lstNgayTuDay2ToiHienTai.Count());
+            var propertyTangLienTuc = histories.PropertyTangDanTrongNPhien(history, "MACD", lstNgayTuDay2ToiHienTai.Count());
             if (!propertyTangLienTuc) return false;
 
             var lstSoSanhMA20NgayTuDay2ToiHienTai = lstNgayTuDay2ToiHienTai.Where(h => h.NenBot > h.BandsMid).ToList();
-            if (lstSoSanhMA20NgayTuDay2ToiHienTai.Count() <= 1) return true;
+            if (!lstSoSanhMA20NgayTuDay2ToiHienTai.Any()) return false;
+
+            if (lstSoSanhMA20NgayTuDay2ToiHienTai.Count() == 1) return true;
 
             var kcXuongMA20XaNhat = lstSoSanhMA20NgayTuDay2ToiHienTai.OrderByDescending(h => h.NenBot).First();
             var kcXuongMA20NganNhat = lstSoSanhMA20NgayTuDay2ToiHienTai.OrderByDescending(h => h.NenBot).Last();
@@ -830,6 +832,16 @@ namespace DotNetCoreSqlDb.Common
             if (kcXuongMA20XaNhat.Date > kcXuongMA20NganNhat.Date) return false;
 
             return true;
+        }
+
+
+        public static bool RSIAmTheoNgay(this List<History> histories, History history)
+        {
+            var humnay = history;
+            var humqua = histories.OrderByDescending(h => h.Date).First(h => h.Date < humnay.Date);
+
+            return humnay.RSI > humqua.RSI && (humnay.C < humqua.C || humnay.NenBot < humqua.NenBot);
+            //|| humnay.NenTop < humqua.NenTop);
         }
     }
 

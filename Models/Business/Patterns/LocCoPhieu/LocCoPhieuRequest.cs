@@ -179,7 +179,9 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         public bool? KiemTraTangManhTuDay { get; set; }
 
         public bool? FullMargin { get; set; }
+        public bool? RSIAmTheoNgay { get; set; }
         
+
     }
 
     public class LocCoPhieuKiVongRequest

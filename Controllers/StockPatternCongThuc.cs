@@ -1712,6 +1712,11 @@ namespace DotNetCoreSqlDb.Controllers
                 result = histories.FullMargin(phienKiemTra);
             }
 
+            if (result && filter.RSIAmTheoNgay.HasValue && filter.RSIAmTheoNgay.Value)
+            {
+                result = histories.RSIAmTheoNgay(phienKiemTra);
+            }
+
             return result;
         }
 
@@ -2172,8 +2177,13 @@ namespace DotNetCoreSqlDb.Controllers
                     case "CT1A4":
                     case "CTKH":
                     case "CTNT1":
+                    case "CTRSI1":                        
                         giaMongDoi = phienHumNay.O + (phienHumNay.NenTop - phienHumNay.NenBot) / 2;
                         giaCaoNhat = phienHumNay.C + (phienHumNay.NenTop - phienHumNay.NenBot) / 5;
+                        break;
+                    case "CTNT3":
+                        giaMongDoi = phienHumNay.BandsMid;
+                        giaCaoNhat = phienHumNay.BandsMid * 1.02M;
                         break;
                     case "CT1B":
                     case "CT1B2":
@@ -2277,6 +2287,8 @@ namespace DotNetCoreSqlDb.Controllers
                     .OrderBy(h => h.Date)
                     .ToList();
                 var ngayBatDau = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngayCuoi);
+                if (ngayBatDau == null) return;
+
                 for (int i = histories.IndexOf(ngayBatDau); i < histories.Count; i++)
                 {
                     ngayBatDau = histories[i];
@@ -2294,7 +2306,7 @@ namespace DotNetCoreSqlDb.Controllers
                 var startedI = histories.IndexOf(ngayBatDau);
                 var stoppedI = histories.IndexOf(ngayDungLai);
 
-                for (int i = startedI; i < stoppedI; i++)
+                for (int i = startedI; i <= stoppedI; i++)
                 {
                     var phienHumNay = histories[i];
                     var phienHumWa = histories[i - 1];
@@ -2536,7 +2548,7 @@ namespace DotNetCoreSqlDb.Controllers
 
                     var dinhT5 = histories.Where(h => h.Date >= dayT5.Date && h.Date <= new DateTime(2022, 6, 1)).OrderByDescending(h => h.H).First();
                     var tileChenhLenhTrongT5 = dinhT5.H / dayT5.L;
-                    
+
                     if (tileChenhLenhTrongT5 >= 1.2M)
                         tup.Add(new Tuple<string, string, decimal, decimal, decimal, decimal, bool>(
                             symbol._sc_, symbol._in_, today.C, khangMay * 100, ma20 * 100, soDayT6 * 100, today.V > today.VOL(histories, -20)
@@ -2549,7 +2561,7 @@ namespace DotNetCoreSqlDb.Controllers
                 .OrderBy(h => h.Item2)
                 .ThenBy(h => h.Item7)
                 .ThenBy(h => h.Item6)
-                .ThenBy(h => h.Item5)                
+                .ThenBy(h => h.Item5)
                 .ThenBy(h => h.Item4)
                 .ThenBy(h => h.Item3).ThenBy(h => h.Item1).ToList();
 
@@ -2569,7 +2581,59 @@ namespace DotNetCoreSqlDb.Controllers
 
             return result1;
         }
+        public async Task<List<string>> CongThucLungTung1()
+        {
+            var symbols = await _context.StockSymbol
+                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000)
+                //.Where(h => h._sc_ == "VKC")
+                .ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
 
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= new DateTime(2022, 1, 1))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+            /* 1 CP 
+             * 2 Nhom Nganh 
+             * 3 Gia
+             * 4 So sánh với Mây
+             * 5 So sánh với MA 20
+             * 6 So sánh với đáy T6
+             * 7 manh/yeu
+             */
+
+            var tup = new List<Tuple<string, string, decimal, decimal>>();
+            var result1 = new List<string>();
+            Parallel.ForEach(symbols, (Action<StockSymbol>)(symbol =>
+            {
+                var histories = historiesStockCode
+                                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                                    .OrderByDescending(h => h.Date)
+                                    .ToList();
+
+
+                var humnay = histories[0];
+                var humqua = histories[1];
+
+                if (humnay.RSI > humqua.RSI && (humnay.C < humqua.C || humnay.NenBot < humqua.NenBot))
+                {
+                    tup.Add(new Tuple<string, string, decimal, decimal>(symbol._in_, humnay.StockSymbol, humnay.V, humnay.C));
+                }
+            }));
+
+            tup = tup
+                .OrderBy(h => h.Item1)
+                .ThenByDescending(h => h.Item3)
+                .ThenBy(h => h.Item4)
+                .ThenBy(h => h.Item2).ToList();
+
+            foreach (var item in tup)
+            {
+                result1.Add($"{item.Item1} - {item.Item3.ToString("N2")} - {item.Item4.ToString("N2")} - {item.Item2}");
+            }
+
+            return result1;
+        }
     }
 }
 

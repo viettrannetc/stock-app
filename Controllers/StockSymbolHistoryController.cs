@@ -142,7 +142,7 @@ namespace DotNetCoreSqlDb.Controllers
         {
             var symbols = await _context.StockSymbol
                 .Where(s => s.BiChanGiaoDich == false && s.MA20Vol > 100000)
-                .Where(s => s._sc_ == "HMC")
+                //.Where(s => s._sc_ == "HMC")
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
@@ -377,7 +377,7 @@ namespace DotNetCoreSqlDb.Controllers
         {
             var symbols = await _context.StockSymbol
                 .Where(s => s.BiChanGiaoDich == false && s.MA20Vol > 100000)
-                .Where(s => s._sc_ == "HMC")
+                //.Where(s => s._sc_ == "HMC")
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
