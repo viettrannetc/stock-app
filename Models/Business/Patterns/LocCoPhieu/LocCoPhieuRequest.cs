@@ -26,7 +26,8 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         ThayDoiGiamNPhien,
         ThayDoiNgangNPhien,
         SoSanh,
-        TrongVong,
+        Day2XuatHienTrongVongNPhien,
+        DangBeNgang,
         /// <summary>
         /// Toán từ này được dùng trong việc xác định giá mua
         /// Tương Quan giữa 2 property có tỉ lệ là bao nhiêu
@@ -206,7 +207,7 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
             Filters = new List<LocCoPhieuFilterRequest>();
             VolToiThieu = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 1000000 };
             GiaToiThieu = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 6000 };
-            ShowHistory = true;
+            //ShowHistory = true;
         }
         public string Code { get; set; }
         public DateTime Ngay { get; set; }

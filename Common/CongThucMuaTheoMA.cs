@@ -6,6 +6,21 @@ namespace DotNetCoreSqlDb.Common
 {
     public static partial class CongThuc
     {
+        /// <summary>
+        /// CT tìm những CP đang mạnh trên thị trường
+        /// RSI = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHon, Value = 60 },
+        /// MacdSoVoiSignal = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHon },
+        /// Macd = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHon, Value = 0 }
+        /// </summary>
+        public static LocCoPhieuFilterRequest CT0A = new LocCoPhieuFilterRequest("CT0A")
+        {
+            PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
+                new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHonHoacBang, Result = 60  },
+                new LocCoPhieuCompareModel { Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
+                new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHon, Result = 0  }
+            }
+        };
+
         /* TODO
          * CT mới
          *      + Đặt mua theo biên độ dao động của giá trong TT đi ngang
@@ -91,21 +106,6 @@ namespace DotNetCoreSqlDb.Common
             }
         };
 
-
-        /// <summary>
-        /// CT tìm những CP đang mạnh trên thị trường
-        /// RSI = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHon, Value = 60 },
-        /// MacdSoVoiSignal = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHon },
-        /// Macd = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHon, Value = 0 }
-        /// </summary>
-        public static LocCoPhieuFilterRequest CT0A = new LocCoPhieuFilterRequest("CT0A")
-        {
-            PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
-                new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHonHoacBang, Result = 60  },
-                new LocCoPhieuCompareModel { Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
-                new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHon, Result = 0  }
-            }
-        };
 
         /// <summary>
         /// Biến thể từ CT1A nhưng 
@@ -259,20 +259,43 @@ namespace DotNetCoreSqlDb.Common
             //Giá dưới MA 20
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
                 new LocCoPhieuCompareModel { Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
-                new LocCoPhieuCompareModel { Day2 = true, Property1 = "MACD", Operation = OperationEnum.TrongVong, Result = 2  },
+                new LocCoPhieuCompareModel { Day2 = true, Property1 = "MACD", Operation = OperationEnum.Day2XuatHienTrongVongNPhien, Result = 2  },
                 new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 1 },
                 new LocCoPhieuCompareModel { Property1 = "NenTop", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  }
             },
         };
 
-
-        public static LocCoPhieuFilterRequest CT1B3 = new LocCoPhieuFilterRequest("CT1B3")    //nến đảo chiều tăng ở ngoài bands dưới
+        /// <summary>
+        /// PAS: SJF, etc. 8-6/22 -> trong vòng 5 phiên trước, không có MACD cắt xuống Signal
+        /// TODO: - 
+        /// //nến đảo chiều tăng ở ngoài bands dưới
+        /// Giá mua cho CT này nên đợi tín hiệu từ phiên ngày hum sau - nếu ko bị đạp từ lúc 9h thì sẽ tiến hành mua, còn nếu thấy đạp mạnh thì bỏ
+        ///         VD: IDJ, MHC 13/4/22
+        /// DIG - nến đỏ phiên 9 và 10h - 18/4/22
+        /// ROS - 8/6/22
+        /// BII - 1/4/22 - phiên 10h ngày 4/4/22 mới xác nhận nến đỏ
+        /// MBG - 13/4/22- phien 13h ngày 14/4/22 mới xác nhận nến đỏ
+        ///
+        /// Chú ý: 
+        ///  - nếu thị trường xuất hiện nhiều mã tạo nến tăng đảo chiều sau nhiều phiên, thì hãy nhìn VNINDEX - nếu VNINDEX có MACD cắt xuống SIGNAL trong 3 phiên gần nhất thì hiện tại chúng ta sẽ phủ định cây nến đảo chiều này
+        ///      Ví dụ: 13/04/22
+        /// </summary>
+        public static LocCoPhieuFilterRequest CT1B3 = new LocCoPhieuFilterRequest("CT1B3")    
         {
             NenBaoPhuDaoChieuManh = true,
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
                 new LocCoPhieuCompareModel { Property1 = "NenBot", Property2 = "BandsBot", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
                 new LocCoPhieuCompareModel { Property1 = "H", Property2 = "GiaMA05", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
+                new LocCoPhieuCompareModel { Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
                 new LocCoPhieuCompareModel { Phien = -1, Property1 = "NenBot", Property2 = "BandsBot", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
+                new LocCoPhieuCompareModel { Phien = -1, Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
+
+                new LocCoPhieuCompareModel { Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
+                new LocCoPhieuCompareModel { Phien = -1, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
+                new LocCoPhieuCompareModel { Phien = -2, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
+                new LocCoPhieuCompareModel { Phien = -3, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
+                new LocCoPhieuCompareModel { Phien = -4, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
+                new LocCoPhieuCompareModel { Phien = -5, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 }
             }
         };
 

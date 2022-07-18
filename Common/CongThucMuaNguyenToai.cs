@@ -6,7 +6,7 @@ namespace DotNetCoreSqlDb.Common
 {
     public static partial class CongThuc
     {
-
+        /*
         /// <summary>
         /// Nguyễn Toại
         /// - 2 đáy Giá (sau 1 chu kì giảm, nó có tăng lại 1 chút, nếu sau đó nó vòng lại test đáy thì mua vô
@@ -23,6 +23,7 @@ namespace DotNetCoreSqlDb.Common
         /// - mẫu hình phá vỡ tăng
         ///     + nến hum nay được theo sau bởi 1 nến tăng ngày hum wa, bất chấp giá O tạo gap, giá O bật lên khỏi
         /// - Vượt đỉnh cũ, nổ vol lớn, thì đu giá, call margin các kiểu cũng dc (SSI - 20/05/21, NLG thì ko như thế => ko mua đuổi)
+        /// - Khi bắt đáy, chọn cổ giảm mạnh hơn VNINDEX trước, những mã này sẽ bật lên trước VN-INDEX
         /// Chart H: chỉ dùng trong sóng hồi, trong up trend dùng dễ bị mất hàng. chỉ xem chart giờ khi chart ngày có tín hiệu (ví dụ: 2 đỉnh MACD - DIG - 9/1/21)
         ///     - tạo đáy MACD, phân kì
         /// Cuối tuần:
@@ -36,45 +37,51 @@ namespace DotNetCoreSqlDb.Common
         /// 
         /// Ngoại lệ: 01/2020 - Covid
         /// 
+        /// - 1 nhận xét từ 1 người trong room
         /// Đơi macd có  3 đáy pk dương 
         /// MA20 đi ngang, giá tích luỹ trên ma20 thành công
         /// Mây mỏng và có eo mây thì mới full dc
         /// </summary>
+        */
 
+        /// <summary>
+        /// Có 2 đáy MACD, MACD đang hướng lên 0,
+        /// Giá vượt MA 20 rồi
+        /// MA đang bẻ ngang
+        /// </summary>
         public static LocCoPhieuFilterRequest CTNT1 = new LocCoPhieuFilterRequest("CTNT1")
         {
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
-                //new LocCoPhieuCompareModel { Phien = -1, Property1 = "NenBot", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
-                //new LocCoPhieuCompareModel { Phien = -1, Property1 = "MACD", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.NhoHon, Result = 0 },
                 new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 2  },
-                new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.TrongVong, Result = 10  },
-                new LocCoPhieuCompareModel { Property1 = "BandsMid", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 1 },
-                new LocCoPhieuCompareModel { Property1 = "NenBot", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHonHoacBang, Result = 0  },
+                new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.Day2XuatHienTrongVongNPhien, Result = 10  },
+                new LocCoPhieuCompareModel { Property1 = "BandsMid", Operation = OperationEnum.DangBeNgang },
                 new LocCoPhieuCompareModel { Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
-                new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHon, Result = 0  }
-
-                //new LocCoPhieuCompareModel { Property1 = "C", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.NhoHon, Result = 4  },
-                //new LocCoPhieuCompareModel { Property1 = "MACD", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
-                //new LocCoPhieuCompareModel { Property1 = "GiaMA05", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 1  },
-                //new LocCoPhieuCompareModel { Property1 = "NenTop", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHonHoacBang, Result = 0  },
-                //new LocCoPhieuCompareModel { Property1 = "NenBot", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
-                //new LocCoPhieuCompareModel { Property1 = "GiaMA05", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
-                //new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 2  },
-                //new LocCoPhieuCompareModel { Property1 = "C", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.NhoHon, Result = 4  },
+                new LocCoPhieuCompareModel { Property1 = "NenBot", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHonHoacBang, Result = 0  },//đang ở trên MA 20
+                
             },
         };
 
         /// <summary>
-        /// MACD cross up signal
+        /// Giá tích lũy trong > 2 phien
+        ///  - Nến Top của 2 phiên trước chênh 2% so với nến top hiện tại       (CTNT2A)
+        ///  - OR Nến Bot của 2 phiên trước chênh 2% so với nến Bot hiện tại    (CTNT2B)
         /// </summary>
-        public static LocCoPhieuFilterRequest CTNT2 = new LocCoPhieuFilterRequest("CTNT2")
+        public static LocCoPhieuFilterRequest CTNT2A = new LocCoPhieuFilterRequest("CTNT2A")
         {
-            //MACDPhanKiTang = true,
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
-                new LocCoPhieuCompareModel { Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
-                new LocCoPhieuCompareModel { Day2 = true, Property1 = "MACD", Operation = OperationEnum.TrongVong, Result = 2  },
-                new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 1 },
-                new LocCoPhieuCompareModel { Property1 = "NenTop", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  }
+                new LocCoPhieuCompareModel { Property1 = "NenTop", Operation = OperationEnum.ThayDoiNgangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 2  }
+            },
+        };
+        
+        /// <summary>
+        /// Giá tích lũy trong > 2 phien
+        ///  - Nến Top của 2 phiên trước chênh 2% so với nến top hiện tại       (CTNT2A)
+        ///  - OR Nến Bot của 2 phiên trước chênh 2% so với nến Bot hiện tại    (CTNT2B)
+        /// </summary>
+        public static LocCoPhieuFilterRequest CTNT2B = new LocCoPhieuFilterRequest("CTNT2B")
+        {
+            PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
+                new LocCoPhieuCompareModel { Property1 = "NenBot", Operation = OperationEnum.ThayDoiNgangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 2  }
             },
         };
 

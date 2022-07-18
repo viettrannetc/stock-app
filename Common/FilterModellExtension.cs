@@ -622,7 +622,7 @@ namespace DotNetCoreSqlDb.Common
                             return property1 >= soSanhDuLieu.Result;
                     }
                     break;
-                case OperationEnum.TrongVong:
+                case OperationEnum.Day2XuatHienTrongVongNPhien:
                     var soNgayKiemTra = histories.OrderByDescending(h => h.Date).Where(h => h.Date < ngayKiemTra.Date).Take((int)soSanhDuLieu.Result).ToList();
                     for (int i = 0; i < soNgayKiemTra.Count; i++)
                     {
@@ -826,6 +826,7 @@ namespace DotNetCoreSqlDb.Common
 
             if (lstSoSanhMA20NgayTuDay2ToiHienTai.Count() == 1) return true;
 
+            //Giá vượt MA 20 thì đang giảm dần về test lại MA 20
             var kcXuongMA20XaNhat = lstSoSanhMA20NgayTuDay2ToiHienTai.OrderByDescending(h => h.NenBot).First();
             var kcXuongMA20NganNhat = lstSoSanhMA20NgayTuDay2ToiHienTai.OrderByDescending(h => h.NenBot).Last();
 

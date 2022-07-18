@@ -208,5 +208,29 @@ namespace DotNetCoreSqlDb.Common
                 await GetStockDataByHour(item, restService, result, from, to);
             }
         }
+
+
+        //public async Task GetChanges(List<History> result, List<StockSymbol> allSymbols, DateTime from, DateTime to, DateTime currentLatestDate, int count)
+        //{
+        //    var restService = new RestServiceHelper();
+
+        //    foreach (var item in allSymbols)
+        //    {
+        //        await GetStockDataByDay(item, restService, result, from, to);
+        //    }
+
+        //    result = result.Where(r => r.Date >= currentLatestDate).ToList();   //TODO: consider whether it should be ">=" or ">"
+
+        //    var updated = result.Select(r => r.StockSymbol).ToList();
+
+        //    var notFetchedSymbols = allSymbols.Where(s => !updated.Contains(s._sc_)).ToList();
+
+        //    if (notFetchedSymbols.Any() && count <= 3)
+        //    {
+        //        if (notFetchedSymbols.Count() == allSymbols.Count())
+        //            count++;
+        //        await GetChanges(result, notFetchedSymbols, from, to, currentLatestDate, count);
+        //    }
+        //}
     }
 }

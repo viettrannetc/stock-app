@@ -1469,8 +1469,12 @@ namespace DotNetCoreSqlDb.Controllers
 
             CongThuc.allCongThuc.Clear();
             CongThuc.allCongThuc.AddRange(new List<LocCoPhieuFilterRequest>() {
-                CongThuc.CT1A, CongThuc.CT1B, CongThuc.CT1C, CongThuc.CT3, CongThuc.CT1B2, CongThuc.CT1B3,
-                CongThuc.CT2B,CongThuc.CT2C, CongThuc.CT2D,CongThuc.CT2E, CongThuc.CT2F
+                CongThuc.CT1A, CongThuc.CT1A1, CongThuc.CT1A2, CongThuc.CT1A3A, CongThuc.CT1A3B, CongThuc.CT1A4, CongThuc.CT1A5,
+                CongThuc.CT1B, CongThuc.CT1B2, CongThuc.CT1B3, CongThuc.CT1C,
+                CongThuc.CT2B, CongThuc.CT2C, CongThuc.CT2D,CongThuc.CT2E, CongThuc.CT2F, //CongThuc.CT2G,
+                CongThuc.CT3,
+                CongThuc.CTNT1, CongThuc.CTNT2A, CongThuc.CTNT2B, CongThuc.CTNT3,
+                CongThuc.CTRSI1
             });
 
             boloc.Filters.AddRange(CongThuc.allCongThuc);
@@ -2175,9 +2179,13 @@ namespace DotNetCoreSqlDb.Controllers
                     case "CT1A3A":
                     case "CT1A3B":
                     case "CT1A4":
+                    case "CT1A5":
                     case "CTKH":
                     case "CTNT1":
-                    case "CTRSI1":                        
+                    case "CTNT2":
+                    case "CTNT2A":
+                    case "CTNT2B":
+                    case "CTRSI1":
                         giaMongDoi = phienHumNay.O + (phienHumNay.NenTop - phienHumNay.NenBot) / 2;
                         giaCaoNhat = phienHumNay.C + (phienHumNay.NenTop - phienHumNay.NenBot) / 5;
                         break;
@@ -2191,6 +2199,19 @@ namespace DotNetCoreSqlDb.Controllers
                         giaCaoNhat = phienHumNay.C * 1.02M;
                         break;
                     case "CT1B3":
+                        /* SAI: MBG 19/1/22
+                         * 
+                         * Giá mua cho CT này nên đợi tín hiệu từ phiên ngày hum sau - nếu ko bị đạp từ lúc 9h thì sẽ tiến hành mua, còn nếu thấy đạp mạnh thì bỏ
+                         * VD: IDJ, MHC 13/4/22
+                         * DIG - nến đỏ phiên 9 và 10h - 18/4/22
+                         * ROS - 8/6/22
+                         * BII - 1/4/22 - phiên 10h ngày 4/4/22 mới xác nhận nến đỏ
+                         * MBG - 13/4/22- phien 13h ngày 14/4/22 mới xác nhận nến đỏ
+                         * 
+                         * Chú ý: 
+                         *  - nếu thị trường xuất hiện nhiều mã tạo nến tăng đảo chiều sau nhiều phiên, thì hãy nhìn VNINDEX - nếu VNINDEX có MACD cắt xuống SIGNAL trong 3 phiên gần nhất thì hiện tại chúng ta sẽ phủ định cây nến đảo chiều này
+                         *      Ví dụ: 13/04/22
+                         */
                         giaMongDoi = phienHumNay.O + (phienHumNay.NenTop - phienHumNay.NenBot) / 2;
                         giaCaoNhat = phienHumNay.C + (phienHumNay.NenTop - phienHumNay.NenBot) / 5;
                         break;
@@ -2218,6 +2239,7 @@ namespace DotNetCoreSqlDb.Controllers
                         break;
                     case "CT2E":
                     case "CT2F":
+                    case "CT2G":
                         giaMongDoi = phienHumNay.NenBot * 0.93M;
                         giaCaoNhat = phienHumNay.NenBot - (phienHumNay.NenTop - phienHumNay.NenBot) / 2;
                         break;
@@ -2312,10 +2334,10 @@ namespace DotNetCoreSqlDb.Controllers
                     var phienHumWa = histories[i - 1];
                     var lstBan = new List<Tuple<string, bool>>();
 
-                    var thoaDK = ThỏaĐiềuKiệnLọc(CongThuc.CTNT3, histories, phienHumNay);
+                    var thoaDK = ThỏaĐiềuKiệnLọc(CongThuc.CT1B3, histories, phienHumNay);
                     if (!thoaDK) continue;
 
-                    lstBan.Add(new Tuple<string, bool>("CTNT3", thoaDK));
+                    lstBan.Add(new Tuple<string, bool>("CT1B3", thoaDK));
 
                     var giaMua = TimGiaMuaMongMuon(histories, phienHumNay, lstBan);
 
@@ -2501,8 +2523,8 @@ namespace DotNetCoreSqlDb.Controllers
         public async Task<List<string>> CongThucLungTung()
         {
             var symbols = await _context.StockSymbol
-                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 500000)
-                //.Where(h => h._sc_ == "VKC")
+                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 300000)
+                //.Where(h => h._sc_ == "SSI")
                 .ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
@@ -2519,13 +2541,15 @@ namespace DotNetCoreSqlDb.Controllers
              * 7 manh/yeu
              */
 
-            var tup = new List<Tuple<string, string, decimal, decimal, decimal, decimal, bool>>();
+            //var tup = new List<Tuple<string, string, decimal, decimal, decimal, decimal, bool>>();
+
+            var tup = new List<Tuple<string, string, string, int, bool, int>>();
             var result1 = new List<string>();
             Parallel.ForEach(symbols, (Action<StockSymbol>)(symbol =>
             {
                 var histories = historiesStockCode
-                                    .Where(ss => ss.StockSymbol == symbol._sc_)
-                                    .OrderBy(h => h.Date)
+                                    .Where(ss => ss.StockSymbol == symbol._sc_)// && ss.Date < new DateTime(2022, 7, 14))
+                                    //.OrderByDescending(h => h.Date)
                                     .ToList();
 
                 var dayT5 = histories.Where(h => h.Date >= new DateTime(2022, 5, 1) && h.Date <= new DateTime(2022, 6, 1)).OrderBy(h => h.L).First();
@@ -2533,50 +2557,99 @@ namespace DotNetCoreSqlDb.Controllers
 
                 if (cpCoThungDayT5TrongT6)
                 {
-                    var dayT6 = histories.Where(h => h.Date >= new DateTime(2022, 6, 1) && h.NenBot <= dayT5.L).OrderBy(h => h.L).First().L;
-                    var today = histories.OrderByDescending(h => h.Date).First();
+                    var tichLuyTrenMA20 = 0;
+                    var MACDHuongLenLienTucTrongNhungPhienTichLuy = 0;
+                    var khongCoTangTranTrong3Phien = true;
+                    for (int i = 0; i < histories.Count(); i++)
+                    {
+                        if (histories[i].MACD > histories[i + 1].MACD) MACDHuongLenLienTucTrongNhungPhienTichLuy++;
+                        if (histories[i].C > histories[i].BandsMid) tichLuyTrenMA20++;
+                        else break;
+                    }
+                    var today = histories[0];
 
-                    var khangMay = today.IchimokuBot > today.NenTop
-                        ? ((today.IchimokuBot / today.NenTop) - 1) * -1  //Đang dưới mây bot
-                        : (today.NenTop / today.IchimokuBot) - 1;        //Đang trên mây bot
+                    var tanggia = histories[0].TangGia() ? "TĂNG" : "GIẢM";
+                    var phanTramThayDoi = histories[0].TangGia()
+                        ? histories[0].C / histories[0].O - 1
+                        : histories[0].O / histories[0].C - 1;
 
-                    var ma20 = today.BandsMid / today.NenTop > 0
-                        ? ((today.BandsMid / today.NenTop) - 1) * -1     //Đang dưới MA20
-                        : (today.NenTop / today.IchimokuBot) - 1;        //Đang trên MA20
+                    var CayNenTruoc2PhienLaNenXanh = true;
+                    for (int i = 1; i < 3; i++)
+                    {
+                        if (!histories[i].TangGia()) { CayNenTruoc2PhienLaNenXanh = false; break; }
+                    }
 
-                    var soDayT6 = (today.L / dayT6) - 1;        //Đang trên MA20
+                    var cayNenHienTaiLaDoji = histories[0].Doji();
+                    //for (int i = 0; i < 3; i++)
+                    //{
+                    //    if (histories[i].C >= histories[i + 1].C * 1.06M) { khongCoTangTranTrong3Phien = false; break; }
+                    //}
 
-                    var dinhT5 = histories.Where(h => h.Date >= dayT5.Date && h.Date <= new DateTime(2022, 6, 1)).OrderByDescending(h => h.H).First();
-                    var tileChenhLenhTrongT5 = dinhT5.H / dayT5.L;
+                    //var giaDiNgangTrong3Phien = true;
+                    //for (int i = 0; i <= 3; i++)
+                    //{
+                    //    if (!histories[i].NenTop.IsDifferenceInRank(histories[0].NenTop, 0.02M)) { giaDiNgangTrong3Phien = false; break; }
+                    //}
 
-                    if (tileChenhLenhTrongT5 >= 1.2M)
-                        tup.Add(new Tuple<string, string, decimal, decimal, decimal, decimal, bool>(
-                            symbol._sc_, symbol._in_, today.C, khangMay * 100, ma20 * 100, soDayT6 * 100, today.V > today.VOL(histories, -20)
-                        ));
+                    //if (!khongCoTangTranTrong3Phien || !giaDiNgangTrong3Phien) return;
+                    if (!CayNenTruoc2PhienLaNenXanh || !cayNenHienTaiLaDoji) return;
 
+                    if (tichLuyTrenMA20 > 0)
+                    {
+                        tup.Add(new Tuple<string, string, string, int, bool, int>(symbol._sc_, symbol._in_, $"Giá {tanggia} so với giá mở cửa {phanTramThayDoi.ToString("N2")}", tichLuyTrenMA20, today.V > today.VOL(histories, -20), MACDHuongLenLienTucTrongNhungPhienTichLuy));
+                    }
+                    else
+                    {
+                        tup.Add(new Tuple<string, string, string, int, bool, int>(symbol._sc_, symbol._in_, $"Giá {tanggia} so với giá mở cửa {phanTramThayDoi.ToString("N2")}", tichLuyTrenMA20, today.V > today.VOL(histories, -20), MACDHuongLenLienTucTrongNhungPhienTichLuy));
+                    }
                 }
+
+                //if (cpCoThungDayT5TrongT6)
+                //{
+                //    var dayT6 = histories.Where(h => h.Date >= new DateTime(2022, 6, 1) && h.NenBot <= dayT5.L).OrderBy(h => h.L).First().L;
+                //    var today = histories.OrderByDescending(h => h.Date).First();
+
+                //    var khangMay = today.IchimokuBot > today.NenTop
+                //        ? ((today.IchimokuBot / today.NenTop) - 1) * -1  //Đang dưới mây bot
+                //        : (today.NenTop / today.IchimokuBot) - 1;        //Đang trên mây bot
+
+                //    var ma20 = today.BandsMid / today.NenTop > 0
+                //        ? ((today.BandsMid / today.NenTop) - 1) * -1     //Đang dưới MA20
+                //        : (today.NenTop / today.IchimokuBot) - 1;        //Đang trên MA20
+
+                //    var soDayT6 = (today.L / dayT6) - 1;        //Đang trên MA20
+
+                //    var dinhT5 = histories.Where(h => h.Date >= dayT5.Date && h.Date <= new DateTime(2022, 6, 1)).OrderByDescending(h => h.H).First();
+                //    var tileChenhLenhTrongT5 = dinhT5.H / dayT5.L;
+
+                //    if (tileChenhLenhTrongT5 >= 1.2M)
+                //        tup.Add(new Tuple<string, string, decimal, decimal, decimal, decimal, bool>(
+                //            symbol._sc_, symbol._in_, today.C, khangMay * 100, ma20 * 100, soDayT6 * 100, today.V > today.VOL(histories, -20)
+                //        ));
+                //}
+
+
             }));
 
             tup = tup
                 .OrderBy(h => h.Item2)
-                .ThenBy(h => h.Item7)
-                .ThenBy(h => h.Item6)
-                .ThenBy(h => h.Item5)
-                .ThenBy(h => h.Item4)
-                .ThenBy(h => h.Item3).ThenBy(h => h.Item1).ToList();
+                .ThenByDescending(h => h.Item4)
+                .ThenByDescending(h => h.Item6)
+                .ThenBy(h => h.Item1)
+                .ToList();
 
             foreach (var item in tup)
             {
-                var textMa20 = item.Item5 > 0 ? $"Trên MA 20 {Math.Abs(item.Item5).ToString("N2")}%" : $"Dưới MA 20 {Math.Abs(item.Item5).ToString("N2")}%";
-                var textDay = item.Item6 == 1
-                    ? $"Đang ở đáy T6"
-                    : item.Item6 > 0 ? $"Trên Đáy {Math.Abs(item.Item6).ToString("N2")}%" : $"Dưới Đáy {Math.Abs(item.Item6).ToString("N2")}%";
-                var textMay = item.Item4 > 0 ? $"Trên Mây {Math.Abs(item.Item4).ToString("N2")}%" : $"Dưới Mây {Math.Abs(item.Item4).ToString("N2")}%";
+                //var textMa20 = item.Item5 > 0 ? $"Trên MA 20 {Math.Abs(item.Item5).ToString("N2")}%" : $"Dưới MA 20 {Math.Abs(item.Item5).ToString("N2")}%";
+                //var textDay = item.Item6 == 1
+                //    ? $"Đang ở đáy T6"
+                //    : item.Item6 > 0 ? $"Trên Đáy {Math.Abs(item.Item6).ToString("N2")}%" : $"Dưới Đáy {Math.Abs(item.Item6).ToString("N2")}%";
+                //var textMay = item.Item4 > 0 ? $"Trên Mây {Math.Abs(item.Item4).ToString("N2")}%" : $"Dưới Mây {Math.Abs(item.Item4).ToString("N2")}%";
 
                 //var textManhYeu = item.Item7 ? $"Trong T5 Mạnh từ đáy" : $"Trong T5 Yếu từ đáy";
-                var volTo = item.Item7 ? $"Vol TO" : $"Vol Bé";
+                var volTo = item.Item5 ? $"Vol TO" : $"Vol Bé";
 
-                result1.Add($"{item.Item2} - {volTo} - {textDay} - {textMa20} - {textMay} - {item.Item3} - {item.Item1}");
+                result1.Add($"{item.Item2} - {item.Item4} - {item.Item6} - {item.Item3} - {item.Item1} - {volTo}");
             }
 
             return result1;
@@ -2615,10 +2688,15 @@ namespace DotNetCoreSqlDb.Controllers
                 var humnay = histories[0];
                 var humqua = histories[1];
 
-                if (humnay.RSI > humqua.RSI && (humnay.C < humqua.C || humnay.NenBot < humqua.NenBot))
+                if (humnay.C < humnay.BandsMid && humnay.C > humqua.C && humnay.RSI > humqua.RSI)
                 {
                     tup.Add(new Tuple<string, string, decimal, decimal>(symbol._in_, humnay.StockSymbol, humnay.V, humnay.C));
                 }
+
+                //if (humnay.RSI > humqua.RSI && (humnay.C < humqua.C || humnay.NenBot < humqua.NenBot))
+                //{
+                //    tup.Add(new Tuple<string, string, decimal, decimal>(symbol._in_, humnay.StockSymbol, humnay.V, humnay.C));
+                //}
             }));
 
             tup = tup
