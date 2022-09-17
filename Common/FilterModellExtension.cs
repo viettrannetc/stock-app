@@ -236,7 +236,8 @@ namespace DotNetCoreSqlDb.Common
 
             for (int i = 0; i < past.Count() - 1; i++)
             {
-                var propertyByCurrentIndex = (decimal)past[i].GetPropValue(propertyName);
+                //var propertyByCurrentIndex = (decimal)past[i].GetPropValue(propertyName); //đang so sánh với giá trước, liên tục giảm/tăng theo biên độ thì sẽ vô th này, thành ra cái này k phải đi ngang
+                var propertyByCurrentIndex = (decimal)checkingDate.GetPropValue(propertyName); //cần so sánh với ngày hiện tại
                 var propertyByPastIndex = (decimal)past[i + 1].GetPropValue(propertyName);
 
                 var firstNumber = propertyByCurrentIndex;
@@ -435,18 +436,22 @@ namespace DotNetCoreSqlDb.Common
 
         public static bool PropertyTangDanTrongNPhien(this List<History> histories, History checkingDate, string propertyChecking, int soPhienKiemTra)
         {
-            var checkingDateOrdered = histories.OrderByDescending(h => h.Date <= checkingDate.Date).ToList();
-
-            for (int i = 1; i < checkingDateOrdered.Count() - 2; i++)
+            var checkingDateOrdered = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= checkingDate.Date).ToList();
+            var soPhienTang = 0;
+            for (int i = 0; i < checkingDateOrdered.Count() - 2; i++)
             {
                 var dulieuT0 = (decimal)checkingDateOrdered[i].GetPropValue(propertyChecking);
                 var dulieuT1Am = (decimal)checkingDateOrdered[i + 1].GetPropValue(propertyChecking);
-                var dulieuT2Am = (decimal)checkingDateOrdered[i + 1].GetPropValue(propertyChecking);
-                if (dulieuT0 - dulieuT1Am > dulieuT1Am - dulieuT2Am && i >= soPhienKiemTra)
-                {
-                    return true;
-                }
+                if (dulieuT0 > dulieuT1Am) soPhienTang++;
+                else break;
+                //var dulieuT2Am = (decimal)checkingDateOrdered[i + 1].GetPropValue(propertyChecking);
+                //if (dulieuT0 - dulieuT1Am > dulieuT1Am - dulieuT2Am && i >= soPhienKiemTra)
+                //{
+                //    return true;
+                //}
             }
+
+            if (soPhienTang >= soPhienKiemTra - 1) return true;
 
             return false;
         }
@@ -657,7 +662,7 @@ namespace DotNetCoreSqlDb.Common
         }
 
         /// <summary>
-        /// CT Bắt đáy khi giảm mạnh
+        /// CT Bắt đáy khi giảm mạnh - tính từ ngày giá giảm liên tục tới hiện tại, nếu giá đã giảm >= 20%, thì bắt đầu mua vô
         /// <para> + Tính RSI hiện tại, đếm ngược lại những ngày trước đó mà RSI vẫn đang giảm và các nến đều là nến đỏ</para>
         /// <para> + Đi ngược lại tìm nến cao nhất</para>
         /// <para> + Tính từ giá đóng của của cây xanh cao nhất, so với giá hiện tại, nếu hiện tại giá đã giảm > 20%</para>
@@ -690,8 +695,8 @@ namespace DotNetCoreSqlDb.Common
             if (rsiGiamLienTucTrongXPhien <= 0) return false;
             var priceOfNgayBatDauGiam = checkingHistoies[rsiGiamLienTucTrongXPhien].C;
             var priceOfNgayHienTai = history.C;
-            var canBatDay = priceOfNgayHienTai <= priceOfNgayBatDauGiam * 0.8M;
-            return canBatDay;
+            var coTheBatDay = priceOfNgayHienTai <= priceOfNgayBatDauGiam * 0.8M && history.RSI < 30;
+            return coTheBatDay;
 
 
 
@@ -799,8 +804,15 @@ namespace DotNetCoreSqlDb.Common
             return true;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="histories"></param>
+        /// <param name="history"></param>
+        /// <returns></returns>
         public static bool FullMargin(this List<History> histories, History history)
         {
+            //Có xuất hiện đáy 2 MACD trong vòng 11 ngày trước
             var soNgayMuonKiemTraTrongQuaKhu = 11;
             var soNgayKiemTra = histories.OrderByDescending(h => h.Date).Where(h => h.Date < history.Date).Take(soNgayMuonKiemTraTrongQuaKhu).ToList();
             var day2 = new History();
@@ -813,24 +825,25 @@ namespace DotNetCoreSqlDb.Common
                     break;
                 }
             }
-
             if (day2.ID <= 0) return false;
 
+            //Từ đáy 2 MACD tới ngày hiện tại, MACD liên tục tăng
             var lstNgayTuDay2ToiHienTai = histories.OrderByDescending(h => h.Date).Where(h => h.Date < history.Date && h.Date >= day2.Date).ToList();
-
             var propertyTangLienTuc = histories.PropertyTangDanTrongNPhien(history, "MACD", lstNgayTuDay2ToiHienTai.Count());
             if (!propertyTangLienTuc) return false;
 
-            var lstSoSanhMA20NgayTuDay2ToiHienTai = lstNgayTuDay2ToiHienTai.Where(h => h.NenBot > h.BandsMid).ToList();
-            if (!lstSoSanhMA20NgayTuDay2ToiHienTai.Any()) return false;
-
-            if (lstSoSanhMA20NgayTuDay2ToiHienTai.Count() == 1) return true;
+            //Lấy những ngày hiện tại sau đáy 2 và có giá đã vượt MA 20 - lấy ra ít nhất 2 ngày, nếu chỉ có 1 ngày tức là ngày hum qua là ngày vượt MA 20 sau đáy 2, mình có thể tham gia ở giá quanh MA 20
+            var lstSoSanhMA20TuNgayDay2ToiHienTai = lstNgayTuDay2ToiHienTai.Where(h => h.NenBot > h.BandsMid).ToList();
+            if (!lstSoSanhMA20TuNgayDay2ToiHienTai.Any()) return false;
+            if (lstSoSanhMA20TuNgayDay2ToiHienTai.Count() == 1) return true;
 
             //Giá vượt MA 20 thì đang giảm dần về test lại MA 20
-            var kcXuongMA20XaNhat = lstSoSanhMA20NgayTuDay2ToiHienTai.OrderByDescending(h => h.NenBot).First();
-            var kcXuongMA20NganNhat = lstSoSanhMA20NgayTuDay2ToiHienTai.OrderByDescending(h => h.NenBot).Last();
+            var kcXuongMA20XaNhat = lstSoSanhMA20TuNgayDay2ToiHienTai.OrderByDescending(h => h.NenBot).First();
+            var kcXuongMA20NganNhat = lstSoSanhMA20TuNgayDay2ToiHienTai.OrderByDescending(h => h.NenBot).Last();
 
             if (kcXuongMA20XaNhat.Date > kcXuongMA20NganNhat.Date) return false;
+
+            //cây vượt MA 20 - trước đó 3 cây ko có cây nào 
 
             return true;
         }
@@ -843,6 +856,212 @@ namespace DotNetCoreSqlDb.Common
 
             return humnay.RSI > humqua.RSI && (humnay.C < humqua.C || humnay.NenBot < humqua.NenBot);
             //|| humnay.NenTop < humqua.NenTop);
+        }
+
+
+        /// <summary>
+        /// Có đáy 2 MACD trong 11 ngày trước
+        /// Từ đáy 2 MACD tới ngày hiện tại, MACD liên tục tăng
+        /// Từ những ngày sau đáy 2 tới hiện tại, tìm ra cây vượt MA 20
+        /// Giá vượt MA 20 thì bắt đầu canh mua ở giá MA 20 hoặc chờ giá đang giảm dần về test lại MA 20
+        /// </summary>
+        /// <param name="histories"></param>
+        /// <param name="history"></param>
+        /// <returns></returns>
+        public static bool CTNT1(this List<History> histories, History history)
+        {
+            //Có xuất hiện đáy 2 MACD trong vòng 11 ngày trước
+            var soNgayMuonKiemTraTrongQuaKhu = 30;
+            var soNgayKiemTra = histories.OrderByDescending(h => h.Date).Where(h => h.Date < history.Date).Take(soNgayMuonKiemTraTrongQuaKhu).ToList();
+            var day2 = new History();
+            for (int i = 0; i < soNgayKiemTra.Count; i++)
+            {
+                var có2Đáy = histories.CoTao2DayChua(soNgayKiemTra[i], "MACD");
+                if (có2Đáy)
+                {
+                    day2 = soNgayKiemTra[i];
+                    break;
+                }
+            }
+            if (day2.ID <= 0) return false;
+
+            ////Từ đáy 2 MACD tới ngày hiện tại, MACD liên tục tăng -> cái này tạm thời bỏ vì ko cần thiết
+            var lstNgayTuDay2ToiHienTai = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= history.Date && h.Date >= day2.Date).ToList();
+            //var propertyTangLienTuc = histories.PropertyTangDanTrongNPhien(history, "MACD", lstNgayTuDay2ToiHienTai.Count());
+            //if (!propertyTangLienTuc) return false;
+
+            //Lấy những ngày hiện tại sau đáy 2 và có giá đã vượt MA 20
+            //- lấy ra ít nhất 2 ngày từ ngày hiện tại trở về trước
+            //, nếu chỉ có 1 ngày tức là ngày hum qua là ngày vượt MA 20 sau đáy 2, mình có thể tham gia ở giá quanh MA 20
+            var ngayVuotMA20 = new History();
+            for (int i = 0; i < lstNgayTuDay2ToiHienTai.Count - 1; i++)
+            {
+                if (lstNgayTuDay2ToiHienTai[i].BandsMid < lstNgayTuDay2ToiHienTai[i].O + (lstNgayTuDay2ToiHienTai[i].NenTop - lstNgayTuDay2ToiHienTai[i].NenBot) / 2
+                    &&
+                    (
+                    (lstNgayTuDay2ToiHienTai[i].C > lstNgayTuDay2ToiHienTai[i].BandsMid
+                        && lstNgayTuDay2ToiHienTai[i].TangGia()
+                        && lstNgayTuDay2ToiHienTai[i].O < lstNgayTuDay2ToiHienTai[i].BandsMid)
+                    ||
+                    (lstNgayTuDay2ToiHienTai[i].C > lstNgayTuDay2ToiHienTai[i].BandsMid
+                        && lstNgayTuDay2ToiHienTai[i].TangGia()
+                        && lstNgayTuDay2ToiHienTai[i].O >= lstNgayTuDay2ToiHienTai[i].BandsMid
+                        && lstNgayTuDay2ToiHienTai[i + 1].NenTop < lstNgayTuDay2ToiHienTai[i].BandsMid)))
+                {
+                    ngayVuotMA20 = lstNgayTuDay2ToiHienTai[i];
+                    break;
+                }
+            }
+            if (ngayVuotMA20.ID <= 0) return false;
+            var lstNgayGiaVuotMA20TinhTuLanCuoiCungGiaVuotMA20 = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= history.Date && h.Date >= ngayVuotMA20.Date).ToList();
+            if (!lstNgayGiaVuotMA20TinhTuLanCuoiCungGiaVuotMA20.Any()) return false;
+            if (lstNgayGiaVuotMA20TinhTuLanCuoiCungGiaVuotMA20.Count() == 1)
+            {
+                return true;
+            }
+
+            //Giá vượt MA 20 thì đang giảm dần về test lại MA 20
+            var kcXuongMA20XaNhat = lstNgayGiaVuotMA20TinhTuLanCuoiCungGiaVuotMA20.OrderByDescending(h => h.NenTop).First();
+            var kcXuongMA20NganNhat = lstNgayGiaVuotMA20TinhTuLanCuoiCungGiaVuotMA20.Where(d => d.Date > ngayVuotMA20.Date).OrderByDescending(h => h.NenTop).Last();
+
+            if (kcXuongMA20NganNhat.C < history.BandsMid
+                || kcXuongMA20XaNhat.Date > kcXuongMA20NganNhat.Date
+                )
+                return false;
+
+            return true;
+        }
+
+        /// <summary>        
+        /// Giá vượt MA 20 thì bắt đầu canh mua ở giá MA 20 hoặc chờ giá đang giảm dần về test lại MA 20
+        /// Từ giao điểm cắt, tính tới hiện tại, nếu giá trên MA 20 và đường trung bình cộng của giá (theo  (H - L) /2) tạo thành hình cong xuống hoặc đi ngang, và giá hiện tại chưa chạm MA 20 hoặc điệm trung tâm nến vẫn > MA 20
+        /// Trong 3 ngày ko có MACD cắt xuống Signal
+        /// => thì báo tín hiệu
+        /// </summary>
+        /// <param name="histories"></param>
+        /// <param name="history"></param>
+        /// <returns></returns>
+        public static bool CTNT2(this List<History> histories, History history)
+        {
+            //Có xuất hiện đáy 2 MACD trong vòng 11 ngày trước
+            //var soNgayMuonKiemTraTrongQuaKhu = 30;
+            //var soNgayKiemTra = histories.OrderByDescending(h => h.Date).Where(h => h.Date < history.Date).Take(soNgayMuonKiemTraTrongQuaKhu).ToList();
+            //var day2 = new History();
+            //for (int i = 0; i < soNgayKiemTra.Count; i++)
+            //{
+            //    var có2Đáy = histories.CoTao2DayChua(soNgayKiemTra[i], "MACD");
+            //    if (có2Đáy)
+            //    {
+            //        day2 = soNgayKiemTra[i];
+            //        break;
+            //    }
+            //}
+            //if (day2.ID <= 0) return false;
+
+            ////Từ đáy 2 MACD tới ngày hiện tại, MACD liên tục tăng -> cái này tạm thời bỏ vì ko cần thiết
+            var lstNgayTuDay2ToiHienTai = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= history.Date).ToList();
+            //var propertyTangLienTuc = histories.PropertyTangDanTrongNPhien(history, "MACD", lstNgayTuDay2ToiHienTai.Count());
+            //if (!propertyTangLienTuc) return false;
+
+            //Lấy những ngày hiện tại sau đáy 2 và có giá đã vượt MA 20
+            //- lấy ra ít nhất 2 ngày từ ngày hiện tại trở về trước
+            //, nếu chỉ có 1 ngày tức là ngày hum qua là ngày vượt MA 20 sau đáy 2, mình có thể tham gia ở giá quanh MA 20
+            var ngayVuotMA20 = new History();
+            for (int i = 0; i < lstNgayTuDay2ToiHienTai.Count - 1; i++)
+            {
+                //if (lstNgayTuDay2ToiHienTai[i].BandsMid < lstNgayTuDay2ToiHienTai[i].O + (lstNgayTuDay2ToiHienTai[i].NenTop - lstNgayTuDay2ToiHienTai[i].NenBot) / 2
+                //    &&
+                //    (
+                //    (lstNgayTuDay2ToiHienTai[i].C > lstNgayTuDay2ToiHienTai[i].BandsMid
+                //        && lstNgayTuDay2ToiHienTai[i].TangGia()
+                //        && lstNgayTuDay2ToiHienTai[i].O < lstNgayTuDay2ToiHienTai[i].BandsMid)
+                //    ||
+                //    (lstNgayTuDay2ToiHienTai[i].C > lstNgayTuDay2ToiHienTai[i].BandsMid
+                //        && lstNgayTuDay2ToiHienTai[i].TangGia()
+                //        && lstNgayTuDay2ToiHienTai[i].O >= lstNgayTuDay2ToiHienTai[i].BandsMid
+                //        && lstNgayTuDay2ToiHienTai[i + 1].NenTop < lstNgayTuDay2ToiHienTai[i].BandsMid)))
+                //{
+                //    ngayVuotMA20 = lstNgayTuDay2ToiHienTai[i];
+                //    break;
+                //}
+
+                /*
+                 * cây hum nay đóng cửa >= MA 20 và
+                 * hoặc là 
+                 *      - cây hum nay mở cửa dưới MA 20
+                 *      - cây hum wa nến top dưới MA 20
+                 */
+
+                if (lstNgayTuDay2ToiHienTai[i].TangGia()
+                    && lstNgayTuDay2ToiHienTai[i].NenTop >= lstNgayTuDay2ToiHienTai[i].BandsMid
+                    && (lstNgayTuDay2ToiHienTai[i].NenBot < lstNgayTuDay2ToiHienTai[i].BandsMid
+                        || lstNgayTuDay2ToiHienTai[i + 1].NenTop < lstNgayTuDay2ToiHienTai[i].BandsMid))
+                {
+                    ngayVuotMA20 = lstNgayTuDay2ToiHienTai[i];
+                    break;
+                }
+            }
+            if (ngayVuotMA20.ID <= 0) return false;
+
+            var lstNgayGiaVuotMA20TinhTuLanCuoiCungGiaVuotMA20 = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= history.Date && h.Date >= ngayVuotMA20.Date).ToList();
+            if (!lstNgayGiaVuotMA20TinhTuLanCuoiCungGiaVuotMA20.Any()) return false;
+            if (lstNgayGiaVuotMA20TinhTuLanCuoiCungGiaVuotMA20.Count() == 1)
+            {
+                return true;
+            }
+
+            //Giá vượt MA 20 và đang giảm dần về test lại MA 20
+
+            var duongTrungBinh = lstNgayGiaVuotMA20TinhTuLanCuoiCungGiaVuotMA20.Select(d => new { ngay = d.Date, value = (d.H + d.L) / 2 }).OrderBy(d => d.ngay).ToList();
+            var diemBatDau = duongTrungBinh.First();
+            var diemCaoNhat = duongTrungBinh.OrderByDescending(d => d.value).First();
+            var diemCuoiCungHienTai = duongTrungBinh.Last();
+            var ma20HienTai = history.BandsMid;
+
+            var giaDangVongLaiTestMA20 = diemBatDau.value < diemCaoNhat.value && diemCaoNhat.ngay > diemBatDau.ngay
+                && diemCaoNhat.ngay < diemCuoiCungHienTai.ngay
+                && diemCuoiCungHienTai.value > ma20HienTai;
+
+            if (giaDangVongLaiTestMA20) return true;
+
+            //Trong vòng 3 phiên trước, giá bám ngang MA 20 2%
+            var humnay = history;
+            var humwa = histories.OrderByDescending(h => h.Date).Where(h => h.Date < humnay.Date).First();
+            var humkia = histories.OrderByDescending(h => h.Date).Where(h => h.Date < humwa.Date).First();
+
+            var humnayVsHumwa = (humnay.BandsMid.IsDifferenceInRank((humwa.H + humwa.L) / 2, 0.03M));
+            var humnayVsHumtruoc = (humnay.BandsMid.IsDifferenceInRank((humkia.H + humkia.L) / 2, 0.03M));
+
+            if (humnayVsHumwa && humnayVsHumtruoc) return true;
+
+            return false;
+        }
+
+
+        public static bool PropertyTangDanToiKhiDatTargetTrai(this List<HistoryHour> histories, HistoryHour checkingDate, string propertyChecking, decimal targetTrai)
+        {
+            var checkingDateOrdered = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= checkingDate.Date).ToList();
+            var dulieugoc = (decimal)checkingDateOrdered[0].GetPropValue(propertyChecking);
+            decimal expectedValueTrai = dulieugoc < 0
+                ? dulieugoc * targetTrai //-100 * 0.9 = -90
+                : dulieugoc * (1 + (1 - targetTrai));
+
+            for (int i = 0; i < checkingDateOrdered.Count() - 1; i++)
+            {
+                var dulieuT0 = (decimal)checkingDateOrdered[i].GetPropValue(propertyChecking);
+                var dulieuT1Am = (decimal)checkingDateOrdered[i + 1].GetPropValue(propertyChecking);
+
+                if (dulieuT0 > dulieuT1Am)
+                {
+                    return false;
+                }
+
+                dulieugoc += dulieuT1Am - dulieuT0;
+                if (dulieugoc > expectedValueTrai)
+                    return true;
+            }
+
+            return false;
         }
     }
 

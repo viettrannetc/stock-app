@@ -13,6 +13,7 @@ namespace DotNetCoreSqlDb.Controllers
     public partial class StockSymbolHistoryController : Controller
     {
         private readonly MyDatabaseContext _context;
+        public int minMA20Vol = ConstantData.minMA20VolDaily;
 
         public StockSymbolHistoryController(MyDatabaseContext context)
         {
@@ -54,9 +55,82 @@ namespace DotNetCoreSqlDb.Controllers
             var restService = new RestServiceHelper();
 
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            //var symbols = string.IsNullOrWhiteSpace(code)
+            //    ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > minMA20Vol).OrderByDescending(s => s._sc_).ToListAsync()
+            //    : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > minMA20Vol && splitStringCode.Contains(s._sc_)).OrderByDescending(s => s._sc_).ToListAsync();
+
             var symbols = string.IsNullOrWhiteSpace(code)
-                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000).OrderByDescending(s => s._sc_).ToListAsync()
-                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000 && splitStringCode.Contains(s._sc_)).OrderByDescending(s => s._sc_).ToListAsync();
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false).OrderByDescending(s => s._sc_).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && splitStringCode.Contains(s._sc_)).OrderByDescending(s => s._sc_).ToListAsync();
+
+            var result = new List<History>();
+            var latestHistory = _context.History.OrderByDescending(r => r.Date).FirstOrDefault();
+            var currentLatestDate = latestHistory == null ? new DateTime(2000, 1, 1) : latestHistory.Date;
+            var from = tuNgay < new DateTime(2000, 1, 1) ? currentLatestDate.AddDays(1) : tuNgay;
+            var to = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, 23, 0, 0);
+
+            var service = new Service();
+            await service.GetV(result, symbols, from, to, from, 0);
+
+            result = result.Where(r => r.Date > currentLatestDate).ToList();
+
+            if (result.Any())
+            {
+                await _context.History.AddRangeAsync(result);
+                await _context.SaveChangesAsync();
+                await UpdateIndicators(currentLatestDate);
+            }
+
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Update data symbols for trash codes
+        /// </summary>
+        /// <param name="code"></param>
+        /// <param name="tuNgay"></param>
+        /// <returns></returns>
+        [HttpPost]
+        public async Task<string> CreateTrashOnes(string code, DateTime tuNgay)
+        {
+            var restService = new RestServiceHelper();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol <= minMA20Vol).OrderByDescending(s => s._sc_).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol <= minMA20Vol && splitStringCode.Contains(s._sc_)).OrderByDescending(s => s._sc_).ToListAsync();
+
+            var result = new List<History>();
+            var latestHistory = _context.History.OrderByDescending(r => r.Date).FirstOrDefault();
+            var currentLatestDate = new DateTime(2000, 1, 1);
+            var from = new DateTime(2000, 1, 1);
+            //var to = DateTime.Now.WithoutHours();
+            var to = new DateTime(2022, 8, 1, 23, 59, 59);
+
+            var service = new Service();
+            await service.GetV(result, symbols, from, to, from, 0);
+
+            result = result.Where(r => r.Date > currentLatestDate).ToList();
+
+            if (result.Any())
+            {
+                await _context.History.AddRangeAsync(result);
+                await _context.SaveChangesAsync();
+                await UpdateIndicators(currentLatestDate);
+            }
+
+            return string.Empty;
+        }
+
+        [HttpPost]
+        public async Task<string> CreateWrongOnes(string code, DateTime tuNgay)
+        {
+            var restService = new RestServiceHelper();
+
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > minMA20Vol).OrderByDescending(s => s._sc_).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > minMA20Vol && splitStringCode.Contains(s._sc_)).OrderByDescending(s => s._sc_).ToListAsync();
             //var stockCodes = symbols.Select(s => s._sc_).ToList();
 
             //var allSymbols = await _context.StockSymbol
@@ -67,13 +141,13 @@ namespace DotNetCoreSqlDb.Controllers
             var result = new List<History>();
             var latestHistory = _context.History.OrderByDescending(r => r.Date).FirstOrDefault();
             var currentLatestDate = latestHistory == null ? new DateTime(2000, 1, 1) : latestHistory.Date;
-            var from = tuNgay < new DateTime(2000, 1, 1) ? currentLatestDate.AddDays(1) : tuNgay;
+            var from = new DateTime(2000, 1, 1);
             var to = DateTime.Now.WithoutHours();
 
             var service = new Service();
             await service.GetV(result, symbols, from, to, from, 0);
 
-            result = result.Where(r => r.Date > currentLatestDate).ToList();
+            //result = result.Where(r => r.Date > currentLatestDate).ToList();
 
             if (result.Any())
             {
@@ -93,7 +167,7 @@ namespace DotNetCoreSqlDb.Controllers
             var restService = new RestServiceHelper();
             var result = new List<string>();
             var symbols = await _context.StockSymbol
-                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000)
+                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > minMA20Vol)
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
 
@@ -144,7 +218,7 @@ namespace DotNetCoreSqlDb.Controllers
             var restService = new RestServiceHelper();
             var resultText = new List<string>();
             var symbols = await _context.StockSymbol
-                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000)
+                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > minMA20Vol)
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
 
@@ -154,7 +228,7 @@ namespace DotNetCoreSqlDb.Controllers
             var result = new List<History>();
             var latestHistory = _context.History.OrderByDescending(r => r.Date).FirstOrDefault();
             var currentLatestDate = latestHistory == null ? new DateTime(2000, 1, 1) : latestHistory.Date;
-            var from = DateTime.Now.AddDays(-30).WithoutHours();
+            var from = DateTime.Now.AddDays(-90).WithoutHours();
             var to = DateTime.Now.WithoutHours();
 
             var service = new Service();
@@ -184,42 +258,31 @@ namespace DotNetCoreSqlDb.Controllers
         public async Task<string> UpdateIndicators(DateTime fromDate)
         {
             var symbols = await _context.StockSymbol
-                .Where(s => s.BiChanGiaoDich == false && s.MA20Vol > 100000)
-                //.Where(s => s._sc_ == "HMC")
+                .Where(s => s.BiChanGiaoDich == false)
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
             var stockCodes = symbols.Select(s => s._sc_).ToList();
 
-
-            //var last60Phien = await _context.History.Where(h => h.StockSymbol == "SSI" && h.Date >= fromDate).OrderByDescending(h => h.Date).Skip(60).Take(1).FirstOrDefaultAsync();
-
             var historiesStockCode = await _context.History
                 .Where(ss => stockCodes.Contains(ss.StockSymbol))
-                //.Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= last60Phien.Date)
                 .OrderByDescending(ss => ss.Date)
                 .ToListAsync();
-
-            int rsiPeriod = 14;
-            int bandsPeriod = 20;
-            int bandsFactor = 2;
 
             foreach (var symbol in symbols)
             {
                 //Update stock
-                //var histories = historiesStockCode
-                //    .Where(ss => ss.StockSymbol == symbol._sc_)
-                //    .OrderByDescending(h => h.Date)
-                //    .ToList();
+                var histories = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderByDescending(h => h.Date)
+                    .ToList();
 
-                //var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
-                //var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
-                //symbol.BiChanGiaoDich = biCanhCao;
+                var latestDate = histories.OrderByDescending(h => h.Date).FirstOrDefault();
+                var biCanhCao = latestDate.DangBiCanhCaoGD1Tuan(histories);
+                symbol.BiChanGiaoDich = biCanhCao;
 
-                //var avarageOfLastXXPhien = histories.Take(20).Sum(h => h.V) / 20;
-                //symbol.MA20Vol = avarageOfLastXXPhien;
-                //_context.StockSymbol.Update(symbol);
-
-
+                var avarageOfLastXXPhien = histories.Take(20).Sum(h => h.V) / 20;
+                symbol.MA20Vol = avarageOfLastXXPhien;
+                _context.StockSymbol.Update(symbol);
 
                 //Update indicators - Done
                 var historiesInPeriodOfTime = historiesStockCode
@@ -386,8 +449,8 @@ namespace DotNetCoreSqlDb.Controllers
 
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
             var symbols = string.IsNullOrWhiteSpace(code)
-                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000).OrderByDescending(s => s._sc_).ToListAsync()
-                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > 100000 && splitStringCode.Contains(s._sc_)).OrderByDescending(s => s._sc_).ToListAsync();
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > minMA20Vol).OrderByDescending(s => s._sc_).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > minMA20Vol && splitStringCode.Contains(s._sc_)).OrderByDescending(s => s._sc_).ToListAsync();
 
             var result = new List<HistoryHour>();
 
@@ -409,7 +472,7 @@ namespace DotNetCoreSqlDb.Controllers
             {
                 await _context.HistoryHour.AddRangeAsync(result);
                 await _context.SaveChangesAsync();
-                await UpdateIndicators(currentLatestDate);
+                await UpdateIndicatorsHour();
             }
 
             return string.Empty;
@@ -419,7 +482,7 @@ namespace DotNetCoreSqlDb.Controllers
         public async Task<string> UpdateIndicatorsHour()
         {
             var symbols = await _context.StockSymbol
-                .Where(s => s.BiChanGiaoDich == false && s.MA20Vol > 100000)
+                .Where(s => s.BiChanGiaoDich == false && s.MA20Vol > minMA20Vol)
                 //.Where(s => s._sc_ == "HMC")
                 .OrderByDescending(s => s._sc_)
                 .ToListAsync();
@@ -529,5 +592,39 @@ namespace DotNetCoreSqlDb.Controllers
 
             return "true";
         }
+
+
+        // GET: https://localhost:44359/History/Details?code=A32
+        [HttpGet]
+        public async Task<List<string>> DeleteDuplicatedOnes()
+        {
+            var restService = new RestServiceHelper();
+            var result = new List<string>();
+            var symbols = await _context.StockSymbol.ToListAsync();
+            var codes = symbols.Select(h => h._sc_).ToList();
+
+            var dbData = await _context.History.ToListAsync();
+            var duplicatedItems = dbData.GroupBy(c => new { c.StockSymbol, c.Date })
+                .Where(grp => grp.Count() > 1)
+                .Select(gr => gr)
+                .ToList();
+
+            var deleteItems = new List<History>();
+
+            for (int i = 0; i < duplicatedItems.Count; i++)
+            {
+                var duplicatedItem = duplicatedItems[i].First();
+                var deleteItem = dbData.First(d => d.Date == duplicatedItem.Date && d.StockSymbol == duplicatedItem.StockSymbol);
+                deleteItems.Add(deleteItem);
+            }
+
+            if (deleteItems.Any())
+            {
+                _context.History.RemoveRange(deleteItems);
+                await _context.SaveChangesAsync();
+            }
+            return result;
+        }
+
     }
 }

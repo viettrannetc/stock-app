@@ -5,7 +5,24 @@ namespace DotNetCoreSqlDb.Common
 {
     public static class ConstantData
     {
+        public static int minMA20VolDaily = 800000;
+        public static int minMA20VolHourly = 150000;//300000
+
         public static List<string> Condition = new List<string> { "True", "true", "1" };
+
+        public static List<string> BadCodes = new List<string> {
+            "FLC", "ROS", "ART", "AMD",
+            "SHB", //vẽ chart sàn HNX
+            "SHS", "ITA", "BII",
+            "CTF", "IBC",
+            "DHM", "HTP", //lãnh đạo bán cổ phiếu sau khi tăng - 22/8/22
+            "OGC", "SSB",
+            "DDG", "HAI",
+            "IBC",
+            "OGC",          //chỉ giao dich buoi chieu
+            "KLF"
+
+        };
 
         public const string CT01 = "Trend Giảm";
         public const string CT02 = "Đáy 2";

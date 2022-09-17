@@ -22,9 +22,10 @@ namespace DotNetCoreSqlDb.Common
     {
         private const string DataType = "application/json";
 
-        public async Task<T> Get<T>(string url, bool? applyParseTwice = false) where T : class
+        public async Task<T> Get<T>(string url, bool? applyParseTwice = false,
+            string token = "") where T : class
         {
-            return await Hexecute<T>(url, "GET", applyParseTwice: applyParseTwice);
+            return await Hexecute<T>(url, "GET", applyParseTwice: applyParseTwice, token: token);
         }
 
         public async Task<T> Post<T>(string url, object data) where T : class
@@ -68,13 +69,17 @@ namespace DotNetCoreSqlDb.Common
 
         private async Task<T> Hexecute<T>(string address, string method, string data = null, Stream streamData = null,
             string contentType = null, bool isStream = false, bool acceptJson = true,
-            bool? applyParseTwice = false) where T : class
+            bool? applyParseTwice = false,
+            string token = "") where T : class
         {
             var url = new Uri(address);
             var request = WebRequest.Create(url) as HttpWebRequest;
 
             //var encoded = Convert.ToBase64String(Encoding.GetEncoding("ISO-8859-1").GetBytes(Configuration.Username + ":" + Configuration.Password));
             //request.Headers.Add("Authorization", "Basic " + encoded);
+
+            if (address.Contains("fireant") && !string.IsNullOrEmpty(token))
+                request.Headers.Add("cookie", token);
 
             request.Method = method;
             request.ContentType = DataType;

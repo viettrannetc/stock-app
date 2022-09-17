@@ -594,6 +594,11 @@ namespace DotNetCoreSqlDb.Common
             return today.C > today.O;
         }
 
+        public static bool DojiCoRauHoacTangGia(this History today)
+        {
+            return today.C >= today.O && today.H > today.C;
+        }
+
         /// <summary>
         /// Đỉnh sau thấp hơn đỉnh trước
         /// Đáy sau thấp hơn đáy trước
@@ -939,7 +944,7 @@ namespace DotNetCoreSqlDb.Common
             decimal CL2G = 0.95M,
             decimal CL2D = 0.1M)
         {
-            if (đáy2.V < 100000) return null;
+            if (đáy2.VOL(histories, -20) < ConstantData.minMA20VolDaily) return null;
             var chenhLechĐủ = đáy1.NenBot / đáy2.NenBot >= CL2G; //1.02M; 1/lọc giá trị vol < 100K
             if (chenhLechĐủ == false) return null;
 
@@ -992,7 +997,7 @@ namespace DotNetCoreSqlDb.Common
                 }
             }
 
-            if (coPointDeuBenDuoiLine) return null;
+            //if (coPointDeuBenDuoiLine) return null;   //TODO: tạm thời bỏ qua dk này
 
 
             /*
@@ -1086,7 +1091,7 @@ namespace DotNetCoreSqlDb.Common
         /// <param name="property"></param>
         /// <param name="soPhienDeKiemTra2Day"></param>
         /// <returns></returns>
-        public static bool CoTao2DayChua(this List<History> histories, History đáy2, string property = "RSI", int soPhienDeKiemTra2Day = 30)
+        public static bool CoTao2DayChua(this List<History> histories, History đáy2, string property = "RSI", int soPhienDeKiemTra2Day = 60)
         {
             //[Ngày hiện tại] phải là ngày nhỏ hơn ngày thực tế ít nhất 1
             /* Nếu tìm thấy đáy 1 nữa là xong */
@@ -1162,8 +1167,9 @@ namespace DotNetCoreSqlDb.Common
                 var đãTạoĐáy2 = histories.PropertyTangDanToiKhiDatTargetTrai(đáy2, property, 0.9999M);
                 var đãTạoĐáy1 = histories.PropertyTangDanToiKhiDatTargetTrai(đáy1, property, 0.9999M);
                 if (!đãTạoĐáy1 || đáy1Add1Value <= propertyValueĐáy1) continue;
+                if (!đãTạoĐáy2 || đáy2Add1Value <= propertyĐáy2) continue;
                 //if (!đãTạoĐáy2 || đáy2Add1Value <= propertyValueĐáy2) return null;//TODO: điều kiện cần thêm
-                if (!đãTạoĐáy2 || đáy2Add1Value <= propertyĐáy2 + averageNumberEachDay) continue;
+                //if (!đãTạoĐáy2 || đáy2Add1Value <= propertyĐáy2 + averageNumberEachDay) continue;
 
 
                 var trendLineRsi = new Line();
@@ -1173,24 +1179,34 @@ namespace DotNetCoreSqlDb.Common
                 trendLineRsi.y2 = propertyĐáy2;
 
                 var crossLineRsi = new Line();
-                var cr1 = 1;
-                while (cr1 < middlePoints.Count())
+                var cr1 = 0;
+                for (cr1 = 0; cr1 < middlePoints.Count; cr1++)
                 {
-                    if (đáy1.Date.AddDays(cr1) == tcr.Date)
-                        break;
-                    cr1++;
+                    //if (đáy1.Date.AddDays(cr1) == tcr.Date)
+                    //    break;
+                    if (middlePoints[cr1].Date == tcr.Date) break;
                 }
-                crossLineRsi.x1 = cr1;
+                //while (cr1 < middlePoints.Count())
+                //{
+                //    if (đáy1.Date.AddDays(cr1) == tcr.Date)
+                //        break;
+                //    cr1++;
+                //}
+                crossLineRsi.x1 = cr1 + 1;
                 crossLineRsi.y1 = (decimal)tcr.GetPropValue(property); //tcr2.RSI;//tcr.RSI;
 
-                var cr2 = 1;
-                while (cr2 < middlePoints.Count())
+                var cr2 = 0;
+                //while (cr2 < middlePoints.Count())
+                //{
+                //    if (đáy1.Date.AddDays(cr2) == tcr2.Date)
+                //        break;
+                //    cr2++;
+                //}
+                for (cr2 = 0; cr2 < middlePoints.Count; cr2++)
                 {
-                    if (đáy1.Date.AddDays(cr2) == tcr2.Date)
-                        break;
-                    cr2++;
+                    if (middlePoints[cr2].Date == tcr2.Date) break;
                 }
-                crossLineRsi.x2 = cr2;
+                crossLineRsi.x2 = cr2 + 1;
                 crossLineRsi.y2 = (decimal)tcr2.GetPropValue(property); //tcr2.RSI;
 
                 var pointRsi = trendLineRsi.FindIntersection(crossLineRsi);
@@ -1202,6 +1218,403 @@ namespace DotNetCoreSqlDb.Common
             }
             return false;
         }
-    }
 
+
+        public static bool LaCayVuotMA20(this List<History> histories, History humnay)
+        {
+            var humwa = histories.OrderByDescending(h => h.Date).First(h => h.Date < humnay.Date);
+            var ngayVuotMA20 = new History();
+
+            if (!humwa.TangGia()) return false;
+
+            if (humwa.NenTop > humwa.BandsMid) return false;
+
+            if (humnay.C > humnay.BandsMid && humnay.O < humnay.BandsMid) return true;
+
+            if (humnay.NenBot > humnay.BandsMid && humwa.NenBot < humwa.BandsMid)
+                return true;
+
+            return false;
+        }
+
+        public static bool DangNamDuoiMayFlat(this History humnay, List<History> histories)
+        {
+            var humwa = histories.OrderByDescending(h => h.Date).First(h => h.Date < humnay.Date);
+            return humnay.NenTop < humnay.IchimokuTop && humwa.IchimokuTop == humnay.IchimokuTop;
+        }
+
+        public static bool DangTrongMay(this History humnay, List<History> histories)
+        {
+            return humnay.C < humnay.IchimokuTop && humnay.C > humnay.IchimokuBot;
+        }
+
+        public static bool CoXuatHienMACDCatXuongSignalTrongXPhienGanNhat(this History humnay, List<History> histories, int soPhien)
+        {
+            var property1S = "MACD";
+            var property2S = "MACDSignal";
+
+            var checkingData = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= humnay.Date).ToList();
+            for (int i = 0; i < soPhien; i++)
+            {
+                var humnayC = checkingData[i];
+                var humwaC = checkingData[i + 1];
+
+                //var humwa = histories.OrderByDescending(h => h.Date).First(h => h.Date < humnayC.Date);
+
+                var property1 = (decimal)humnayC.GetPropValue(property1S);
+                var property2 = string.IsNullOrEmpty(property2S) ? 0 : (decimal)humnayC.GetPropValue(property2S);
+
+                var lineProperty1 = new Line();
+                lineProperty1.x1 = 0;  //x là trục tung - trục đối xứng - trục thời gian                    
+                lineProperty1.y1 = (decimal)humwaC.GetPropValue(property1S);
+                lineProperty1.x2 = 1;
+                lineProperty1.y2 = property1;
+
+                var lineProperty2 = new Line();
+                lineProperty2.x1 = 0;  //x là trục tung - trục đối xứng - trục thời gian                    
+                lineProperty2.y1 = (decimal)humwaC.GetPropValue(property2S);
+                lineProperty2.x2 = 1;
+                lineProperty2.y2 = property2;
+
+                var crossPoint = lineProperty1.FindIntersection(lineProperty2);
+
+                var cut = crossPoint != null && property2 > property1;
+                if (cut) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Co Xuat Hien Phien Bung No Trong 5 Phien Truoc
+        /// 1 - C > O 4%
+        /// 2 - V > V MA 20 * 1.5
+        /// 3 - Trong 5 phiên trước, không có giá nào cao hơn nửa thân nến hum nay
+        /// </summary>
+        /// <param name="histories"></param>
+        /// <param name="history"></param>
+        /// <param name="trongNPhienQuaKhu"></param>
+        /// <returns></returns>
+        public static bool CoXuatHienPhienBungNoTrongNPhienTruoc(this List<History> histories, History history, int trongNPhienQuaKhu = 5)
+        {
+            var checkingDays = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= history.Date).ToList();
+
+            for (int i = 0; i < trongNPhienQuaKhu; i++)
+            {
+                var humnay = checkingDays[i];
+                var humqua = histories.OrderByDescending(h => h.Date).First(h => h.Date < humnay.Date);
+
+                var bungNoVeGia = humnay.C / humnay.O > 1.04M;
+                var bungNoVeVol = humnay.V / humnay.VOL(histories, -20) > 1.5M;
+
+                var nhungcayNenTruoc = histories.OrderByDescending(h => h.Date).Where(h => h.Date < humnay.Date).Take(trongNPhienQuaKhu).ToList();
+                var trong5PhienTruocKhongCoGiaTopCaoHonNuaCayNenBungNo = nhungcayNenTruoc.All(n => n.NenTop <= (humnay.NenTop + humnay.NenBot) / 2);
+
+                var giaTrenTatCaIndicatorLines = humnay.NenTop > humnay.IchimokuKijun
+                    && humnay.NenTop > humnay.IchimokuTenKan
+                    && humnay.NenTop > humnay.BandsMid
+                    && humnay.RSI > 57
+                    && humqua.RSI < 55
+                    && trong5PhienTruocKhongCoGiaTopCaoHonNuaCayNenBungNo;
+
+                if (bungNoVeGia && bungNoVeVol && giaTrenTatCaIndicatorLines) return true;
+            }
+
+            return false;
+        }
+
+        public static History TimPhienBungNoTrongNPhienTruoc(this List<History> histories, History history, int trongNPhienQuaKhu = 5)
+        {
+            var checkingDays = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= history.Date).ToList();
+
+            for (int i = 0; i < trongNPhienQuaKhu; i++)
+            {
+                var humnay = checkingDays[i];
+                var humqua = histories.OrderByDescending(h => h.Date).First(h => h.Date < humnay.Date);
+
+                var bungNoVeGia = humnay.C / humnay.O > 1.04M;
+                var bungNoVeVol = humnay.V / humnay.VOL(histories, -20) > 1.5M;
+
+
+                var nhungcayNenTruoc = histories.OrderByDescending(h => h.Date).Where(h => h.Date < humnay.Date).Take(trongNPhienQuaKhu).ToList();
+                var trong5PhienTruocKhongCoGiaTopCaoHonNuaCayNenBungNo = nhungcayNenTruoc.All(n => n.NenTop <= (humnay.NenTop + humnay.NenBot) / 2);
+
+                var giaTrenTatCaIndicatorLines = humnay.NenTop > humnay.IchimokuKijun
+                    && humnay.NenTop > humnay.IchimokuTenKan
+                    && humnay.NenTop > humnay.BandsMid
+                    && humnay.RSI > 57
+                    && humqua.RSI < 55
+                    && trong5PhienTruocKhongCoGiaTopCaoHonNuaCayNenBungNo;
+
+                if (bungNoVeGia && bungNoVeVol && giaTrenTatCaIndicatorLines) return humnay;
+            }
+
+            return null;
+        }
+
+        public static bool BienDoBands10PhanTram(this List<History> histories, History history, int trongNPhienQuaKhu = 5)
+        {
+            var checkingDays = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= history.Date).ToList();
+            var soPhienCoBienDoBand10PhanTram = 0;
+            for (int i = 0; i < trongNPhienQuaKhu; i++)
+            {
+                var humnay = checkingDays[i];
+                if (humnay.BandsBot * 1.1M > humnay.BandsTop) soPhienCoBienDoBand10PhanTram++;
+                else break;
+            }
+
+            var bandsTopDiNgang = histories.PropertyDiNgangLienTucTrongNPhien(history, "BandsTop", trongNPhienQuaKhu, Models.Business.Patterns.LocCoPhieu.SoSanhEnum.LonHonHoacBang, 1.005M);
+            var bandsBotDiNgang = histories.PropertyDiNgangLienTucTrongNPhien(history, "BandsBot", trongNPhienQuaKhu, Models.Business.Patterns.LocCoPhieu.SoSanhEnum.LonHonHoacBang, 1.005M);
+
+            if (bandsBotDiNgang
+                && bandsTopDiNgang
+                && soPhienCoBienDoBand10PhanTram >= trongNPhienQuaKhu) return true;
+
+
+
+            return false;
+        }
+
+        /// <summary>
+        /// Nến giảm sát hoặc ngoài bands bot, mong đợi 1 cây bật ngược lại ở ngày mai nếu giá xanh và
+        /// 1 - vol lớn hơn 100% MA 20 tại bất cứ giờ nào trong ngày tiếp theo thì đặt mua giá bands bot - 
+        /// 2 - vol lớn hơn  80% MA 20 tại bất cứ giờ nào trong ngày tiếp theo thì đặt mua giá bands bot - thân nến xanh phải dài hơn 80% thân nến đỏ hôm nay
+        /// 
+        /// ==>Hiện tại ko xài, chung quy lại là nến đỏ ngoài bands bot, cần theo dõi phiên ngày mai nếu trong 30p đầu phiên mà xuất hiện nến xanh, vol > 1.5 MA 20 của chart h thì múc giá bands bot, càng thấp càng tốt
+        /// </summary>
+        /// <param name="histories"></param>
+        /// <param name="history"></param>
+        /// <param name="trongNPhienQuaKhu"></param>
+        /// <returns></returns>
+        public static bool NenGiamSatHoacNgoaiBandsBot(this List<History> histories, History history, int trongNPhienQuaKhu = 5)
+        {
+            var checkingDays = histories.OrderByDescending(h => h.Date).Where(h => h.Date <= history.Date).ToList();
+            var soPhienCoBienDoBand10PhanTram = 0;
+            for (int i = 0; i < trongNPhienQuaKhu; i++)
+            {
+                var humnay = checkingDays[i];
+                if (humnay.BandsBot * 1.1M > humnay.BandsTop) soPhienCoBienDoBand10PhanTram++;
+                else break;
+            }
+
+            var bandsTopDiNgang = histories.PropertyDiNgangLienTucTrongNPhien(history, "BandsTop", trongNPhienQuaKhu, Models.Business.Patterns.LocCoPhieu.SoSanhEnum.LonHonHoacBang, 1.005M);
+            var bandsBotDiNgang = histories.PropertyDiNgangLienTucTrongNPhien(history, "BandsBot", trongNPhienQuaKhu, Models.Business.Patterns.LocCoPhieu.SoSanhEnum.LonHonHoacBang, 1.005M);
+
+            if (bandsBotDiNgang
+                && bandsTopDiNgang
+                && soPhienCoBienDoBand10PhanTram >= trongNPhienQuaKhu) return true;
+
+
+
+            return false;
+        }
+
+        public static bool DangTrendTang(this List<History> histories, History history, int trongNPhienQuaKhu = 5)
+        {
+            var humqua = histories.OrderByDescending(h => h.Date).First(h => h.Date < history.Date);
+
+            var giaTrenTatCaIndicatorLines =
+                //humqua.RSI < history.RSI
+                humqua.RSI < 52
+                //history.RSI > 50
+                //&& history.RSI < 60
+                //&& history.MACD > 0
+                && history.MACD > history.MACDSignal;
+
+            var macdDangTang = histories.PropertyTangLienTucTrongNPhien(history, "MACD", 2, Models.Business.Patterns.LocCoPhieu.SoSanhEnum.LonHonHoacBang);
+            var rsiDangTang1 = histories.PropertyTangLienTucTrongNPhien(history, "RSI", 2, Models.Business.Patterns.LocCoPhieu.SoSanhEnum.LonHonHoacBang);
+            var rsiDangTang2 = histories.PropertyDiNgangLienTucTrongNPhien(history, "RSI", 2, Models.Business.Patterns.LocCoPhieu.SoSanhEnum.LonHonHoacBang);
+
+            var historiesInLast3Days = histories.OrderByDescending(h => h.Date).Where(h => h.Date < history.Date).Take(3).ToList();
+
+            //và nenTop hum nay ko phải nến cao nhất trong 3 phiên trước nó 
+            var notĐinh = historiesInLast3Days.OrderByDescending(h => h.H).First().H > history.H;
+
+            //và MACD trong 3 phiên trước còn dưới 0
+            var macdDuoi0Trong3PhienTruoc = historiesInLast3Days.Any(h => h.MACD < 0);
+
+            var thaydoiGia3ThangBehon = 40;
+            var historiesInLast3Months = histories.OrderByDescending(h => h.Date).Where(h => h.Date < history.Date).Take(65).ToList();
+            var caoNhat = historiesInLast3Months.OrderByDescending(h => h.H).First().H;
+            var thaydoi = caoNhat / history.C;
+
+            if (
+                //macdDuoi0Trong3PhienTruoc &&
+                //notĐinh && 
+                giaTrenTatCaIndicatorLines
+                && rsiDangTang1
+                //&& thaydoi > 1.01M
+                && macdDangTang) return true;
+
+            return false;
+        }
+
+        public static bool DangCoGame(this List<History> histories, History humnay, int trongNPhienQuaKhu = 2)
+        {
+            var humqua = histories.OrderByDescending(h => h.Date).First(h => h.Date < humnay.Date);
+            //var humqua1 = histories.OrderByDescending(h => h.Date).First(h => h.Date < humqua.Date);
+
+            var giaTrenTatCaIndicatorLines =
+                humnay.C > humqua.C
+                && humnay.C >= humqua.C * 1.065M
+                //&& humqua.C >= humqua1.C * 1.065M
+                && humnay.V < humnay.VOL(histories, -20)
+                && humnay.C == humnay.O
+                && humqua.C == humqua.O
+                ;
+
+            if (giaTrenTatCaIndicatorLines) return true;
+
+            return false;
+        }
+
+        public static bool KietVol(this List<History> histories, History humnay, int trongNPhienQuaKhu = 2)
+        {
+            var humqua = histories.OrderByDescending(h => h.Date).First(h => h.Date < humnay.Date);
+            //var humqua1 = histories.OrderByDescending(h => h.Date).First(h => h.Date < humqua.Date);
+
+            var giaTrenTatCaIndicatorLines =
+                humnay.C > humqua.C
+                && humnay.C >= humqua.C * 1.065M
+                //&& humqua.C >= humqua1.C * 1.065M
+                && humnay.V < humnay.VOL(histories, -20)
+                && humnay.C == humnay.O
+                && humqua.C == humqua.O
+                ;
+
+            if (giaTrenTatCaIndicatorLines) return true;
+
+            return false;
+        }
+
+        public static bool? HasPhanKyDuong(this List<HistoryHour> histories, HistoryHour đáy2, HistoryHour đáy1, string propertyPhanky = "RSI",
+            int soPhienDeKiemTraPhanki = 60,
+            decimal CL2G = 1.01M, //decimal CL2G = 0.95M,
+            decimal CL2D = 0.1M)
+        {
+            if (đáy2.VOL(histories, -20) < 50000) return null;
+            var chenhLechĐủ = đáy1.NenBot / đáy2.NenBot >= CL2G; //1.02M; 1/lọc giá trị vol < 100K
+            if (chenhLechĐủ == false) return null;
+
+            var đáy2Minus1 = histories.OrderByDescending(h => h.Date).First(h => h.Date < đáy2.Date);
+            var đáy1Minus1 = histories.OrderByDescending(h => h.Date).First(h => h.Date < đáy1.Date);
+            var đáy1Add1 = histories.OrderBy(h => h.Date).First(h => h.Date > đáy1.Date);
+            var đáy2Add1 = histories.OrderBy(h => h.Date).First(h => h.Date > đáy2.Date);
+
+            var propertyValueĐáy2 = (decimal)đáy2.GetPropValue(propertyPhanky);
+            var propertyValueĐáy1 = (decimal)đáy1.GetPropValue(propertyPhanky);
+
+            //if (propertyValueĐáy1 + Math.Abs(propertyValueĐáy1 * CL2D) >= propertyValueĐáy2) return null;
+            if (propertyValueĐáy2 < propertyValueĐáy1) return null;                                       //PVS 13/4/21 - 22/4/21
+
+            var đáy1Minus1Value = (decimal)đáy1Minus1.GetPropValue(propertyPhanky);
+            var đáy1Add1Value = (decimal)đáy1Add1.GetPropValue(propertyPhanky);
+            var đáy2Minus1Value = (decimal)đáy2Minus1.GetPropValue(propertyPhanky);
+            var đáy2Add1Value = (decimal)đáy2Add1.GetPropValue(propertyPhanky);
+
+            var đáy2CenterPoint = new Vector2(0, (float)propertyValueĐáy2);
+            var điểmTăngNgàyHumnay = new Vector2(1, (float)đáy2Add1Value);
+
+            //var deg = điểmTăngNgàyHumnay.GetAngle(đáy2CenterPoint);
+            //if (deg <= 20) return null;
+
+            //Giữa 2 điểm so sánh, ko có 1 điểm nào bé hơn điểm đang xét cả
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > đáy1.Date && h.Date < đáy2.Date).ToList();
+            if (middlePoints.Count < 2) return null; //ở giữa ít nhất 2 điểm - TODO: luôn luôn true vì mình đã skip 3
+
+            var propertyInfo = typeof(HistoryHour).GetProperty(propertyPhanky);
+            var tcr = middlePoints.OrderByDescending(x => propertyInfo.GetValue(x, null)).First();
+            var tcr2 = middlePoints.OrderByDescending(x => propertyInfo.GetValue(x, null)).Last();
+
+            if (middlePoints.Any(x => (decimal)propertyInfo.GetValue(x, null) <= propertyValueĐáy1)) return null;
+
+            //Tất cả middle points ko có point nào dc phép nằm dưới đường thằng nối từ đáy 1 tới đáy 2
+            var indexDay1 = histories.IndexOf(đáy2);
+            var indexDay2 = histories.IndexOf(đáy1);
+            var rangeFromDay1ToiDay2 = Math.Abs(indexDay1 - indexDay2);
+            var averageNumberEachDay = (propertyValueĐáy2 - propertyValueĐáy1) / rangeFromDay1ToiDay2;
+            var coPointDeuBenDuoiLine = false;
+            for (int i = 1; i < rangeFromDay1ToiDay2; i++)
+            {
+                var checkingDayPropertyValue = (decimal)middlePoints[i - 1].GetPropValue(propertyPhanky);
+                var comparedValue = propertyValueĐáy1 + averageNumberEachDay * i;
+                if (comparedValue > checkingDayPropertyValue)
+                {
+                    coPointDeuBenDuoiLine = true;
+                    break;
+                }
+            }
+
+            //if (coPointDeuBenDuoiLine) return null;   //TODO: tạm thời bỏ qua dk này
+
+            /*
+             * Xác định đáy nói chung
+             * từ đáy đi lên bên phải và trái, giá trị phải tăng liên tục, tăng tối thiếu 10% của giá trị đáy trước khi bị giảm hoặc đi ngang 
+             *
+             * Xác định đáy 2
+             * đường thẳng nối từ đáy 1 tới đáy 2 kéo dài ra, nếu property (RSI/MACD) của ngày sau ngày tạo đáy nằm trên đường thẳng này, chứng tỏ đáy 2 đã được tạo thành công; ngược lại đây chưa phải đáy 2
+             */
+            var đãTạoĐáy2 = histories.PropertyTangDanToiKhiDatTargetTrai(đáy2, propertyPhanky, 0.9M);
+            var đãTạoĐáy1 = histories.PropertyTangDanToiKhiDatTargetTrai(đáy1, propertyPhanky, 0.9M);
+            if (!đãTạoĐáy1 || đáy1Add1Value <= propertyValueĐáy1) return null;
+            //if (!đãTạoĐáy2 || đáy2Add1Value <= propertyValueĐáy2) return null;//TODO: điều kiện cần thêm
+            if (!đãTạoĐáy2 || đáy2Add1Value <= propertyValueĐáy2 + averageNumberEachDay) return null;
+
+            var trendLineRsi = new Line();
+            trendLineRsi.x1 = 0;  //x là trục tung - trục đối xứng
+            trendLineRsi.y1 = propertyValueĐáy1;   //
+            trendLineRsi.x2 = middlePoints.Count() + 2; //+ 2 vì tính từ ngày kiểm tra và ngày so sánh
+            trendLineRsi.y2 = propertyValueĐáy2;
+
+            var crossLineRsi = new Line();
+            var cr1 = 1;
+            while (cr1 < middlePoints.Count())
+            {
+                if (đáy1.Date.AddDays(cr1) == tcr.Date)
+                    break;
+                cr1++;
+            }
+            crossLineRsi.x1 = cr1;
+            crossLineRsi.y1 = (decimal)tcr.GetPropValue(propertyPhanky); //tcr2.RSI;//tcr.RSI;
+
+            var cr2 = 1;
+            while (cr2 < middlePoints.Count())
+            {
+                if (đáy1.Date.AddDays(cr2) == tcr2.Date)
+                    break;
+                cr2++;
+            }
+            crossLineRsi.x2 = cr2;
+            crossLineRsi.y2 = (decimal)tcr2.GetPropValue(propertyPhanky); //tcr2.RSI;
+
+            var pointRsi = trendLineRsi.FindIntersection(crossLineRsi);
+
+            if (pointRsi == null)
+            {
+                return true;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Trong vong 30 phien, có > 60% số phiên với vol > vol của 20 phiên trước đó
+        /// </summary>
+        public static bool CoDongTienVo(this List<History> histories, History checkingSession)
+        {
+            var expectedSession = 20;
+            var checkingHistories = histories.OrderByDescending(h => h.Date).ToList();
+            if (!checkingHistories.Any() || checkingHistories.Count < expectedSession) return false;
+
+            var numberOfSessionHasBigVol = 0;
+            for (int i = 0; i < expectedSession; i++)
+            {
+                var ma20Vol = checkingHistories[i].VOL(checkingHistories, -20);
+                if (checkingHistories[i].V > ma20Vol)
+                    numberOfSessionHasBigVol++;
+            }
+
+            return numberOfSessionHasBigVol / expectedSession > 0.4M;
+        }
+    }
 }

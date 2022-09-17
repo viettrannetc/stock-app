@@ -21,6 +21,35 @@ namespace DotNetCoreSqlDb.Common
             }
         };
 
+        public static LocCoPhieuFilterRequest CT0A1 = new LocCoPhieuFilterRequest("CT0A1")
+        {
+            DangTrendTang = true,
+            //PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
+            //    new LocCoPhieuCompareModel { Phien = -1, Property1 = "RSI", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHonHoacBang, Result = 50  },
+            //    new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 1  },
+            //    new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHonHoacBang, Result = 50  },
+            //    new LocCoPhieuCompareModel { Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
+            //    new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHon, Result = 0  }
+            //}
+        };
+
+        public static LocCoPhieuFilterRequest CT0A2 = new LocCoPhieuFilterRequest("CT0A2")
+        {
+            Confirmed = true,
+            Note = "CT0A2 - Có thể đang có game",
+            DangCoGame = true,
+            PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
+                new LocCoPhieuCompareModel { Property1 = "C", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.NhoHonHoacBang, Result = 40000  },
+            },
+            //PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
+            //    new LocCoPhieuCompareModel { Phien = -1, Property1 = "RSI", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHonHoacBang, Result = 50  },
+            //    new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 1  },
+            //    new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHonHoacBang, Result = 50  },
+            //    new LocCoPhieuCompareModel { Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
+            //    new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.LonHon, Result = 0  }
+            //}
+        };
+
         /* TODO
          * CT mới
          *      + Đặt mua theo biên độ dao động của giá trong TT đi ngang
@@ -121,7 +150,7 @@ namespace DotNetCoreSqlDb.Common
         {
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
                 //trong vong X phien, Y phien xuat hien DK Property A co operation B voi Property C
-                new LocCoPhieuCompareModel { Phien = 0, Property1 = "GiaMA05", Property2 = "BandsMid", Operation = OperationEnum.CrossDown, Result = -1 },
+                new LocCoPhieuCompareModel { Phien = 0, Property1 = "GiaMA05", Property2 = "BandsMid", Operation = OperationEnum.CrossDown, Result = -1 },  //-1 means opposite with expected -> 
                 new LocCoPhieuCompareModel { Phien = -1, Property1 = "GiaMA05", Property2 = "BandsMid", Operation = OperationEnum.CrossDown, Result = -1 },
                 new LocCoPhieuCompareModel { Phien = -2, Property1 = "GiaMA05", Property2 = "BandsMid", Operation = OperationEnum.CrossDown, Result = -1 },
                 new LocCoPhieuCompareModel { Phien = -3, Property1 = "GiaMA05", Property2 = "BandsMid", Operation = OperationEnum.CrossDown, Result = -1 },
@@ -259,7 +288,7 @@ namespace DotNetCoreSqlDb.Common
             //Giá dưới MA 20
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
                 new LocCoPhieuCompareModel { Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
-                new LocCoPhieuCompareModel { Day2 = true, Property1 = "MACD", Operation = OperationEnum.Day2XuatHienTrongVongNPhien, Result = 2  },
+                new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.Day2XuatHienTrongVongNPhien, Result = 2  },
                 new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 1 },
                 new LocCoPhieuCompareModel { Property1 = "NenTop", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  }
             },
@@ -280,25 +309,25 @@ namespace DotNetCoreSqlDb.Common
         ///  - nếu thị trường xuất hiện nhiều mã tạo nến tăng đảo chiều sau nhiều phiên, thì hãy nhìn VNINDEX - nếu VNINDEX có MACD cắt xuống SIGNAL trong 3 phiên gần nhất thì hiện tại chúng ta sẽ phủ định cây nến đảo chiều này
         ///      Ví dụ: 13/04/22
         /// </summary>
-        public static LocCoPhieuFilterRequest CT1B3 = new LocCoPhieuFilterRequest("CT1B3")    
+        public static LocCoPhieuFilterRequest CT1B3 = new LocCoPhieuFilterRequest("CT1B3")
         {
             NenBaoPhuDaoChieuManh = true,
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
                 new LocCoPhieuCompareModel { Property1 = "NenBot", Property2 = "BandsBot", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
                 new LocCoPhieuCompareModel { Property1 = "H", Property2 = "GiaMA05", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
                 new LocCoPhieuCompareModel { Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
+                new LocCoPhieuCompareModel { Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
+
                 new LocCoPhieuCompareModel { Phien = -1, Property1 = "NenBot", Property2 = "BandsBot", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
                 new LocCoPhieuCompareModel { Phien = -1, Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
-
-                new LocCoPhieuCompareModel { Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
                 new LocCoPhieuCompareModel { Phien = -1, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
+
                 new LocCoPhieuCompareModel { Phien = -2, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
                 new LocCoPhieuCompareModel { Phien = -3, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
                 new LocCoPhieuCompareModel { Phien = -4, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
                 new LocCoPhieuCompareModel { Phien = -5, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 }
             }
         };
-
 
         /// <summary>
         /// CT Tìm những cổ phiếu MA 5 đang tăng, giá tăng lên chạm hoặc vượt wa MA 20, nhưng nến bắt đầu dưới MA 20, MA 5 vẫn đang nằm dưới MA 20
@@ -319,6 +348,15 @@ namespace DotNetCoreSqlDb.Common
                 new LocCoPhieuCompareModel { Property1 = "GiaMA05", Property2 = "BandsMid", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
                 new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 1  },
                 new LocCoPhieuCompareModel { Property1 = "C", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.NhoHon, Result = 4  },
+            },
+        };
+
+
+        public static LocCoPhieuFilterRequest CTKVJVC = new LocCoPhieuFilterRequest("CTKVJVC")
+        {
+            PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
+                new LocCoPhieuCompareModel { Property1 = "V", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.NhoHonHoacBang, Result = 725000  },
+                new LocCoPhieuCompareModel { Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHonHoacBang, Result = 0  },
             },
         };
 

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Reflection;
+using System.Text;
 
 namespace DotNetCoreSqlDb.Common
 {
@@ -669,7 +670,6 @@ namespace DotNetCoreSqlDb.Common
             return phiênTrướcPhiênKiemTra.NếnĐảoChiều() && !phiênTrướcPhiênKiemTra.TangGia() && phienKiemTra.TangGia() ? true : false;
         }
 
-
         /// <summary>
         /// Đơn giản là so sánh về quá khứ lấy 1 cây cùng giá đóng cửa, thấy RSI cây hiện tại cao hơn thì dương, còn ko thì âm
         /// </summary>
@@ -701,7 +701,6 @@ namespace DotNetCoreSqlDb.Common
 
             return false;
         }
-
 
         public static decimal TỉLệNếnCựcYếu(this HistoryHour phienKiemTra, List<HistoryHour> histories)
         {
@@ -749,7 +748,6 @@ namespace DotNetCoreSqlDb.Common
             return tongSoNen == 0 ? 0 : (decimal)totalNenYeu / (decimal)tongSoNen;
         }
 
-
         public static bool MAChuyểnDần(this HistoryHour phienKiemTra, List<HistoryHour> histories, bool chieuKiemTra, int numberOfPreviousPhien, int soPhienKiemTra)
         {
             var checkingList = histories.Where(h => h.Date <= phienKiemTra.Date).OrderByDescending(h => h.Date).Take(soPhienKiemTra + 1).ToList();
@@ -791,7 +789,6 @@ namespace DotNetCoreSqlDb.Common
                     : ((decimal)today.O / (decimal)today.C) * 100 > giáChênhLệch;
 
         }
-
 
         public static bool HadBands(this HistoryHour today)
         {
@@ -869,6 +866,95 @@ namespace DotNetCoreSqlDb.Common
 
             return (dk1 && dk2 && dk3) || dk4;
         }
+
+        public static bool LaCayVuotMA20(this List<HistoryHour> histories, HistoryHour humnay)
+        {
+            
+            //var ngayVuotMA20 = new HistoryHour();
+
+            //if (!humwa.TangGia()) return false;
+
+            if ((humnay.NenTop + humnay.NenBot) / 2 < humnay.BandsMid) return false;
+
+            //if (humwa.NenTop > humwa.BandsMid) return false;
+
+            if (humnay.V < humnay.VOL(histories, -20)) return false;
+
+            if (humnay.C > humnay.BandsMid && humnay.O < humnay.BandsMid) return true;
+
+            var humwa = histories.OrderByDescending(h => h.Date).First(h => h.Date < humnay.Date);
+            if (humnay.NenBot > humnay.BandsMid && humwa.NenBot < humwa.BandsMid && humwa.NenTop < humwa.BandsMid)
+                return true;
+
+            return false;
+        }
+
+        public static bool LaCayVuotMA201(this List<HistoryHour> histories, HistoryHour humnay)
+        {
+            var humwa = histories.OrderByDescending(h => h.Date).First(h => h.Date < humnay.Date);
+            if (humnay.TangGia() && humnay.NenTop > humnay.BandsMid && humwa.NenBot < humwa.BandsMid)
+                return true;
+
+            return false;
+        }
+
+        public static void TimThoiGianBanTheoT(this List<HistoryHour> histories, List<string> result1, ref decimal dung, ref decimal sai,
+            HistoryHour phienHumNay,
+            decimal giáĐặtMua,
+            int TBan)
+        {
+            var kiVongLoiToiThieuDeBan = 1.03M;
+            var lstNgayCoTheBan = histories.Where(h => h.Date > phienHumNay.Date).OrderBy(h => h.Date).Skip(15).Take(TBan - 15).ToList();
+            if (!lstNgayCoTheBan.Any())
+            {
+                //Dữ liệu chưa có đủ cho T3 - phải chờ
+                result1.Add($"{phienHumNay.StockSymbol} - ChartH - Mua: {phienHumNay.Date.ToShortDateString()} tại giá {giáĐặtMua} - Chưa đủ dữ liệu T3");
+            }
+            else
+            {
+                var note = new StringBuilder();
+                //if (phienHumNay.DangTrongMay(histories) || phienHumNay.DangNamDuoiMayFlat(histories))
+                //{
+                //    note.Append(" - Đang gặp mây xấu.");
+                //}
+                //if (phienHumNay.CoXuatHienMACDCatXuongSignalTrongXPhienGanNhat(histories, 3))
+                //{
+                //    note.Append(" - MACD đã cắt xuống Signal.");
+                //}
+
+                var cóThểBán = false;
+                var sentence = new StringBuilder();
+                for (int j = 0; j < lstNgayCoTheBan.Count; j++)
+                {
+                    var ngayBanGiaDinh = lstNgayCoTheBan[j];
+
+                    /*
+                     * Hôm nay là ngày có thể bán, phải cbi kịch bản để bán hoặc giữ tiếp
+                     */
+
+                    if (ngayBanGiaDinh.C > giáĐặtMua * kiVongLoiToiThieuDeBan)
+                    {
+                        var giaBan = ngayBanGiaDinh.C;
+                        cóThểBán = true;
+                        sentence.Append("Lời");
+                        dung++;
+
+                        result1.Add($"{phienHumNay.StockSymbol} - {sentence} - Nhắc mua: {phienHumNay.Date.ToShortDateString()} ở {giáĐặtMua} - Bán - {ngayBanGiaDinh.Date.ToShortDateString()} ở {giaBan} {note}");
+                        break;
+                    }
+                }
+
+                if (!cóThểBán)
+                {
+                    //result1.Add($"{code} - {stringCTMua} - Nhắc mua: {phienHumNay.Date.ToShortDateString()} tại giá {giáĐặtMua} - Chưa tìm được điểm bán");
+                    sai++;
+                    sentence.Append("Lỗ");
+                    result1.Add($"{phienHumNay.StockSymbol} - {sentence} - Nhắc mua: {phienHumNay.Date.ToShortDateString()} ở {giáĐặtMua} {note}");
+                }
+            }
+
+        }
+
 
         /// <summary>
         /// Kiểm tra phân kỳ của 1 MACD/RSI

@@ -27,10 +27,7 @@ namespace DotNetCoreSqlDb.Controllers
     public partial class StockPatternController : Controller
     {
         private readonly MyDatabaseContext _context;
-
-        
-
-
+                
         public StockPatternController(MyDatabaseContext context)
         {
             _context = context;
@@ -553,7 +550,7 @@ namespace DotNetCoreSqlDb.Controllers
                         if (history.Date < fromDate || i < 1) continue;
 
                         var vol20 = history.VOL(allHistories, -20);
-                        if (vol20 < 100000) continue;
+                        if (vol20 < ConstantData.minMA20VolDaily) continue;
 
                         var ma10 = history.MA(allHistories, -10);
                         var ma20 = history.MA(allHistories, -20);
@@ -771,7 +768,7 @@ namespace DotNetCoreSqlDb.Controllers
                     var history = histories.FirstOrDefault(h => h.Date == dateTime);
                     if (history == null) return;
 
-                    if (history.VOL(histories, -20) < 100000) return;
+                    if (history.VOL(histories, -20) < ConstantData.minMA20VolDaily) return;
 
                     var currentDateToCheck = history.Date;
                     var previousDaysFromCurrentDay = histories.Where(h => h.Date < currentDateToCheck).OrderByDescending(h => h.Date).Take(2).ToList();
@@ -1801,7 +1798,7 @@ namespace DotNetCoreSqlDb.Controllers
                 if (biCanhCao) return;
 
                 var avarageOfLastXXPhien = stockSymbolHistoryInRangeBySockCode.Take(30).Sum(h => h.V) / 30;
-                if (avarageOfLastXXPhien < 100000) return;
+                if (avarageOfLastXXPhien < ConstantData.minMA20VolDaily) return;
 
                 var stockSymbolFinanceYearlyHistoryByStockCode = stockSymbolFinanceYearlyHistories
                     .Where(ss => ss.StockSymbol == symbol._sc_)
@@ -2317,7 +2314,1371 @@ namespace DotNetCoreSqlDb.Controllers
             return result;
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="code"></param>
+        /// <param name="ngay"></param>
+        /// <param name="ngayCuoi"></param>
+        /// <param name="KC2D"></param>
+        /// <param name="SoPhienKT"></param>
+        /// <param name="CL2D">Chênh lệch 2 đáy: Đáy RSI 1 * 0.98 > Đáy RSI 2 (đáy mới thấp hơn đáy cũ) - đáy 2 phải thấp hơn đáy 1 ít nhất 2%</param>
+        /// <returns></returns>
+        public async Task<List<string>> RSITestV1(string code, DateTime ngay, DateTime ngayCuoi, int KC2D, int SoPhienKT, decimal CL2D)
+        {
+            int rsi = 14;
 
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ConstantData.minMA20VolDaily).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ConstantData.minMA20VolDaily && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10)
+                    && ss.Date >= ngayCuoi.AddDays(-(SoPhienKT * 3)))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var result1 = new List<string>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                decimal tong = 0;
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var histories = historiesStockCode
+                                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                                    .OrderBy(h => h.Date)
+                                    .ToList();
+                var ngayBatDau = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngayCuoi);
+                for (int i = histories.IndexOf(ngayBatDau); i < histories.Count; i++)
+                {
+                    ngayBatDau = histories[i];
+                    if (ngayBatDau != null && ngayBatDau.HadAllIndicators())
+                    {
+                        break;
+                    }
+                }
+
+                var ngayDungLai = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngay);
+                if (ngayDungLai == null) //đang nhập ngày trong tương lai -> chuyển về hiện tại
+                {
+                    ngayDungLai = histories.OrderByDescending(h => h.Date).First();
+                }
+                var startedI = histories.IndexOf(ngayBatDau);
+                var stoppedI = histories.IndexOf(ngayDungLai);
+
+                for (int i = startedI; i < stoppedI; i++)
+                {
+                    var buyingDate = histories[i];
+                    //Giả định ngày trước đó là đáy
+                    var dayGiaDinh = histories[i - 1];
+                    //hum nay RSI tăng so với hum wa, thì hum wa mới là đáy, còn ko thì mai RSI vẫn có thể giảm tiếp, ko ai bik
+                    if (dayGiaDinh.RSI == 0
+                        || buyingDate.RSI <= dayGiaDinh.RSI
+                        || buyingDate.NenBot < dayGiaDinh.NenBot)
+                    {
+                        continue;
+                    }
+
+                    //Kiem tra đáy giả định: trong vòng 14 phiên trước không có cây nào trước đó thấp hơn nó
+                    var nhungNgaySoSanhVoiDayGiaDinh = histories.OrderByDescending(h => h.Date).Where(h => h.Date < dayGiaDinh.Date).Take(SoPhienKT).ToList();
+                    if (nhungNgaySoSanhVoiDayGiaDinh.Count < SoPhienKT) continue;
+
+                    var ngayCoRSIThapNhatDeSoSanhVoiDayGiaDinh = nhungNgaySoSanhVoiDayGiaDinh.OrderBy(h => h.RSI).First();
+                    var indexOfDayGiaDinh = histories.IndexOf(dayGiaDinh);
+                    var indexOfngayCoRSIThapNhatDeSoSanhVoiDayGiaDinh = histories.IndexOf(ngayCoRSIThapNhatDeSoSanhVoiDayGiaDinh);
+                    if (indexOfDayGiaDinh - indexOfngayCoRSIThapNhatDeSoSanhVoiDayGiaDinh <= KC2D) continue; //đáy RSI thấp nhất không dc nằm trong 3 ngày tính từ ngày của đáy giả định trở về trước
+
+                    for (int j = KC2D; j < nhungNgaySoSanhVoiDayGiaDinh.Count - 1; j++)
+                    {
+                        var ngàyĐếmNgược = nhungNgaySoSanhVoiDayGiaDinh[j];
+
+                        var hasPhanKyDuong = histories.HasPhanKyDuong(dayGiaDinh, ngàyĐếmNgược, "RSI", SoPhienKT, CL2D);
+                        if (hasPhanKyDuong != null && hasPhanKyDuong.HasValue && hasPhanKyDuong.Value)
+                        {
+                            var tileChinhXac = 0;
+                            var tPlus = histories.Where(h => h.Date >= buyingDate.Date)
+                                .OrderBy(h => h.Date)
+                                .Skip(3)
+                                .Take(3)
+                                .ToList();
+
+                            if (tPlus.Any(t => t.C > buyingDate.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                            {
+                                dung++;
+                                result1.Add($"{symbol._sc_} - Đúng - T3-5 lời - Điểm xét: {buyingDate.Date.ToShortDateString()} - Đáy RSI: {dayGiaDinh.Date.ToShortDateString()} RSI {dayGiaDinh.RSI.ToString("N2")} - Giá {dayGiaDinh.NenBot.ToString("N2")} - Điểm tín hiệu: {ngàyĐếmNgược.Date.ToShortDateString()} RSI {ngàyĐếmNgược.RSI.ToString("N2")} - Giá {ngàyĐếmNgược.NenBot.ToString("N2")}");
+                            }
+                            else
+                            {
+                                sai++;
+                                result1.Add($"{symbol._sc_} - Sai  - T3-5 lỗ  - Điểm xét: {buyingDate.Date.ToShortDateString()} - Đáy RSI: {dayGiaDinh.Date.ToShortDateString()} RSI {dayGiaDinh.RSI.ToString("N2")} - Giá {dayGiaDinh.NenBot.ToString("N2")} - Điểm tín hiệu: {ngàyĐếmNgược.Date.ToShortDateString()} RSI {ngàyĐếmNgược.RSI.ToString("N2")} - Giá {ngàyĐếmNgược.NenBot.ToString("N2")}");
+                            }
+
+                        }
+                    }
+                }
+            });
+
+            //tong = dung + sai;
+            //var tile = Math.Round(dung / tong, 2);
+            //result1.Add($"Tỉ lệ: {tile}");
+            return result1;
+        }
+
+
+
+        public async Task<List<Tuple<string, decimal, List<string>>>> RSITestRSI(string code, DateTime ngay, DateTime ngayCuoi, int KC2D, int SoPhienKT, int ma20vol)
+        {
+            var result = new PatternDetailsResponseModel();
+            int rsi = 14;
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s.BiChanGiaoDich == false && s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s.BiChanGiaoDich == false && s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10) //calculate T
+                    && ss.Date >= ngayCuoi.AddDays(-30)) //caculate SRI
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var result1 = new List<string>();
+                decimal tong = 0;
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var historiesInPeriodOfTime = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+
+                var histories = historiesInPeriodOfTime
+                    .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoi)
+                    .OrderByDescending(h => h.Date)
+                    .ToList();
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                var yesterday = histories.FirstOrDefault(h => h.Date < ngay);
+                if (yesterday == null) return;
+
+                for (int i = 0; i < histories.Count - 1; i++)
+                {
+                    var buyingDate = histories[i];
+
+                    //Giả định ngày trước đó là đáy
+                    var dayGiaDinh = histories[i + 1];
+
+                    //trước đây đáy phải là 1 cây giảm:
+                    if (i + 1 + 1 <= histories.Count - 1)
+                    {
+                        var cayTruocCayDayGiaDinh = histories[i + 1 + 1];
+                        if (cayTruocCayDayGiaDinh.TangGia()) continue;
+                    }
+
+                    //Kiem tra đáy giả định: trong vòng 14 phiên trước không có cây nào trước đó thấp hơn nó
+                    var rsi14Period = histories.Where(h => h.Date < dayGiaDinh.Date).Take(SoPhienKT).ToList();
+                    if (rsi14Period.Count < SoPhienKT) continue;
+
+                    var nhungNgaySoSanhVoiDayGiaDinh = rsi14Period.OrderByDescending(h => h.Date).Skip(KC2D).ToList();
+
+                    var ngaySoSanhVoiDayGiaDinh = nhungNgaySoSanhVoiDayGiaDinh.Where(h => h.NenBot == nhungNgaySoSanhVoiDayGiaDinh.Min(f => f.NenBot)).OrderBy(h => h.RSI).First();
+
+                    var isDayGiaDinhDung = ngaySoSanhVoiDayGiaDinh.NenBot > dayGiaDinh.NenBot;
+                    if (isDayGiaDinhDung == false) continue;
+
+                    var isRSIIncreasing = ngaySoSanhVoiDayGiaDinh.RSI < dayGiaDinh.RSI;
+
+                    //TODO: giữa 2 điểm so sánh, ko có 1 điểm nào xen ngang vô cả
+                    var middlePoints = histories.Where(h => h.Date > ngaySoSanhVoiDayGiaDinh.Date && h.Date < dayGiaDinh.Date).ToList();
+                    if (middlePoints.Count < 2) continue; //ở giữa ít nhất 2 điểm
+
+                    var trendLineRSI = new Line();
+                    trendLineRSI.x1 = 0;  //x là trục tung - trục đối xứng
+                    trendLineRSI.y1 = ngaySoSanhVoiDayGiaDinh.RSI;   //
+                    trendLineRSI.x2 = (decimal)((dayGiaDinh.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    trendLineRSI.y2 = dayGiaDinh.RSI;
+                    var crossLine = new Line();
+                    crossLine.x1 = (decimal)((middlePoints.OrderByDescending(h => h.RSI).First().Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    crossLine.y1 = middlePoints.OrderByDescending(h => h.RSI).First().RSI;
+                    crossLine.x2 = (decimal)((middlePoints.OrderByDescending(h => h.RSI).Last().Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    crossLine.y2 = middlePoints.OrderByDescending(h => h.RSI).Last().RSI;
+
+                    //var trendLine = new Line();
+                    //trendLine.x1 = 0;  //x là trục tung - trục đối xứng
+                    //trendLine.y1 = ngaySoSanhVoiDayGiaDinh.NenBot;   //
+                    //trendLine.x2 = (decimal)((dayGiaDinh.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    //trendLine.y2 = dayGiaDinh.NenBot;
+
+                    //var crossLine = new Line();
+                    //var point1 = middlePoints.OrderByDescending(h => h.NenBot).First();
+                    //var point2 = middlePoints.OrderByDescending(h => h.NenBot).Last();
+                    //crossLine.x1 = (decimal)((point1.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    //crossLine.y1 = point1.NenBot;
+                    //crossLine.x2 = (decimal)((point2.Date - ngaySoSanhVoiDayGiaDinh.Date).TotalDays);
+                    //crossLine.y2 = point2.NenBot;
+
+                    var point = trendLineRSI.FindIntersection(crossLine);
+
+                    if (isRSIIncreasing && point == null)
+                    {
+                        var tileChinhXac = 0;
+                        var tPlus = historiesInPeriodOfTime.Where(h => h.Date >= buyingDate.Date)
+                            .OrderBy(h => h.Date)
+                            .Skip(3)
+                            .Take(3)
+                            .ToList();
+
+                        if (tPlus.Any(t => t.C > buyingDate.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                        {
+                            dung++;
+                            result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc để ngày mai mua: {dayGiaDinh.Date.ToShortDateString()} RSI {dayGiaDinh.RSI.ToString("N2")} - Giá {dayGiaDinh.NenBot.ToString("N2")} - Điểm so sánh: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.NenBot.ToString("N2")}");
+                        }
+                        else
+                        {
+                            sai++;
+                            result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc để ngày mai mua: {dayGiaDinh.Date.ToShortDateString()} RSI {dayGiaDinh.RSI.ToString("N2")} - Giá {dayGiaDinh.NenBot.ToString("N2")} - Điểm so sánh: {ngaySoSanhVoiDayGiaDinh.Date.ToShortDateString()} RSI {ngaySoSanhVoiDayGiaDinh.RSI.ToString("N2")} - Giá {ngaySoSanhVoiDayGiaDinh.NenBot.ToString("N2")}");
+                        }
+                    }
+                }
+
+                tong = dung + sai;
+                var tile = tong == 0 ? 0 : Math.Round(dung / tong, 2);
+                //result1.Add($"Tỉ lệ: {tile}");
+                tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, tile, result1));
+            });
+
+            return tup;
+        }
+
+        public async Task<List<Tuple<string, decimal, List<string>>>> RSITestMANhanhCatCham(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
+        {
+            var result = new PatternDetailsResponseModel();
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10) //calculate T
+                    && ss.Date >= ngayCuoi.AddDays(-MACham * 2)) //caculate SRI
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var result1 = new List<string>();
+                decimal tong = 0;
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var NhậtKýMuaBán = new List<Tuple<string, DateTime, bool, decimal>>();
+
+                var historiesInPeriodOfTime = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+                if (historiesInPeriodOfTime.Count < 100) return;
+
+
+                var ngayCuoiCuaMa = historiesInPeriodOfTime[0].Date.AddDays(30) > ngayCuoi
+                    ? historiesInPeriodOfTime[0].Date.AddDays(30)
+                    : ngayCuoi;
+
+                var histories = historiesInPeriodOfTime
+                    .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoiCuaMa)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                for (int i = 0; i < histories.Count; i++)
+                {
+                    var phienHumNay = histories[i];
+                    var phienHumWa = historiesInPeriodOfTime.Where(h => h.Date < phienHumNay.Date).OrderByDescending(h => h.Date).First();
+                    var phienHumKia = historiesInPeriodOfTime.Where(h => h.Date < phienHumWa.Date).OrderByDescending(h => h.Date).First();
+
+                    var phienHumNayMa20 = phienHumNay.MA(historiesInPeriodOfTime, -MACham);
+                    var phienHumNayMa05 = phienHumNay.MA(historiesInPeriodOfTime, -MANhanh);
+                    var phienHumWaMa05 = phienHumWa.MA(historiesInPeriodOfTime, -MANhanh);
+                    var phienHumWaMa20 = phienHumWa.MA(historiesInPeriodOfTime, -MACham);
+
+
+                    //tín hiệu mua
+                    var Ma05DuoiMa20 = phienHumNayMa05 < phienHumNayMa20;
+                    var MA05HuongLen = phienHumWaMa05 < phienHumNayMa05;
+                    var nenTangGia = phienHumNay.TangGia();
+                    var nenTangLenChamMa20 = phienHumNay.NenTop >= phienHumNayMa20 && phienHumNay.NenBot < phienHumNayMa20;             //Giá trong phiên MA 05 tăng lên chạm MA 20
+                    var râunếnTangLenChamMa20 = phienHumNay.H >= phienHumNayMa20 && phienHumNay.NenBot < phienHumNayMa20;               //Giá trong phiên MA 05 tăng lên chạm MA 20
+                    var duongMa05CatLenTrenMa20 = phienHumWaMa05 < phienHumNayMa20 && phienHumNayMa05 > phienHumNayMa20;     //MA 05 cắt lên trên MA 20
+                    var nenNamDuoiMA20 = phienHumNay.NenBot < phienHumNayMa20;                                                            //Giá nằm dưới MA 20
+                    var thânNếnKhôngVượtQuáBandTren = phienHumNay.NenTop < phienHumNay.BandsTop;
+
+
+                    /*TODO: cảnh báo mua nếu giá mở cửa tăng chạm bands trên. Ví dụ 9/4/2021 KBC, 17/1/2022 VNM - tăng gần chạm bands mà ko thấy dấu hiệu mở bands rộng ra, mA 20 cũng ko hướng lên - sideway
+                     * 10-2-22 VNM: bands ko mở rộng, bands tren hướng xuống, bands dưới đi ngang, các giá trước loanh quanh MA 20, ko có dấu hiệu phá bỏ sideway
+                     * var khángCựĐỉnh = phienKiemTra.KhángCựĐỉnh(historiesInPeriodOfTime);
+                     * var khángCựBands = phienKiemTra.KhángCựBands(historiesInPeriodOfTime);
+                     * var khángCựFibonacci = phienKiemTra.KhángCựFibonacci(historiesInPeriodOfTime);
+                     * var khángCựIchimoku   = phienKiemTra.KhángCựIchimoku(historiesInPeriodOfTime);
+                     * 
+                     * Ví dụ: 
+                     *  KBC - 22/3/22 (MA + bands) -> nhưng có thể xét vì giá đã tăng gần tới viền mây dưới ichimoku rồi nên ko mua, hoặc giá từ MA 5 đi lên (hổ trợ lên kháng cự) ở MA 20, và bands bóp nên giá chỉ quay về MA20
+                     *  KBC - 03/3/20 (MA + bands) -> MA, Bands đi ngang, có thể mua để lợi T+ => thất bại -> có thể xét tới MACD trong trường hợp này:
+                     *                              + MACD dưới 0, đỏ cắt lên xanh
+                     *                              + Đã mua ở ngày 26/2 rồi, MACD chưa vượt 0 lên dương mạnh thì cũng ko cần mua thêm
+                     *                              + => bands hẹp, bands ko thay đổi, ma 20 k thay đổi, thân nến ở giữa bands => ko mua, vì rất dễ sảy T3
+                     *                                      
+                     *  KBC - 10/3/20 -> 17/3/20 - Nếu bất chấp nến ngoài bolinger bands dưới để mua, thì hãy cân nhắc KBC trong những ngày này -> nên kết hợp MACD (macd giảm, momentum âm mạnh) 
+                     *                              + => CThuc A
+                     *                                                     
+                     *  KBC - 27/03/20 tới 31/03/2020 -> Nến rút chân xanh 3 cây liên tục, bands dưới vòng cung lên, band trên đi xuống => bands bóp => biên độ cực rộng => giá sẽ qua về MA 20
+                     *                                + 3 cây nến xanh bám ở MA 5 liên tục, rút chân lên => mua vô ở cây sau được, giá mua vô từ trung bình râu nến dưới của 2 cây trước (do tín hiệu tăng) lên tới MA 5, ko cần mua đuổi
+                     *                                + Theo dõi sau đó, vì nếu band tăng, MA 20 tăng, thì MA 20 sẽ là hỗ trợ cho nhịp hồi này, khi nào bán?                                          
+                     *                                      + RSI rớt way về quanh 80 thì xả từ từ
+                     *                                      + Giá dưới MA 5 2 phiên thì xả thêm 1 đoạn
+                     *                                      + MA 5 cắt xuống MA 20 thì xả hết
+                     *                              + => CThuc A
+                     *                                  
+                     *  KBC - 7/07/20 tới 22/07/2020 -> từ 26/6/20 tới 6/7/20 -> giao dịch quanh kháng cự là MA 5, và hổ trợ là bands dưới
+                     *                                  + ngày 7/7/20 -> giá vượt kháng cự (MA 05), MACD xanh bẻ ngang lúc này kháng cự mới sẽ là MA 20, MA 5 sẽ là hỗ trợ
+                     *                                  + có thể ra nhanh đoạn này khi T3 về (13/7/20) vì giá vượt kháng cự, nhưng lại lạ nến đỏ => ko qua dc, dễ dội về hỗ trợ => ko cần giữ lâu
+                     *                              + => CThuc A
+                     *  KBC - 10/8/20 (MA + bands) -> Nếu mua ngày 4/8/20 (trước đó 4 ngày) vì phân kì tăng RSI, thì mình có thể tránh trường hợp này
+                     *                                + 31/7/20: nến doji tăng ngoài bands dưới
+                     *                                + 03/8/20: nến tăng xác nhận doji trước là đáy -> cuối ngày ngồi coi - RSI tăng, Giá giảm -> tín hiệu đảo chiều -> nên mua vô
+                     *                                + 04/8/20: mua vô ở giá đóng cửa của phiên trước (03/8/20)
+                     *                                + Giá tăng liên tục trong những phiên sau, nhưng vol < ma 20, thân nến nhỏ => giao dịch ít, lưỡng lự, ko nên tham gia lâu dài trong tình huống này
+                     *                                + Nếu lỡ nhịp mua ngày 04/8/20 rồi thì thôi
+                     *                              + => CThuc A
+                     *  KBC - 12/11/20 tới 17/11/2020 -> Nếu đã mua ngày 11/11/2020, thì nên theo dõi thêm MACD để tránh bán hàng mà lỡ nhịp tăng
+                     *                                + MACD cắt ngày 11/11/20, tạo tín hiệu đảo chiều, kết hợp với những yếu tố đi kèm,
+                     *                                + MACD tăng dần lên 0, momentum tăng dần theo, chờ vượt 0 là nổ
+                     *                              + => CThuc B
+                     *  KBC - 21/5/21 -> Lưu ý đặt sẵn giá mua ở giá sàn những ngày này nếu 2 nến trước đã tạo râu bám vô MA 05, nếu ko có râu bám vô MA 5 thì thôi
+                     *                                + nếu có râu nên bám vô, thì đặt sẵn giá mua = giá từ giá thấp nhất của cây nến thứ 2 có râu
+                     *                                  
+                     *                                  
+                     *  KBC - 12/7/21 - 26/7/21  -> giống đợt 31/7/20 tới 4/8/20
+                     *                              + Ngày 12/7 1 nến con quay dài xuất hiện dưới bands bot => xác nhận đáy, cùng đáy với ngày 21/5/21 => hỗ trợ mạnh vùng thân nến đỏ trải xuống râu nến này, có thể vô tiền 1 ít tầm giá này
+                     *                              + Sau đó giá bật lại MA 5
+                     *                              + tới ngày 19/7/20 - 1 cây giảm mạnh, nhưng giá cũng chỉ loanh quanh vùng hỗ trợ này, vol trong nhịp này giảm => hết sức đạp, cũng chả ai muốn bán
+                     *                              + RSI trong ngày 19/7, giá đóng cửa xuống giá thấp hơn ngày 12/7, nhưng RSI đang cao hơn => tín hiệu đảo chiều 
+                     *                              + - nhưng cần theo dõi thêm 1 phiên, nếu phiên ngày mai xanh thì ok, xác nhận phân kỳ tăng => Có thể mua vô dc
+                     *                              
+                     *  Bands và giá rớt (A - Done)
+                     *      + Nếu giá rớt liên tục giữa bands và MA 5, nếu xuất hiện 1 cây nến có thân rớt ra khỏi bands dưới, có râu trên dài > 2 lần thân nến, thì bắt đầu để ý vô lệnh mua
+                     *      + (A1) Nếu nến rớt ngoài bands này là nến xanh => đặt mua ở giá quanh thân nến
+                     *      + (A2) Nếu nến rớt ngoài bands này là nến đỏ   => tiếp tục chờ 1 cây nến sau cây đỏ này, nếu vẫn là nến đỏ thì bỏ, nếu là nến xanh thì đặt mua cây tiếp theo
+                     *          + đặt mua ở giá trung bình giữa giá mở cửa của cây nến đỏ ngoài bands và giá MA 5 ngày hum nay
+                     *          
+                     *      + Ví dụ: KBC: 10/3/20 -> 17/3/20                                                    03/8/20                 3/11/20                                     12/7/21 - 26/7/21                   
+                     *                  - RSI dương   (cây nến hiện tại hoặc 1 trong 3 cây trước là dc)         RSI dương               RSI dương                                   Cây nến 13/7/21 ko tăng
+                     *                  - MACD momentum tăng->0                                                 Tăng                    Tăng                                        Tăng rất nhẹ (~2%)
+                     *                  - MACD tăng                                                             Tăng                    Giảm nhẹ hơn trước (-5 -> -41 -> -50)       Giảm
+                     *                  - nến tăng                                                              Tăng                    Tăng                                        Tăng
+                     *                  - giá bật từ bands về MA 5                                              OK                      OK
+                     *                  - 13 nến trước (100% bám bands dưới, thân nến dưới MA 5                 7 (100%) dưới MA 5      4/5 cây giảm (80%) ko chạm MA 5             4/6 nến giảm liên tục ko chạm MA 5
+                     *                  - MA 5 bẻ ngang -> giảm nhẹ hơn 2 phiên trước:                          MA 5 tăng               14330 (-190) -> 14140 (-170)
+                     *                      + T(-1) - T(0) < T(-3) - T(-2) && T(-2) - T(-1)                                             -> 13970 (-60) -> 13910
+                     *                  - Khoảng cách từ MA 5 tới MA 20 >= 15%                                  > 15%                   4% (bỏ)                                     12%
+                     *                      + vì giá sẽ về MA 20, nên canh tí còn ăn
+                     *                      + mục tiêu là 10% trong những đợt hồi này, nên mua quanh +-3%       +-3%
+                     *                      + Khoảng cách càng lớn thì đặt giá mua càng cao, tối đa 3%
+                     *                      + Cân nhắc đặt ATO cho dễ tính => đặt giá C như bth
+                     *      
+                    */
+                    var bandsTrenHumNay = phienHumNay.BandsTop;
+                    var bandsDuoiHumNay = phienHumNay.BandsBot;
+                    var bandsTrenHumWa = phienHumWa.BandsTop;
+                    var bandsDuoiHumWa = phienHumWa.BandsBot;
+
+                    var bắtĐầuMuaDoNếnTăngA1 = phienHumNay.NếnĐảoChiềuTăngMạnhA1();
+                    var bắtĐầuMuaDoNếnTăngA2 = phienHumNay.NếnĐảoChiềuTăngMạnhA2(phienHumWa);
+
+                    var bandsTrênĐangGiảm = bandsTrenHumNay < bandsTrenHumWa;
+                    var bandsMởRộng = bandsTrenHumNay > bandsTrenHumWa && bandsDuoiHumNay > bandsDuoiHumWa;
+                    var bandsĐangBópLại = bandsTrenHumNay < bandsTrenHumWa && bandsDuoiHumNay > bandsDuoiHumWa;
+                    var ma20ĐangGiảm = phienHumNayMa20 < phienHumWaMa20;
+
+
+                    var bandsKhôngĐổi = bandsTrenHumNay == bandsTrenHumWa && bandsDuoiHumNay == bandsDuoiHumWa;
+                    var ma20KhôngĐổi = phienHumNayMa20 == phienHumWaMa20;
+                    var giaOGiuaBands = phienHumNay.NenBot * 0.93M < phienHumNay.BandsBot && phienHumNay.NenTop * 1.07M > phienHumNay.BandsTop;
+
+                    var muaTheoMA = thânNếnKhôngVượtQuáBandTren && nenTangGia && ((duongMa05CatLenTrenMa20 && nenNamDuoiMA20)
+                                                    || (MA05HuongLen && (nenTangLenChamMa20 || râunếnTangLenChamMa20) && Ma05DuoiMa20));
+                    var nếnTụtMạnhNgoàiBandDưới = phienHumNay.BandsBot > phienHumNay.NenBot + ((phienHumNay.NenTop - phienHumNay.NenBot) / 2);
+
+                    var momenTumTốt = (phienHumKia.MACDMomentum.IsDifferenceInRank(phienHumWa.MACDMomentum, 0.01M) || phienHumWa.MACDMomentum > phienHumKia.MACDMomentum) && phienHumNay.MACDMomentum > phienHumWa.MACDMomentum * 0.96M;
+                    var momenTumTăngTốt = phienHumWa.MACDMomentum > phienHumKia.MACDMomentum * 0.96M && phienHumNay.MACDMomentum > phienHumWa.MACDMomentum * 0.96M;
+
+                    var nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands =
+                        (phienHumWa.NenTop < phienHumWa.BandsBot
+                            || (phienHumWa.NenBot.IsDifferenceInRank(phienHumWa.BandsBot, 0.02M) && phienHumWa.NenTop < phienHumWaMa05))
+                        && (phienHumNay.NenTop >= phienHumNayMa05 || phienHumNay.NenBot >= phienHumNay.BandsBot);
+
+                    var trongXuHướngGiảmMạnh = phienHumNay.TỉLệNếnCựcYếu(histories) >= 0.5M;
+                    var trongXuHướngGiảm = phienHumNay.TỉLệNếnYếu(histories) >= 0.5M;
+
+                    var ma05ĐangBẻNgang = phienHumNay.MAChuyểnDần(histories, false, -5, 3);
+                    var khôngNênBánT3 = phienHumNay.MACDMomentum > phienHumWa.MACDMomentum && phienHumNay.MACD > phienHumWa.MACD && phienHumNay.MACDMomentum > -100;
+
+                    var rsiDuong = phienHumNay.RSIDương(histories);
+                    var tínHiệuMuaTrongSóngHồiMạnh =
+                                                   momenTumTăngTốt
+                                                && phienHumNay.TangGia()
+                                                && (nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands || ma05ĐangBẻNgang)
+                                                && (trongXuHướngGiảmMạnh)
+                                                && phienHumNayMa20 / phienHumNayMa05 > 1.1M;
+
+                    var tínHiệuMuaTrongSóngHồiTrungBình =
+                                                   momenTumTốt
+                                                && (phienHumNay.TangGia() || phienHumNay.Doji())
+                                                && (nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands || ma05ĐangBẻNgang)
+                                                && (trongXuHướngGiảmMạnh || trongXuHướngGiảm)
+                                                && phienHumNayMa20 / phienHumNayMa05 > 1.1M;
+
+                    var tinhieuMuaManh = tínHiệuMuaTrongSóngHồiMạnh ? 10 : 0;
+                    var tinhieuMuaTrungBinh = tínHiệuMuaTrongSóngHồiTrungBình ? 5 : 0;
+                    var tinHieuMuaTrungBinh1 = muaTheoMA ? 5 : 0;
+                    var tinHieuMuaTrungBinh2 = nếnTụtMạnhNgoàiBandDưới && ma05ĐangBẻNgang ? 5 : 0;
+                    var tinHieuMuaYếu1 = bandsMởRộng ? 5 : 0;
+
+                    var tinHieuGiảmMua1 = bandsTrênĐangGiảm && ma20ĐangGiảm ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    //var tinHieuGiảmMua2 = bandsKhôngĐổi && ma20KhôngĐổi && giaOGiuaBands ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuGiảmMua2 = bandsKhôngĐổi && ma20KhôngĐổi ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuGiảmMua3 = giaOGiuaBands ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuGiảmMua4 = !phienHumNay.SoSánhGiá(1) || !phienHumWa.SoSánhGiá(1) ? -5 : 0;
+
+                    if (tinhieuMuaManh
+                        + tinhieuMuaTrungBinh + tinHieuMuaTrungBinh1 + tinHieuMuaTrungBinh2
+                        + tinHieuGiảmMua1 + tinHieuGiảmMua2 + tinHieuGiảmMua3 + tinHieuGiảmMua4 <= 0) continue;
+
+                    var ngayMua = historiesInPeriodOfTime.Where(h => h.Date > phienHumNay.Date).OrderBy(h => h.Date).FirstOrDefault();
+                    if (ngayMua == null) ngayMua = new History() { Date = phienHumNay.Date.AddDays(1) };
+                    var giáĐặtMua = nếnTụtMạnhNgoàiBandDưới
+                        ? (phienHumNay.BandsBot + phienHumNay.NenBot) / 2
+                        : phienHumNay.C;
+
+                    //if (giáĐặtMua >= ngayMua.L && giáĐặtMua <= ngayMua.H)       //Giá hợp lệ
+                    //{
+                    var giữT = khôngNênBánT3 ? 6 : 3;
+                    var tPlus = historiesInPeriodOfTime.Where(h => h.Date >= ngayMua.Date)
+                        .OrderBy(h => h.Date)
+                        .Skip(3)
+                        .Take(giữT)
+                        .ToList();
+
+                    if (tPlus.Count < 3) //hiện tại
+                    {
+                        result1.Add($"{symbol._sc_} - Hiện tại điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    }
+                    else
+                    {
+                        if (tPlus.Any(t => t.C > ngayMua.O * (1M + percentProfit) || t.O > ngayMua.O * (1M + percentProfit)))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                        {
+                            dung++;
+                            result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                        else
+                        {
+                            sai++;
+                            result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                    }
+
+                    //if (bandsĐangGiảm && ma20ĐangGiảm && !nếnGiảmVượtMạnhNgoàiBandDưới)
+                    //{
+                    //    if (tPlus.Any(t => t.C > ngayMua.O * 1.01M || t.O > ngayMua.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                    //    {
+                    //        sai++;
+                    //        result1.Add($"{symbol._sc_} - Sai  - Band xấu - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //    else
+                    //    {
+                    //        dung++;
+                    //        result1.Add($"{symbol._sc_} - Đúng - Band xấu - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //}
+
+                    //if (!bandsĐangGiảm || !ma20ĐangGiảm || nếnGiảmVượtMạnhNgoàiBandDưới)
+                    //{
+                    //    if (tPlus.Any(t => t.C > ngayMua.O * 1.01M || t.O > ngayMua.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                    //    {
+                    //        dung++;
+                    //        result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //    else
+                    //    {
+                    //        sai++;
+                    //        result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //}
+                }
+                //else
+                //{
+                //    result1.Add($"{symbol._sc_} - Không có giá {giáĐặtMua.ToString("N2")} ở ngày mai mua: {phienKiemTra.Date.ToShortDateString()}");
+                //}
+
+
+                ////tín hiệu bán
+                //if ((phienTruocPhienKiemTraMa05 > phienKiemTraMa05              //MA 05 đang hướng lên
+                //        && phienKiemTra.NenBot <= phienKiemTraMa20)             //Giá MA 05 chạm MA 20
+                //    || (phienTruocPhienKiemTraMa05 >= phienKiemTraMa20 && phienKiemTraMa05 <= phienKiemTraMa20))  //MA 05 cắt xuống dưới MA 20
+                //{
+                //    var ngayBán = historiesInPeriodOfTime.Where(h => h.Date > phienKiemTra.Date).OrderBy(h => h.Date).First();
+                //    var tileChinhXac = 0;
+                //    var tPlus = historiesInPeriodOfTime.Where(h => h.Date >= ngayBán.Date)
+                //        .OrderBy(h => h.Date)
+                //        .Skip(3)
+                //        .Take(3)
+                //        .ToList();
+
+                //    if (tPlus.All(t => t.C > ngayBán.O || t.O > ngayBán.O))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                //    {
+                //        dung++;
+                //        result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc để ngày mai bán: {phienKiemTra.Date.ToShortDateString()}");
+                //    }
+                //    else
+                //    {
+                //        sai++;
+                //        result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc để ngày mai bán: {phienKiemTra.Date.ToShortDateString()} - Bán: {ngayBán.Date.ToShortDateString()} giá {ngayBán.O}");
+                //    }
+                //}
+                //}
+
+                tong = dung + sai;
+                var tile = tong == 0 ? 0 : Math.Round(dung / tong, 2);
+                //result1.Add($"Tỉ lệ: {tile}");
+                tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, tile, result1));
+            });
+
+            tup = tup.OrderByDescending(t => t.Item2).ToList();
+
+            return tup;
+        }
+
+
+        public async Task<List<Tuple<string, decimal, List<string>>>> DoTimCongThuc(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
+        {
+            var result = new PatternDetailsResponseModel();
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s.MA20Vol > ma20vol).ToListAsync()
+                : await _context.StockSymbol.Where(s => s.MA20Vol > ma20vol && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10) //calculate T
+                    && ss.Date >= ngayCuoi.AddDays(-MACham * 2)) //caculate SRI
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+            Parallel.ForEach(symbols, symbol =>
+            {
+                var result1 = new List<string>();
+                decimal tong = 0;
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var NhậtKýMuaBán = new List<Tuple<string, DateTime, bool, decimal>>();
+
+                var historiesInPeriodOfTime = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+                if (historiesInPeriodOfTime.Count < 100) return;
+
+
+                var ngayCuoiCuaMa = historiesInPeriodOfTime[0].Date.AddDays(30) > ngayCuoi
+                    ? historiesInPeriodOfTime[0].Date.AddDays(30)
+                    : ngayCuoi;
+
+                var histories = historiesInPeriodOfTime
+                    .Where(ss => ss.Date <= ngay && ss.Date >= ngayCuoiCuaMa)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+
+                var patternOnsymbol = new PatternBySymbolResponseModel();
+                patternOnsymbol.StockCode = symbol._sc_;
+
+                var history = histories.FirstOrDefault(h => h.Date == ngay);
+                if (history == null) return;
+
+                for (int i = 0; i < histories.Count; i++)
+                {
+                    var phienHumNay = histories[i];
+                    var phienHumWa = historiesInPeriodOfTime.Where(h => h.Date < phienHumNay.Date).OrderByDescending(h => h.Date).First();
+                    var phienHumKia = historiesInPeriodOfTime.Where(h => h.Date < phienHumWa.Date).OrderByDescending(h => h.Date).First();
+
+                    var phienHumNayMa20 = phienHumNay.MA(historiesInPeriodOfTime, -MACham);
+                    var phienHumNayMa05 = phienHumNay.MA(historiesInPeriodOfTime, -MANhanh);
+                    var phienHumWaMa05 = phienHumWa.MA(historiesInPeriodOfTime, -MANhanh);
+                    var phienHumWaMa20 = phienHumWa.MA(historiesInPeriodOfTime, -MACham);
+
+                    /* 
+                     * Xác định trend
+                     *      + Tăng
+                     *          + Kết thúc đà tăng
+                     *      + Giảm
+                     *          + Kết thúc đà giảm
+                     *      + Sideway 
+                     *          + Phân phối
+                     *          + Tích lũy
+                     *          
+                     * bands dưới   giảm dần đều trong >= 1 phiên gần nhất >=1%                                     tín hiệu chuyển wa trend giảm nhẹ
+                     *                                 >= 2 phiên gần nhất >=3%                                     tín hiệu chuyển wa trend giảm trung bình
+                     *                                 >= 3 phiên gần nhất >=5%                                     tín hiệu chuyển wa trend giảm bền vững
+                     *                                 >= 4 phiên gần nhất >=7%                                     tín hiệu chuyển wa trend giảm mạnh
+                     *              có khoảng cách tới MA 20 tăng dần trong >= 1 phiên gần đây                      tín hiệu chuyển wa trend giảm nhẹ
+                     *                                                      >= 2 phiên gần đây                      tín hiệu chuyển wa trend giảm trung bình
+                     *                                                      >= 3 phiên gần đây                      tín hiệu chuyển wa trend giảm bền vững
+                     *                                                      >= 4 phiên gần đây                      tín hiệu chuyển wa trend giảm mạnh
+                     *              có khoảng cách tới MA 20 giảm dần trong >= 1 phiên gần đây                      tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ nhẹ
+                     *                                                      >= 2 phiên gần đây                      tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ trung bình
+                     *                                                      >= 3 phiên gần đây                      tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ bền vững
+                     *                                                      >= 4 phiên gần đây                      tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ mạnh
+                     *              tăng dần đều trong >= 1 phiên gần nhất >=1%                                     tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ nhẹ
+                     *                                 >= 2 phiên gần nhất >=3%                                     tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ trung bình
+                     *                                 >= 3 phiên gần nhất >=5%                                     tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ bền vững
+                     *                                 >= 4 phiên gần nhất >=7%                                     tín hiệu kết thúc trend giảm tạo đáy way đầu, hoặc giá tiệm cận hỗ trợ mạnh
+                     *              trong vòng >= 1 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway nhẹ
+                     *              trong vòng >= 3 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway trung bình
+                     *              trong vòng >= 5 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway mạnh
+                     *              trong vòng >= 7 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway cực mạnh
+                     *              
+                     * bands trên   tăng dần đều trong >= 1 phiên gần nhất                      + giá >= MA 20      tín hiệu chuyển wa trend tăng nhẹ
+                     *                                 >= 2 phiên gần nhất                      + giá >= MA 20      tín hiệu chuyển wa trend tăng trung bình
+                     *                                 >= 3 phiên gần nhất                      + giá >= MA 20      tín hiệu chuyển wa trend tăng bền vững
+                     *                                 >= 4 phiên gần nhất                      + giá >= MA 20      tín hiệu chuyển wa trend tăng mạnh
+                     *              có khoảng cách tới MA 20 tăng dần trong >= 1 phiên gần đây  + giá >= MA 20      tín hiệu chuyển wa trend tăng nhẹ
+                     *                                                      >= 2 phiên gần đây  + giá >= MA 20      tín hiệu chuyển wa trend tăng trung bình
+                     *                                                      >= 3 phiên gần đây  + giá >= MA 20      tín hiệu chuyển wa trend tăng bền vững
+                     *                                                      >= 4 phiên gần đây  + giá >= MA 20      tín hiệu chuyển wa trend tăng mạnh
+                     *              có khoảng cách tới MA 20 giảm dần trong >= 1 phiên gần đây  + giá >= MA 20      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự nhẹ
+                     *                                                      >= 2 phiên gần đây  + giá >= MA 20      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự trung bình
+                     *                                                      >= 3 phiên gần đây  + giá >= MA 20      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự bền vững
+                     *                                                      >= 4 phiên gần đây  + giá >= MA 20      tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự mạnh
+                     *              tăng dần đều trong >= 1 phiên gần nhất >=1%                                     tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự nhẹ
+                     *                                 >= 2 phiên gần nhất >=3%                                     tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự trung bình
+                     *                                 >= 3 phiên gần nhất >=5%                                     tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự bền vững
+                     *                                 >= 4 phiên gần nhất >=7%                                     tín hiệu kết thúc trend tăng tạo đỉnh way đầu, hoặc giá tiệm cận kháng cự mạnh
+                     *              trong vòng >= 1 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway nhẹ
+                     *              trong vòng >= 3 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway trung bình
+                     *              trong vòng >= 5 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway mạnh
+                     *              trong vòng >= 7 phiên, giá trị ko chênh lệch quá 2% so với ngày quá khứ         tín hiệu chuyển wa sideway cực mạnh
+                     *
+                     * 
+                     * MA 5         cắt lên MA 20                                                                   tín hiệu chuyển wa trend tăng trung bình
+                     *              cắt xuống MA 20                                                                 tín hiệu chuyển wa trend giảm trung bình
+                     *              giảm dần đều trong >= 1 phiên gần nhất  >=1%                                    tín hiệu chuyển wa trend giảm nhẹ
+                     *                                 >= 2 phiên gần nhất  >=3%                                    tín hiệu chuyển wa trend giảm trung bình
+                     *                                 >= 3 phiên gần nhất  >=5%                                    tín hiệu chuyển wa trend giảm bền vững
+                     *                                 >= 4 phiên gần nhất  >=7%                                    tín hiệu chuyển wa trend giảm mạnh
+                     *              ở trên MA 20 và có khoảng cách với MA 20 tăng dần trong  >= 1 phiên gần đây     tín hiệu chuyển wa trend tăng nhẹ
+                     *                                                                       >= 2 phiên gần đây     tín hiệu chuyển wa trend tăng trung bình
+                     *                                                                       >= 3 phiên gần đây     tín hiệu chuyển wa trend tăng bền vững
+                     *                                                                       >= 4 phiên gần đây     tín hiệu chuyển wa trend tăng mạnh
+                     *                                                                       
+                     *                                                 MA 20 giảm dần trong  >= 1 phiên gần đây     tín hiệu chuyển wa trend giảm nhẹ
+                     *                                                                       >= 2 phiên gần đây     tín hiệu chuyển wa trend giảm trung bình
+                     *                                                                       >= 3 phiên gần đây     tín hiệu chuyển wa trend giảm bền vững
+                     *                                                                       >= 4 phiên gần đây     tín hiệu chuyển wa trend giảm mạnh
+                     *                                                                       
+                     *              ở dưới MA 20 và có khoảng cách với MA 20 giảm dần trong  >= 1 phiên gần đây     tín hiệu chuyển wa trend tăng nhẹ
+                     *                                                                       >= 2 phiên gần đây     tín hiệu chuyển wa trend tăng trung bình
+                     *                                                                       >= 3 phiên gần đây     tín hiệu chuyển wa trend tăng bền vững
+                     *                                                                       >= 4 phiên gần đây     tín hiệu chuyển wa trend tăng mạnh
+                     *                                                                       
+                     *                                                 MA 20 tăng dần trong  >= 1 phiên gần đây     tín hiệu chuyển wa trend giảm nhẹ               
+                     *                                                                       >= 2 phiên gNhần đây     tín hiệu chuyển wa trend giảm trung bình                      
+                     *                                                                       >= 3 phiên gần đây     tín hiệu chuyển wa trend giảm bền vững                    
+                     *                                                                       >= 4 phiên gần đây     tín hiệu chuyển wa trend giảm mạnh                
+                     *                                                                       
+                     *              tăng dần đều trong >= 1 phiên gần nhất  >=1%                                    tín hiệu chuyển wa trend tăng nhẹ
+                     *                                 >= 2 phiên gần nhất  >=3%                                    tín hiệu chuyển wa trend tăng trung bình
+                     *                                 >= 3 phiên gần nhất  >=5%                                    tín hiệu chuyển wa trend tăng bền vững
+                     *                                 >= 4 phiên gần nhất  >=7%                                    tín hiệu chuyển wa trend tăng mạnh
+                     * 
+                     * MACD         hướng lên                       trên 0                                          tín hiệu chuyển wa trend tăng trung bình
+                     * MACD         hướng lên                       dưới 0                                          tín hiệu chuyển wa trend tăng nhẹ
+                     * MACD         cắt lên signal                                                                  tín hiệu chuyển wa trend tăng trung bình
+                     * MACD         hướng xuống                     dưới 0                                          tín hiệu chuyển wa trend giảm trung bình
+                     * MACD         hướng xuống                     trên 0                                          tín hiệu chuyển wa trend giảm nhẹ
+                     * MACD         cắt xuống signal                                                                tín hiệu chuyển wa trend giảm trung bình
+                     * Momentum     giảm dần                        trên 0                                          tín hiệu chuyển wa trend giảm nhẹ
+                     * Momentum     giảm dần                        dưới 0                                          tín hiệu chuyển wa trend giảm trung bình
+                     * Momentum     tăng dần                        trên 0                                          tín hiệu chuyển wa trend tăng trung bình
+                     * Momentum     tăng dần                        dưới 0                                          tín hiệu chuyển wa trend tăng nhẹ
+                     * 
+                     * 
+                     * 
+                     * Ichi         Tenkan cắt lên Kijun            trên mây,   chikou & Price trên mây             tín hiệu chuyển wa trend tăng mạnh
+                     *                                              trong mây   chikou & Price trên mây             tín hiệu chuyển wa trend tăng trung bình
+                     *                                              dưới mây                                        N/A
+                     *              Tenkan xuống Kijun              trên mây                                        N/A
+                     *                                              trong mây   chikou & Price trong mây            tín hiệu chuyển wa trend giảm trung bình
+                     *                                              dưới mây    chikou & Price dưới mây             tín hiệu chuyển wa trend giảm mạnh
+                     *              Span A cắt lên trên Span B                                                      tín hiệu chuyển wa trend tăng nhẹ
+                     *              Span A cắt dưới Span B                                                          tín hiệu chuyển wa trend giảm nhẹ
+                     *              
+                     * Giá          nến top chạm bands top                                                          tín hiệu chuyển wa trend giảm nhẹ
+                     *              nến bot chạm bands dưới                                                         tín hiệu chuyển wa trend tăng nhẹ
+                     *              nến bot vượt ra khỏi bands top                                                  tín hiệu chuyển wa trend giảm trung bình
+                     *              nến top vượt ra khỏi bands top                                                  tín hiệu chuyển wa trend giảm nhẹ
+                     *              nến top vượt ra khỏi bands bot                                                  tín hiệu chuyển wa trend tăng trung bình
+                     *              nến xanh                                                                        tín hiệu chuyển wa trend tăng nhẹ
+                     *              nến đỏ                                                                          tín hiệu chuyển wa trend giảm nhẹ
+                     *              thân nến xanh dài               từ dưới MA 20 vượt lên gần bands top            tín hiệu chuyển wa trend giảm trung binh
+                     *              bật lên chạm MA 05                                                              tín hiệu chuyển wa trend tăng trung bình
+                     *              tụt xuống chạm MA 20                                                            tín hiệu chuyển wa trend giảm trung bình
+                     * 
+                     * Vol          > MA 20                         giá tăng                                        tín hiệu chuyển wa trend tăng nhẹ
+                     * Vol          > MA 20                         giá giảm                                        tín hiệu chuyển wa trend giảm nhẹ
+                     * Vol          < MA 20                         giá tăng                                        tín hiệu chuyển wa trend tăng nhẹ
+                     * Vol          < MA 20                         giá giảm                                        tín hiệu chuyển wa trend giảm nhẹ
+                     *              
+                     * 
+                     * 
+                     */
+
+                    //tính hiệu quả
+
+                    //tín hiệu mua
+                    var Ma05DuoiMa20 = phienHumNayMa05 < phienHumNayMa20;
+                    var MA05HuongLen = phienHumWaMa05 < phienHumNayMa05;
+                    var nenTangGia = phienHumNay.TangGia();
+                    var nenTangLenChamMa20 = phienHumNay.NenTop >= phienHumNayMa20 && phienHumNay.NenBot < phienHumNayMa20;             //Giá trong phiên MA 05 tăng lên chạm MA 20
+                    var râunếnTangLenChamMa20 = phienHumNay.H >= phienHumNayMa20 && phienHumNay.NenBot < phienHumNayMa20;               //Giá trong phiên MA 05 tăng lên chạm MA 20
+                    var duongMa05CatLenTrenMa20 = phienHumWaMa05 < phienHumNayMa20 && phienHumNayMa05 > phienHumNayMa20;     //MA 05 cắt lên trên MA 20
+                    var nenNamDuoiMA20 = phienHumNay.NenBot < phienHumNayMa20;                                                            //Giá nằm dưới MA 20
+                    var thânNếnKhôngVượtQuáBandTren = phienHumNay.NenTop < phienHumNay.BandsTop;
+
+
+                    /*TODO: cảnh báo mua nếu giá mở cửa tăng chạm bands trên. Ví dụ 9/4/2021 KBC, 17/1/2022 VNM - tăng gần chạm bands mà ko thấy dấu hiệu mở bands rộng ra, mA 20 cũng ko hướng lên - sideway
+                     * 10-2-22 VNM: bands ko mở rộng, bands tren hướng xuống, bands dưới đi ngang, các giá trước loanh quanh MA 20, ko có dấu hiệu phá bỏ sideway
+                     * var khángCựĐỉnh = phienKiemTra.KhángCựĐỉnh(historiesInPeriodOfTime);
+                     * var khángCựBands = phienKiemTra.KhángCựBands(historiesInPeriodOfTime);
+                     * var khángCựFibonacci = phienKiemTra.KhángCựFibonacci(historiesInPeriodOfTime);
+                     * var khángCựIchimoku   = phienKiemTra.KhángCựIchimoku(historiesInPeriodOfTime);
+                     * 
+                     * Ví dụ: 
+                     *  KBC - 22/3/22 (MA + bands) -> nhưng có thể xét vì giá đã tăng gần tới viền mây dưới ichimoku rồi nên ko mua, hoặc giá từ MA 5 đi lên (hổ trợ lên kháng cự) ở MA 20, và bands bóp nên giá chỉ quay về MA20
+                     *  KBC - 03/3/20 (MA + bands) -> MA, Bands đi ngang, có thể mua để lợi T+ => thất bại -> có thể xét tới MACD trong trường hợp này:
+                     *                              + MACD dưới 0, đỏ cắt lên xanh
+                     *                              + Đã mua ở ngày 26/2 rồi, MACD chưa vượt 0 lên dương mạnh thì cũng ko cần mua thêm
+                     *                              + => bands hẹp, bands ko thay đổi, ma 20 k thay đổi, thân nến ở giữa bands => ko mua, vì rất dễ sảy T3
+                     *                                      
+                     *  KBC - 10/3/20 -> 17/3/20 - Nếu bất chấp nến ngoài bolinger bands dưới để mua, thì hãy cân nhắc KBC trong những ngày này -> nên kết hợp MACD (macd giảm, momentum âm mạnh) 
+                     *                              + => CThuc A
+                     *                                                     
+                     *  KBC - 27/03/20 tới 31/03/2020 -> Nến rút chân xanh 3 cây liên tục, bands dưới vòng cung lên, band trên đi xuống => bands bóp => biên độ cực rộng => giá sẽ qua về MA 20
+                     *                                + 3 cây nến xanh bám ở MA 5 liên tục, rút chân lên => mua vô ở cây sau được, giá mua vô từ trung bình râu nến dưới của 2 cây trước (do tín hiệu tăng) lên tới MA 5, ko cần mua đuổi
+                     *                                + Theo dõi sau đó, vì nếu band tăng, MA 20 tăng, thì MA 20 sẽ là hỗ trợ cho nhịp hồi này, khi nào bán?                                          
+                     *                                      + RSI rớt way về quanh 80 thì xả từ từ
+                     *                                      + Giá dưới MA 5 2 phiên thì xả thêm 1 đoạn
+                     *                                      + MA 5 cắt xuống MA 20 thì xả hết
+                     *                              + => CThuc A
+                     *                                  
+                     *  KBC - 7/07/20 tới 22/07/2020 -> từ 26/6/20 tới 6/7/20 -> giao dịch quanh kháng cự là MA 5, và hổ trợ là bands dưới
+                     *                                  + ngày 7/7/20 -> giá vượt kháng cự (MA 05), MACD xanh bẻ ngang lúc này kháng cự mới sẽ là MA 20, MA 5 sẽ là hỗ trợ
+                     *                                  + có thể ra nhanh đoạn này khi T3 về (13/7/20) vì giá vượt kháng cự, nhưng lại lạ nến đỏ => ko qua dc, dễ dội về hỗ trợ => ko cần giữ lâu
+                     *                              + => CThuc A
+                     *  KBC - 10/8/20 (MA + bands) -> Nếu mua ngày 4/8/20 (trước đó 4 ngày) vì phân kì tăng RSI, thì mình có thể tránh trường hợp này
+                     *                                + 31/7/20: nến doji tăng ngoài bands dưới
+                     *                                + 03/8/20: nến tăng xác nhận doji trước là đáy -> cuối ngày ngồi coi - RSI tăng, Giá giảm -> tín hiệu đảo chiều -> nên mua vô
+                     *                                + 04/8/20: mua vô ở giá đóng cửa của phiên trước (03/8/20)
+                     *                                + Giá tăng liên tục trong những phiên sau, nhưng vol < ma 20, thân nến nhỏ => giao dịch ít, lưỡng lự, ko nên tham gia lâu dài trong tình huống này
+                     *                                + Nếu lỡ nhịp mua ngày 04/8/20 rồi thì thôi
+                     *                              + => CThuc A
+                     *  KBC - 12/11/20 tới 17/11/2020 -> Nếu đã mua ngày 11/11/2020, thì nên theo dõi thêm MACD để tránh bán hàng mà lỡ nhịp tăng
+                     *                                + MACD cắt ngày 11/11/20, tạo tín hiệu đảo chiều, kết hợp với những yếu tố đi kèm,
+                     *                                + MACD tăng dần lên 0, momentum tăng dần theo, chờ vượt 0 là nổ
+                     *                              + => CThuc B
+                     *  KBC - 21/5/21 -> Lưu ý đặt sẵn giá mua ở giá sàn những ngày này nếu 2 nến trước đã tạo râu bám vô MA 05, nếu ko có râu bám vô MA 5 thì thôi
+                     *                                + nếu có râu nên bám vô, thì đặt sẵn giá mua = giá từ giá thấp nhất của cây nến thứ 2 có râu
+                     *                                  
+                     *                                  
+                     *  KBC - 12/7/21 - 26/7/21  -> giống đợt 31/7/20 tới 4/8/20
+                     *                              + Ngày 12/7 1 nến con quay dài xuất hiện dưới bands bot => xác nhận đáy, cùng đáy với ngày 21/5/21 => hỗ trợ mạnh vùng thân nến đỏ trải xuống râu nến này, có thể vô tiền 1 ít tầm giá này
+                     *                              + Sau đó giá bật lại MA 5
+                     *                              + tới ngày 19/7/20 - 1 cây giảm mạnh, nhưng giá cũng chỉ loanh quanh vùng hỗ trợ này, vol trong nhịp này giảm => hết sức đạp, cũng chả ai muốn bán
+                     *                              + RSI trong ngày 19/7, giá đóng cửa xuống giá thấp hơn ngày 12/7, nhưng RSI đang cao hơn => tín hiệu đảo chiều 
+                     *                              + - nhưng cần theo dõi thêm 1 phiên, nếu phiên ngày mai xanh thì ok, xác nhận phân kỳ tăng => Có thể mua vô dc
+                     *                              
+                     *  Bands và giá rớt (A - Done)
+                     *      + Nếu giá rớt liên tục giữa bands và MA 5, nếu xuất hiện 1 cây nến có thân rớt ra khỏi bands dưới, có râu trên dài > 2 lần thân nến, thì bắt đầu để ý vô lệnh mua
+                     *      + (A1) Nếu nến rớt ngoài bands này là nến xanh => đặt mua ở giá quanh thân nến
+                     *      + (A2) Nếu nến rớt ngoài bands này là nến đỏ   => tiếp tục chờ 1 cây nến sau cây đỏ này, nếu vẫn là nến đỏ thì bỏ, nếu là nến xanh thì đặt mua cây tiếp theo
+                     *          + đặt mua ở giá trung bình giữa giá mở cửa của cây nến đỏ ngoài bands và giá MA 5 ngày hum nay
+                     *          
+                     *      + Ví dụ: KBC: 10/3/20 -> 17/3/20                                                    03/8/20                 3/11/20                                     12/7/21 - 26/7/21                   
+                     *                  - RSI dương   (cây nến hiện tại hoặc 1 trong 3 cây trước là dc)         RSI dương               RSI dương                                   Cây nến 13/7/21 ko tăng
+                     *                  - MACD momentum tăng->0                                                 Tăng                    Tăng                                        Tăng rất nhẹ (~2%)
+                     *                  - MACD tăng                                                             Tăng                    Giảm nhẹ hơn trước (-5 -> -41 -> -50)       Giảm
+                     *                  - nến tăng                                                              Tăng                    Tăng                                        Tăng
+                     *                  - giá bật từ bands về MA 5                                              OK                      OK
+                     *                  - 13 nến trước (100% bám bands dưới, thân nến dưới MA 5                 7 (100%) dưới MA 5      4/5 cây giảm (80%) ko chạm MA 5             4/6 nến giảm liên tục ko chạm MA 5
+                     *                  - MA 5 bẻ ngang -> giảm nhẹ hơn 2 phiên trước:                          MA 5 tăng               14330 (-190) -> 14140 (-170)
+                     *                      + T(-1) - T(0) < T(-3) - T(-2) && T(-2) - T(-1)                                             -> 13970 (-60) -> 13910
+                     *                  - Khoảng cách từ MA 5 tới MA 20 >= 15%                                  > 15%                   4% (bỏ)                                     12%
+                     *                      + vì giá sẽ về MA 20, nên canh tí còn ăn
+                     *                      + mục tiêu là 10% trong những đợt hồi này, nên mua quanh +-3%       +-3%
+                     *                      + Khoảng cách càng lớn thì đặt giá mua càng cao, tối đa 3%
+                     *                      + Cân nhắc đặt ATO cho dễ tính => đặt giá C như bth
+                     *      
+                    */
+                    var bandsTrenHumNay = phienHumNay.BandsTop;
+                    var bandsDuoiHumNay = phienHumNay.BandsBot;
+                    var bandsTrenHumWa = phienHumWa.BandsTop;
+                    var bandsDuoiHumWa = phienHumWa.BandsBot;
+
+                    var bắtĐầuMuaDoNếnTăngA1 = phienHumNay.NếnĐảoChiềuTăngMạnhA1();
+                    var bắtĐầuMuaDoNếnTăngA2 = phienHumNay.NếnĐảoChiềuTăngMạnhA2(phienHumWa);
+
+                    var bandsTrênĐangGiảm = bandsTrenHumNay < bandsTrenHumWa;
+                    var bandsMởRộng = bandsTrenHumNay > bandsTrenHumWa && bandsDuoiHumNay > bandsDuoiHumWa;
+                    var bandsĐangBópLại = bandsTrenHumNay < bandsTrenHumWa && bandsDuoiHumNay > bandsDuoiHumWa;
+                    var ma20ĐangGiảm = phienHumNayMa20 < phienHumWaMa20;
+
+
+                    var bandsKhôngĐổi = bandsTrenHumNay == bandsTrenHumWa && bandsDuoiHumNay == bandsDuoiHumWa;
+                    var ma20KhôngĐổi = phienHumNayMa20 == phienHumWaMa20;
+                    var giaOGiuaBands = phienHumNay.NenBot * 0.93M < phienHumNay.BandsBot && phienHumNay.NenTop * 1.07M > phienHumNay.BandsTop;
+
+                    var muaTheoMA = thânNếnKhôngVượtQuáBandTren && nenTangGia && ((duongMa05CatLenTrenMa20 && nenNamDuoiMA20)
+                                                    || (MA05HuongLen && (nenTangLenChamMa20 || râunếnTangLenChamMa20) && Ma05DuoiMa20));
+                    var nếnTụtMạnhNgoàiBandDưới = phienHumNay.BandsBot > phienHumNay.NenBot + ((phienHumNay.NenTop - phienHumNay.NenBot) / 2);
+
+                    var momenTumTốt = (phienHumKia.MACDMomentum.IsDifferenceInRank(phienHumWa.MACDMomentum, 0.01M) || phienHumWa.MACDMomentum > phienHumKia.MACDMomentum) && phienHumNay.MACDMomentum > phienHumWa.MACDMomentum * 0.96M;
+                    var momenTumTăngTốt = phienHumWa.MACDMomentum > phienHumKia.MACDMomentum * 0.96M && phienHumNay.MACDMomentum > phienHumWa.MACDMomentum * 0.96M;
+
+                    var nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands =
+                        (phienHumWa.NenTop < phienHumWa.BandsBot
+                            || (phienHumWa.NenBot.IsDifferenceInRank(phienHumWa.BandsBot, 0.02M) && phienHumWa.NenTop < phienHumWaMa05))
+                        && (phienHumNay.NenTop >= phienHumNayMa05 || phienHumNay.NenBot >= phienHumNay.BandsBot);
+
+                    var trongXuHướngGiảmMạnh = phienHumNay.TỉLệNếnCựcYếu(histories) >= 0.5M;
+                    var trongXuHướngGiảm = phienHumNay.TỉLệNếnYếu(histories) >= 0.5M;
+
+                    var ma05ĐangBẻNgang = phienHumNay.MAChuyểnDần(histories, false, -5, 3);
+                    var khôngNênBánT3 = phienHumNay.MACDMomentum > phienHumWa.MACDMomentum && phienHumNay.MACD > phienHumWa.MACD && phienHumNay.MACDMomentum > -100;
+
+                    var rsiDuong = phienHumNay.RSIDương(histories);
+                    var tínHiệuMuaTrongSóngHồiMạnh =
+                                                   momenTumTăngTốt
+                                                && phienHumNay.TangGia()
+                                                && (nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands || ma05ĐangBẻNgang)
+                                                && (trongXuHướngGiảmMạnh)
+                                                && phienHumNayMa20 / phienHumNayMa05 > 1.1M;
+
+                    var tínHiệuMuaTrongSóngHồiTrungBình =
+                                                   momenTumTốt
+                                                && (phienHumNay.TangGia() || phienHumNay.Doji())
+                                                && (nếnBậtMạnhLênTừBandsDướiVềMA05HoặcTrongBands || ma05ĐangBẻNgang)
+                                                && (trongXuHướngGiảmMạnh || trongXuHướngGiảm)
+                                                && phienHumNayMa20 / phienHumNayMa05 > 1.1M;
+
+                    var tinhieuMuaManh = tínHiệuMuaTrongSóngHồiMạnh ? 10 : 0;
+                    var tinhieuMuaTrungBinh = tínHiệuMuaTrongSóngHồiTrungBình ? 5 : 0;
+                    var tinHieuMuaTrungBinh1 = muaTheoMA ? 5 : 0;
+                    var tinHieuMuaTrungBinh2 = nếnTụtMạnhNgoàiBandDưới && ma05ĐangBẻNgang ? 5 : 0;
+                    var tinHieuMuaYếu1 = bandsMởRộng ? 5 : 0;
+
+                    var tinHieuGiảmMua1 = bandsTrênĐangGiảm && ma20ĐangGiảm ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    //var tinHieuGiảmMua2 = bandsKhôngĐổi && ma20KhôngĐổi && giaOGiuaBands ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuGiảmMua2 = bandsKhôngĐổi && ma20KhôngĐổi ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuGiảmMua3 = giaOGiuaBands ? -5 : 0;// && !nếnGiảmVượtMạnhNgoàiBandDưới ? -5 : 0;
+                    var tinHieuGiảmMua4 = !phienHumNay.SoSánhGiá(1) || !phienHumWa.SoSánhGiá(1) ? -5 : 0;
+
+                    if (tinhieuMuaManh
+                        + tinhieuMuaTrungBinh + tinHieuMuaTrungBinh1 + tinHieuMuaTrungBinh2
+                        + tinHieuGiảmMua1 + tinHieuGiảmMua2 + tinHieuGiảmMua3 + tinHieuGiảmMua4 <= 0) continue;
+
+                    var ngayMua = historiesInPeriodOfTime.Where(h => h.Date > phienHumNay.Date).OrderBy(h => h.Date).FirstOrDefault();
+                    if (ngayMua == null) ngayMua = new History() { Date = phienHumNay.Date.AddDays(1) };
+                    var giáĐặtMua = nếnTụtMạnhNgoàiBandDưới
+                        ? (phienHumNay.BandsBot + phienHumNay.NenBot) / 2
+                        : phienHumNay.C;
+
+                    //if (giáĐặtMua >= ngayMua.L && giáĐặtMua <= ngayMua.H)       //Giá hợp lệ
+                    //{
+                    var giữT = khôngNênBánT3 ? 6 : 3;
+                    var tPlus = historiesInPeriodOfTime.Where(h => h.Date >= ngayMua.Date)
+                        .OrderBy(h => h.Date)
+                        .Skip(3)
+                        .Take(giữT)
+                        .ToList();
+
+                    if (tPlus.Count < 3) //hiện tại
+                    {
+                        result1.Add($"{symbol._sc_} - Hiện tại điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    }
+                    else
+                    {
+                        if (tPlus.Any(t => t.C > ngayMua.O * (1M + percentProfit) || t.O > ngayMua.O * (1M + percentProfit)))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                        {
+                            dung++;
+                            result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                        else
+                        {
+                            sai++;
+                            result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc mua: {phienHumNay.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                        }
+                    }
+
+                    //if (bandsĐangGiảm && ma20ĐangGiảm && !nếnGiảmVượtMạnhNgoàiBandDưới)
+                    //{
+                    //    if (tPlus.Any(t => t.C > ngayMua.O * 1.01M || t.O > ngayMua.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                    //    {
+                    //        sai++;
+                    //        result1.Add($"{symbol._sc_} - Sai  - Band xấu - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //    else
+                    //    {
+                    //        dung++;
+                    //        result1.Add($"{symbol._sc_} - Đúng - Band xấu - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //}
+
+                    //if (!bandsĐangGiảm || !ma20ĐangGiảm || nếnGiảmVượtMạnhNgoàiBandDưới)
+                    //{
+                    //    if (tPlus.Any(t => t.C > ngayMua.O * 1.01M || t.O > ngayMua.O * 1.01M))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                    //    {
+                    //        dung++;
+                    //        result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //    else
+                    //    {
+                    //        sai++;
+                    //        result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc để ngày mai mua: {phienKiemTra.Date.ToShortDateString()} ở giá {giáĐặtMua.ToString("N2")}");
+                    //    }
+                    //}
+                }
+                //else
+                //{
+                //    result1.Add($"{symbol._sc_} - Không có giá {giáĐặtMua.ToString("N2")} ở ngày mai mua: {phienKiemTra.Date.ToShortDateString()}");
+                //}
+
+
+                ////tín hiệu bán
+                //if ((phienTruocPhienKiemTraMa05 > phienKiemTraMa05              //MA 05 đang hướng lên
+                //        && phienKiemTra.NenBot <= phienKiemTraMa20)             //Giá MA 05 chạm MA 20
+                //    || (phienTruocPhienKiemTraMa05 >= phienKiemTraMa20 && phienKiemTraMa05 <= phienKiemTraMa20))  //MA 05 cắt xuống dưới MA 20
+                //{
+                //    var ngayBán = historiesInPeriodOfTime.Where(h => h.Date > phienKiemTra.Date).OrderBy(h => h.Date).First();
+                //    var tileChinhXac = 0;
+                //    var tPlus = historiesInPeriodOfTime.Where(h => h.Date >= ngayBán.Date)
+                //        .OrderBy(h => h.Date)
+                //        .Skip(3)
+                //        .Take(3)
+                //        .ToList();
+
+                //    if (tPlus.All(t => t.C > ngayBán.O || t.O > ngayBán.O))    //Mình đặt mua ở giá mở cửa ngày hum sau luôn
+                //    {
+                //        dung++;
+                //        result1.Add($"{symbol._sc_} - Đúng T3-5 - Điểm nhắc để ngày mai bán: {phienKiemTra.Date.ToShortDateString()}");
+                //    }
+                //    else
+                //    {
+                //        sai++;
+                //        result1.Add($"{symbol._sc_} - Sai  T3-5 - Điểm nhắc để ngày mai bán: {phienKiemTra.Date.ToShortDateString()} - Bán: {ngayBán.Date.ToShortDateString()} giá {ngayBán.O}");
+                //    }
+                //}
+                //}
+
+                tong = dung + sai;
+                var tile = tong == 0 ? 0 : Math.Round(dung / tong, 2);
+                //result1.Add($"Tỉ lệ: {tile}");
+                tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, tile, result1));
+            });
+
+            tup = tup.OrderByDescending(t => t.Item2).ToList();
+
+            return tup;
+        }
+
+        public async Task<List<string>> ToiUuLoiNhuan(string code, DateTime toiNgay, DateTime tuNgay)
+        {
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s.MA20Vol > ConstantData.minMA20VolDaily).ToListAsync()
+                : await _context.StockSymbol.Where(s => s.MA20Vol > ConstantData.minMA20VolDaily && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= toiNgay.AddDays(10) //calculate T
+                    && ss.Date >= tuNgay.AddDays(-150)) //caculate SRI
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+
+            //var histories = await _context.History
+            //    .Where(ss => ss.StockSymbol == code
+            //        && ss.Date <= ngay.AddDays(10) //calculate T
+            //        && ss.Date >= ngayCuoi.AddDays(-50)) //caculate SRI
+            //    .OrderBy(ss => ss.Date)
+            //    .ToListAsync();
+
+            var result1 = new List<string>();
+            var NhậtKýMuaBán = new List<LearningRealDataModel>();
+
+            for (int s = 0; s < symbols.Count; s++)
+            {
+                var byCodeList = historiesStockCode.Where(ss => ss.StockSymbol == symbols[s]._sc_).ToList();
+                var pastList = byCodeList.Where(ss => ss.Date <= tuNgay.AddDays(-100)).OrderByDescending(h => h.Date).ToList();
+                var firstDate = pastList.FirstOrDefault();
+                var ngayBatDauCuaCoPhieu = firstDate != null ? tuNgay : historiesStockCode.Where(ss => ss.StockSymbol == symbols[s]._sc_).OrderBy(h => h.Date).Skip(100).FirstOrDefault()?.Date;
+                if (!ngayBatDauCuaCoPhieu.HasValue) continue;
+                var histories = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbols[s]._sc_ && ss.Date >= ngayBatDauCuaCoPhieu.Value.AddDays(-50))
+                    .OrderBy(ss => ss.Date)
+                    .ToList();
+
+                decimal root = 1M;
+                var hasMoney = true;
+                var ngayMuaToiUu = new History();
+                var ngayMuaT3 = new History();
+
+                var ngayBatDau = histories.First(h => h.Date >= ngayBatDauCuaCoPhieu);
+                var ngayDungLai = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= toiNgay);
+                if (ngayDungLai == null) //đang nhập ngày trong tương lai -> chuyển về hiện tại
+                {
+                    ngayDungLai = histories.OrderByDescending(h => h.Date).First();
+                }
+                var startedI = histories.IndexOf(ngayBatDau);
+                var stoppedI = histories.IndexOf(ngayDungLai);
+                for (int i = startedI; i <= stoppedI; i++)
+                {
+                    try
+                    {
+                        var phienHumKia = histories[i - 2];
+                        var phienHumWa = histories[i - 1];
+                        var phienHumNay = histories[i];
+                        if (phienHumNay.Date < ngayMuaT3.Date) continue;
+                        if (hasMoney && phienHumNay.VOL(histories, -20) < ConstantData.minMA20VolDaily) continue;
+
+                        var phienT1 = histories[i + 1];
+                        var phienT2 = histories[i + 2];
+                        var phienT3 = histories[i + 3];
+                        var phienT4 = histories[i + 4];
+
+                        if (hasMoney)
+                        {
+                            if (phienT3.C <= phienHumNay.C || (phienT1.C < phienHumNay.C && phienT1.C <= phienT4.C))
+                            {
+                                continue;
+                            }
+                            else
+                            {
+                                ngayMuaToiUu = phienHumNay;
+                                ngayMuaT3 = phienT3;
+                                hasMoney = false;
+                                result1.Add($"{phienHumNay.StockSymbol}-{phienHumNay.Date.ToShortDateString()} - MUA - {phienHumNay.C} - Vốn {root}");
+                                NhậtKýMuaBán.Add(new LearningRealDataModel(histories, phienHumNay, phienHumWa, phienHumKia, true, 0, root));
+                            }
+                        }
+                        else
+                        {
+                            var nextPhiens = new List<History>() { phienT1, phienT2, phienT3, phienT4 };
+                            if (nextPhiens.All(p => p.C <= phienHumNay.C))
+                            {
+                                hasMoney = true;
+                                var lời = ((Math.Round((decimal)phienHumNay.C / (decimal)(ngayMuaToiUu.C), 2)) - 1) * 100;
+                                root = root + (Math.Round((decimal)root * (decimal)(lời) / 100, 2));
+                                result1.Add($"{phienHumNay.StockSymbol}-{phienHumNay.Date.ToShortDateString()} - BÁN - {phienHumNay.C} Lời {lời}% - Vốn {root}");
+
+                                //update lời cho lần trước
+                                NhậtKýMuaBán.Last().Loi = lời;
+                                NhậtKýMuaBán.Add(new LearningRealDataModel(histories, phienHumNay, phienHumWa, phienHumKia, false, lời, root));
+                                ngayMuaToiUu = new History();
+                                ngayMuaT3 = new History();
+                                continue;
+                            }
+                        }
+
+                    }
+                    catch (Exception ex)
+                    {
+                        result1.Add($"{symbols[s]._sc_}-{histories[i].Date.ToShortDateString()} - Lỗi {ex.ToString()}");
+                        continue;
+                    }
+                }
+            }
+
+            /*
+             * Tìm kịch bản cho những ngày trước khi mua/bán    (Done)
+             * Tìm kịch bản cho những ngày mua/bán              (thêm cột cho những ngày mua/bán)
+             * 
+             * [Vòng lặp]
+             *  -   duyệt lại kịch bản, chọn thông số phù hợp
+             *  -   chạy lại kịch bản dựa trên thông số phù hợp với điểm mua và bán
+             *  
+             * Chạy cho tất cả các mã
+             * [Vòng lặp]
+             *  -   duyệt lại kịch bản, chọn thông số phù hợp
+             *  -   chạy lại kịch bản dựa trên thông số phù hợp với điểm mua và bán
+             */
+
+            var folder = ConstantPath.Path;
+            var g = Guid.NewGuid();
+            var name = $@"{folder}{g}.xlsx";
+            NhậtKýMuaBán.ToDataTable().WriteToExcel(name);
+
+            return result1;
+        }
+
+        public async Task<List<string>> KiemTraTileDungSaiTheoPattern(string code, DateTime tuNgay, DateTime toiNgay, LocCoPhieuFilterRequest filter)
+        {
+            var histories = await _context.History
+                .Where(ss => ss.StockSymbol == code
+                    && ss.Date <= toiNgay.AddDays(10)
+                    && ss.Date >= tuNgay.AddDays(-30))
+                .OrderBy(ss => ss.Date)
+                .ToListAsync();
+
+            var result1 = new List<string>();
+            var ngayBatDau = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= tuNgay);
+            for (int i = histories.IndexOf(ngayBatDau); i < histories.Count; i++)
+            {
+                ngayBatDau = histories[i];
+                if (ngayBatDau != null && ngayBatDau.HadAllIndicators())
+                {
+                    break;
+                }
+            }
+
+            var ngayMuaToiUu = new History();
+            var ngayMuaT3 = new History();
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+            decimal dung = 0;
+            decimal sai = 0;
+            var ngayDungLai = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= toiNgay);
+            if (ngayDungLai == null) //đang nhập ngày trong tương lai -> chuyển về hiện tại
+            {
+                ngayDungLai = histories.OrderByDescending(h => h.Date).First();
+            }
+            var startedI = histories.IndexOf(ngayBatDau);
+            var stoppedI = histories.IndexOf(ngayDungLai);
+            for (int i = startedI; i <= stoppedI; i++)
+            {
+                var phienHumNay = histories[i];
+                var phienHumWa = histories[i - 1];
+                var lstBan = new List<Tuple<string, bool>>();
+
+                var thoaDK = ThỏaĐiềuKiệnLọc(filter, histories, phienHumNay);
+                if (!thoaDK) continue;
+
+                lstBan.Add(new Tuple<string, bool>(filter.Name, thoaDK));
+
+                var giaMua = TimGiaMuaMongMuon(histories, phienHumNay, lstBan);
+
+                if (!giaMua.Item3.HasValue)
+                {
+                    var stringCTMua = string.Join(",", lstBan.Where(ct => ct.Item2).Select(ct => ct.Item1).ToList());
+                    result1.Add($"{code} - {stringCTMua} - Mua phiên sau ngày {phienHumNay.Date.ToShortDateString()} tại giá {giaMua.Item1} tới giá {giaMua.Item2} - Chưa đủ dữ liệu T3 để tính toán giá bán.");
+                    continue;
+                }
+
+                if (giaMua.Item3.HasValue && giaMua.Item3.Value < 0)
+                {
+                    var ngayMua = histories.Where(h => h.Date > phienHumNay.Date).OrderBy(h => h.Date).First();
+                    var stringCTMua = string.Join(",", lstBan.Where(ct => ct.Item2).Select(ct => ct.Item1).ToList());
+                    result1.Add($"{code} - {stringCTMua} - Mua phiên sau ngày {phienHumNay.Date.ToShortDateString()} tại giá {giaMua.Item1} tới giá {giaMua.Item2} - Nhưng thực tế giá thấp nhất ở {ngayMua.L}");
+                    continue;
+                }
+
+                TimThoiGianBan(code, result1, ref dung, ref sai, histories, phienHumNay, giaMua.Item3.Value, lstBan);
+            }
+
+            if (result1.Any())
+            {
+                //tong = dung + sai;
+                dung = dung - sai;
+                var winRate = dung;// tong == 0 ? 0 : Math.Round(dung / tong, 2);
+                tup.Add(new Tuple<string, decimal, List<string>>(code, winRate, result1));
+            }
+
+
+            //var tile = dung + sai > 0 ? Math.Round(dung / (dung + sai), 2) : 0;
+            //result1.Insert(0, $"{code} - Tỉ lệ: {tile}");
+
+            return result1;
+        }
+
+
+
+        public async Task<List<string>> CongThucLungTung1()
+        {
+            var symbols = await _context.StockSymbol
+                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ConstantData.minMA20VolDaily)
+                //.Where(h => h._sc_ == "VKC")
+                .ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol) && ss.Date >= new DateTime(2022, 1, 1))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+            /* 1 CP 
+             * 2 Nhom Nganh 
+             * 3 Gia
+             * 4 So sánh với Mây
+             * 5 So sánh với MA 20
+             * 6 So sánh với đáy T6
+             * 7 manh/yeu
+             */
+
+            var tup = new List<Tuple<string, string, decimal, decimal>>();
+            var result1 = new List<string>();
+            Parallel.ForEach(symbols, (Action<StockSymbol>)(symbol =>
+            {
+                var histories = historiesStockCode
+                                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                                    .OrderByDescending(h => h.Date)
+                                    .ToList();
+
+
+                var humnay = histories[0];
+                var humqua = histories[1];
+
+                if (humnay.C < humnay.BandsMid && humnay.C > humqua.C && humnay.RSI > humqua.RSI)
+                {
+                    tup.Add(new Tuple<string, string, decimal, decimal>(symbol._in_, humnay.StockSymbol, humnay.V, humnay.C));
+                }
+
+                //if (humnay.RSI > humqua.RSI && (humnay.C < humqua.C || humnay.NenBot < humqua.NenBot))
+                //{
+                //    tup.Add(new Tuple<string, string, decimal, decimal>(symbol._in_, humnay.StockSymbol, humnay.V, humnay.C));
+                //}
+            }));
+
+            tup = tup
+                .OrderBy(h => h.Item1)
+                .ThenByDescending(h => h.Item3)
+                .ThenBy(h => h.Item4)
+                .ThenBy(h => h.Item2).ToList();
+
+            foreach (var item in tup)
+            {
+                result1.Add($"{item.Item1} - {item.Item3.ToString("N2")} - {item.Item4.ToString("N2")} - {item.Item2}");
+            }
+
+            return result1;
+        }
+
+        /*
+         * Trend giảm
+         *              MACD 
+         *                              - Tìm 3 đỉnh giảm dần, nối lại tạo trend line giảm
+         *                              - Giữa 3 đỉnh sẽ có 2 đáy
+         *                              - ở 2 đáy xét động lượng của MACD -> nếu động lượng cao dần thì đó là tín hiệu đảo chiều
+         *                              - Giờ chỉ còn chờ đỉnh 4 - sẽ là điểm breakout
+         *                              - Kết hợp thêm kháng cự và hỗ trợ 
+         *                              
+         *                              Có thể kết hợp thêm
+         *                               - MACD đường xanh cắt lên đỏ
+         *                               - Bolinger bands
+         *                               - Ichimoku
+         *                               - RSI
+         *                               
+         *                              Example:
+         *                                  Good:
+         *                                      AAA: 04/04/2022 - 19/05/2022
+         *                              
+         *                              Hướng dẫn
+         *                                                          https://www.youtube.com/watch?v=fmtBWx9eMHc
+         *                                                          confirm pyll back/trendline  (MUST)
+         *                                                          confirm macf histogram       (MUST)
+         *                                                          confirm support/resistance   (NO)
+         *                                                          confirm ending volume        (NO)
+         *                                                          confirm entry breakout point (MUST)
+         *              
+         *              RSI Trendline
+         *                              - Tìm đáy trong quá khứ, nối lại tạo trend line A
+         *                              - Ở 2 đáy, nối 2 điểm RSI tạo thành trendline B
+         *                              - Nếu A đi xuống hoặc ngang, và B đi lên, đây là tín hiệu đảo chiều, cbi tăng
+         *                              - Kết hợp thêm kháng cự và hỗ trợ 
+         *
+         *                              Có thể kết hợp thêm
+         *                               - MACD đường xanh cắt lên đỏ
+         *                               - Bolinger bands
+         *                               - Ichimoku
+         *
+         *                              BAD examples:
+         *                                  - AAA: 20/8/2019 -> 02/10/2019
+         *                                      - Sửa: Nếu kết hợp Breakout thì ăn (Breakout: 23/10/2019, vậy là mua ở cây 24/10/2019 - điểm nối từ 14/08/2019, cắt qua 16/9/2019, nó sẽ kéo tới 22/10/2019, sau cây này là cây breakout)
+         *                                              - Sau cây breakout, giá chạm MA 20 là bật lên, MA 20 trở thành hỗ trợ - chờ ra hàng
+         *                                              - Kết hợp bolinger bands để tìm điểm bán phù hợp trong sideway (top của bolinger bands)
+         *                                              - Ngày 14/11/2019 - MA 20 bị phá vỡ, MACD xanh cắt xuống MACD đỏ, momentum MACD âm, RSI dốc xướng dưới 40 => tín hiệu bán mạnh
+         *                                         
+         *                                         
+         * 
+         
+         */
+
+        /*
+         * Nhìn vô TA
+         *  - Xu hướng (mục đích làm gì?)
+         *      + Xu hướng tăng: MACD 26 từ âm vượt wa dương
+         *      + Xu hướng giảm: MACD 26 từ âm vượt wa dương
+         *      + Xu hướng sideway:
+         *          
+         *      + Chart Tuần: 
+         *          + 
+         *      + Chart Ngày:
+         *  - Vẽ trend line:
+         *      + 
+         *  - RSI
+         *  - MACD
+         *  - Bolinger Bands
+         *      + upway  : bands trên và dưới ko chênh lệnh quá so với trung bình của bands trên/dưới tính từ 3 phiên trước > 3%
+         *      + sideway: bands trên và dưới ko chênh lệnh quá so với trung bình của bands trên/dưới tính từ 3 phiên trước > -3% < 3%
+         *      + down   : bands trên và dưới ko chênh lệnh quá so với trung bình của bands trên/dưới tính từ 3 phiên trước < 3%
+         *  - Ichimoku
+         *  - MA 20
+         *  - MA 50
+         *  - MA 200
+         *  
+         *  - Mẫu sideway
+         *      + Bán đỉnh bolinger bands
+         *      + Mua đáy bolinger bands
+         *      + Nếu sideway trên MA 20 - thì MA 20 sẽ là hỗ trợ nhẹ, bot bands là hỗ trợ mạnh, top bands là kháng cự -> mua ở hỗ trợ nhẹ, bán ở gần kháng cự * 0.8
+         *      + Nếu sideway dưới hoặc ngang MA 20 - không làm gì cả
+         *              + Định nghĩa sideway 
+         *                  + trên  MA 20: > 80% các nến trong lần kiểm tra đều có giá dưới cùng của nến (O OR C) cao  hơn MA 20 3-5%
+         *                  + ngang MA 20: > 80% các nến trong lần kiểm tra đều có thân nến đề lên MA 20
+         *                  + dưới  MA 20: > 80% các nến trong lần kiểm tra đều có giá trên cùng của nến (O OR C) thấp hơn MA 20 3-5% 
+         
+         */
         /*
          * Goi ý mua / bán
          *  - Mã

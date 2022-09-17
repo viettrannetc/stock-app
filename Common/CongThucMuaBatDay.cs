@@ -52,6 +52,7 @@ namespace DotNetCoreSqlDb.Common
         /// Biên độ giao động thấp (đỉnh/đáy chỉ cách nhau 1 cây CE/FL) - bán nhanh ở T3 khi lời > 1%
         /// 
         /// TODO: kiểm tra tính khả thi, vì có khả năng chỉ mua trong cây hồi trong ngày dc thôi
+        ///         Có thể cải tiến bẳng việc nhắc ở cây trước, canh trong phiên nếu giá chạm về bands dưới thì đặt mua sẵn
         /// 
         /// MA20TiLeVoiM5 = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 1.035M },
         /// RSITangLienTucTrongNPhien = 1,       chỉ vừa bật hum wa, hum nay múc thôi, để mấy ngày sau khi tăng thì ko kịp hồi T3
@@ -61,23 +62,36 @@ namespace DotNetCoreSqlDb.Common
         /// NenTangGia = true
         /// 
         /// Cẩn thận vẽ đường xu hướng để canh ăn góc bật lên
+        /// ==> Ko hiệu quả 
         /// </summary>
         public static LocCoPhieuFilterRequest CT2C = new LocCoPhieuFilterRequest("CT2C")
         {
-            PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
-                new LocCoPhieuCompareModel { Property1 = "BandsMid", Property2 = "GiaMA05", Operation = OperationEnum.Divide, Sign = SoSanhEnum.LonHonHoacBang, Result = 1.035M  },
-                new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.Bang, Result = 1  },
-                new LocCoPhieuCompareModel { Property1 = "MACDMomentum", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.Bang, Result = 1  },
-                new LocCoPhieuCompareModel { Property1 = "L", Property2 = "BandsBot", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
-                new LocCoPhieuCompareModel { Property1 = "NenBot", Property2 = "BandsBot", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
-                new LocCoPhieuCompareModel { Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  }
-            },
-            ChieuDaiThanNenSoVoiRau = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 3.5M },
+            //PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
+            //    new LocCoPhieuCompareModel { Property1 = "BandsMid", Property2 = "GiaMA05", Operation = OperationEnum.Divide, Sign = SoSanhEnum.LonHonHoacBang, Result = 1.035M  },
+            //    new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.Bang, Result = 1  },
+            //    new LocCoPhieuCompareModel { Property1 = "MACDMomentum", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.Bang, Result = 1  },
+            //    new LocCoPhieuCompareModel { Property1 = "L", Property2 = "BandsBot", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
+            //    new LocCoPhieuCompareModel { Property1 = "NenBot", Property2 = "BandsBot", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
+            //    new LocCoPhieuCompareModel { Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  }
+            //},
+            //ChieuDaiThanNenSoVoiRau = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 3.5M },
+            //BienDoBands10PhanTram = true
+
+            //PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
+            //    new LocCoPhieuCompareModel { Property1 = "BandsMid", Property2 = "GiaMA05", Operation = OperationEnum.Divide, Sign = SoSanhEnum.LonHonHoacBang, Result = 1.035M  },
+            //    new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.Bang, Result = 1  },
+            //    new LocCoPhieuCompareModel { Property1 = "MACDMomentum", Operation = OperationEnum.ThayDoiTangNPhien, Sign = SoSanhEnum.Bang, Result = 1  },
+            //    new LocCoPhieuCompareModel { Property1 = "L", Property2 = "BandsBot", Operation = OperationEnum.Minus, Sign = SoSanhEnum.NhoHon, Result = 0  },
+            //    new LocCoPhieuCompareModel { Property1 = "NenBot", Property2 = "BandsBot", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
+            //    new LocCoPhieuCompareModel { Property1 = "C", Property2 = "O", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  }
+            //},
+            //ChieuDaiThanNenSoVoiRau = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 3.5M },
+            BienDoBandsHep = true
         };
 
         /// <summary>
         /// /*
-        /// * CT 1
+        /// * CT 1 - CT Bắt đáy khi giảm mạnh - tính từ ngày giá giảm liên tục tới hiện tại, nếu giá đã giảm >= 20%, thì bắt đầu mua vô
         /// *      + Tính RSI hiện tại, đếm ngược lại những ngày trước đó mà RSI vẫn đang giảm và các nến đều là nến đỏ
         /// *      + Đi ngược lại tìm nến cao nhất
         /// * + Tính từ giá đóng của của cây xanh cao nhất, so với giá hiện tại, nếu hiện tại giá đã giảm > 20%
@@ -85,7 +99,12 @@ namespace DotNetCoreSqlDb.Common
         /// */
         public static LocCoPhieuFilterRequest CT2D = new LocCoPhieuFilterRequest("CT2D")
         {
-            BatDay1 = true
+            Confirmed = true,
+            Note = "CT2D - Bắt đầu theo dõi thôi, chưa gợi ý mua ngay. Để ý né mây xấu và MACD cắt xuống Signal trong 3 phiên trước. Theo dõi giá hum sau chart h và lệnh mua/bán, nếu giá rớt liên tục hoặc ko có vol, thì bỏ ko mua, chỉ mua nếu xuất hiện vol bắt đáy lớn (> 50%) và giá ở sàn + maximum 1%, và chỉ mua tối đa 30%, để dành 70% còn lại để trung bình giá nếu giá tiếp tục sàn ở những phiên sau hoặc khi hàng T3 về. Đây là nhịp hồi kĩ thuật nên chỉ mong đợi 2-5% trong T+5-10.",
+            BatDay1 = true,
+            PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
+                new LocCoPhieuCompareModel { Property1 = "C", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.NhoHonHoacBang, Result = 40000  },
+            },
         };
 
         /// <summary>
@@ -94,16 +113,29 @@ namespace DotNetCoreSqlDb.Common
         /// </summary>
         public static LocCoPhieuFilterRequest CT2E = new LocCoPhieuFilterRequest("CT2E")
         {
+            Confirmed = true,
+            Note = "CT2E - Bắt đầu theo dõi thôi, chưa gợi ý mua ngay. Để ý né mây xấu và MACD cắt xuống Signal trong 3 phiên trước. Theo dõi giá hum sau chart h và lệnh mua/bán, nếu giá rớt liên tục hoặc ko có vol, thì bỏ ko mua, chỉ mua nếu xuất hiện vol bắt đáy lớn (> 50%) và giá ở sàn + maximum 1%, và chỉ mua tối đa 30%, để dành 70% còn lại để trung bình giá nếu giá tiếp tục sàn ở những phiên sau hoặc khi hàng T3 về. Đây là nhịp hồi kĩ thuật nên chỉ mong đợi 2-5% trong T+5-10.",
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
-                new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.ThayDoiGiamNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 7  },
-                new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.ThayDoiGiamNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 4  }
+                new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.ThayDoiGiamNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 7  },
+                new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.NhoHonHoacBang, Result = 30  },
+                new LocCoPhieuCompareModel { Property1 = "C", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.NhoHonHoacBang, Result = 40000  },
             },
         };
 
+        /// <summary>
+        /// Nến giảm sát hoặc ngoài bands bot, mong đợi 1 cây bật ngược lại ở ngày mai nếu giá xanh và
+        /// 1 - vol lớn hơn 100% MA 20 tại bất cứ giờ nào trong ngày tiếp theo thì đặt mua giá bands bot - 
+        /// 2 - vol lớn hơn  80% MA 20 tại bất cứ giờ nào trong ngày tiếp theo thì đặt mua giá bands bot - thân nến xanh phải dài hơn 80% thân nến đỏ hôm nay
+        /// 
+        /// ==> Chung quy lại là nến đỏ ngoài bands bot, cần theo dõi phiên ngày mai nếu trong 30p đầu phiên mà xuất hiện nến xanh, vol > 1.5 MA 20 của chart h thì múc giá bands bot, càng thấp càng tốt
+        /// </summary>
         public static LocCoPhieuFilterRequest CT2F = new LocCoPhieuFilterRequest("CT2F")
         {
+            Confirmed = true,
+            Note = "CT2F - Bắt đầu theo dõi thôi, chưa gợi ý mua ngay. Để ý né mây xấu và MACD cắt xuống Signal trong 3 phiên trước. chung quy lại là nến đỏ ngoài bands bot, cần theo dõi phiên ngày mai nếu trong 30p đầu phiên mà xuất hiện nến xanh, vol > 1.5 MA 20 của chart h thì múc giá bands bot, càng thấp càng tốt",
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
-                new LocCoPhieuCompareModel { Property1 = "RSI", Operation = OperationEnum.ThayDoiGiamNPhien, Sign = SoSanhEnum.LonHonHoacBang, Result = 7  }
+                new LocCoPhieuCompareModel { Property1 = "BandsBot", Property2 = "C", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
+                new LocCoPhieuCompareModel { Property1 = "O", Property2 = "C", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
             },
         };
 

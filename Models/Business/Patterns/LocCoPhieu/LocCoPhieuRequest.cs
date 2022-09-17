@@ -35,7 +35,8 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         /// Nếu property 1: điểm lời để chốt
         /// Nếu là số < 1: điểm lỗ để cắt
         /// </summary>
-        TuongQuan
+        TuongQuan,
+        TaoDay2,
     }
 
     public class LocCoPhieuFilter
@@ -52,8 +53,6 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         /// Số Âm là ngày quá khứ
         /// </summary>
         public int? Phien { get; set; }
-        public bool Day2 { get; set; }
-
         public string Property1 { get; set; }
         public string Property2 { get; set; }
         public OperationEnum Operation { get; set; }
@@ -70,13 +69,21 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
 
     public class LocCoPhieuFilterRequest
     {
+        public bool NenGiamSatHoacNgoaiBandsBot { get; set; }        
+        public bool CTNT1 { get; set; }
+        /// <summary>
+        /// Giá vượt MA 20 giờ đang vòng lại hoặc tích lũy hoặc test MA 20
+        /// </summary>
+        public bool CTNT2 { get; set; }
+        public bool PhienBungNo { get; set; }
         public LocCoPhieuFilterRequest(string name)
         {
             Name = name;
             PropertiesSoSanh = new List<LocCoPhieuCompareModel>();
             PriceMongDoi = new List<LocCoPhieuCompareModel>();
         }
-
+        public bool Confirmed { get; set; }
+        public string Note { get; set; }
         public LocCoPhieuFilterRequest(string name, List<LocCoPhieuCompareModel> keThua)
         {
             Name = name;
@@ -85,12 +92,15 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
             PropertiesSoSanhKeThua.AddRange(keThua);
             PriceMongDoi = new List<LocCoPhieuCompareModel>();
         }
-
-        private bool DaKeThua { get; set; }
+        public bool DangCoGame { get; set; }
+        public bool DangTrendTang { get; set; }
 
         public string Name { get; set; }
 
         public bool? NenBaoPhuDaoChieuTrungBinh { get; set; }
+
+        public bool? KietVol { get; set; }
+
         /// <summary>
         /// False: đảo chieu giảm
         /// True: đảo chiều tăng
@@ -104,6 +114,7 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
         /// </summary>
         public LocCoPhieuCompareModel KiVong { get; set; }
         public LocCoPhieuFilter ChieuDaiThanNenSoVoiRau { get; set; }
+        public bool BienDoBandsHep { get; set; }
         public LocCoPhieuFilter RSIHumWa { get; set; }
         /// <summary>
         /// TODO
@@ -196,17 +207,19 @@ namespace DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu
 
     public class LocCoPhieuRequest
     {
-        public LocCoPhieuRequest(string code, DateTime ngay)
+        public LocCoPhieuRequest(string code, DateTime ngay, decimal volToiThieu)
         {
             Code = code;
-            Ngay = ngay;
+            Ngay = ngay == DateTime.MinValue
+                ? DateTime.Now
+                : ngay;
             Suggestion = new LocCoPhieuKiVongRequest
             {
                 LãiMin = 1.01M
             };
             Filters = new List<LocCoPhieuFilterRequest>();
-            VolToiThieu = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 1000000 };
-            GiaToiThieu = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 6000 };
+            VolToiThieu = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = volToiThieu };
+            GiaToiThieu = new LocCoPhieuFilter { Ope = SoSanhEnum.LonHonHoacBang, Value = 1000 };
             //ShowHistory = true;
         }
         public string Code { get; set; }
