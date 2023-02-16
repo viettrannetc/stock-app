@@ -69,7 +69,7 @@ namespace DotNetCoreSqlDb.Common
             //    new LocCoPhieuCompareModel { Property1 = "MACD", Operation = OperationEnum.TaoDay2, Result = 10  }, //Có xuất hiện đáy 2 MACD trong vòng 10 phiên trước
             //},
             Confirmed = true,
-            Note = "CTNT1 - Để ý né mây flat, trong mây, MACD cắt xuống Signal trong 3 phiên trước, giá mua quanh giữa thân nến LÊN MA 20+ 2%, để ý giá hum sau chart h, nếu giá rớt liên tục thì bỏ ko mua",
+            Note = "CTNT1 - Có đáy 2 MACD trong 11 ngày trước, Từ đáy 2 MACD tới ngày hiện tại, MACD liên tục tăng, Từ những ngày sau đáy 2 tới hiện tại, tìm ra cây vượt MA 20, Giá vượt MA 20 thì bắt đầu canh mua ở giá MA 20 hoặc chờ giá đang giảm dần về test lại MA 20. Tránh mây flat, trong mây, MACD cắt xuống Signal trong 3 phiên trước, giá mua quanh giữa thân nến LÊN MA 20+ 2%, để ý giá hum sau chart h, nếu giá rớt liên tục thì bỏ ko mua",
             CTNT1 = true,
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
                 new LocCoPhieuCompareModel { Property1 = "C", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.NhoHonHoacBang, Result = 40000  },
@@ -87,7 +87,7 @@ namespace DotNetCoreSqlDb.Common
         public static LocCoPhieuFilterRequest CTNT2 = new LocCoPhieuFilterRequest("CTNT2")
         {
             Confirmed = true,
-            Note = "CTNT2 - Để ý né mây flat, trong mây, MACD cắt xuống Signal trong 3 phiên trước, giá mua quanh giữa thân nến LÊN MA 20+ 2%, để ý giá hum sau chart h, nếu giá rớt liên tục thì bỏ ko mua, nếu nến ko vượt dc nửa thân wa ma 20 thì mua giá ở nửa thân nến thôi",
+            Note = "CTNT2 - Giá vượt MA 20 thì bắt đầu canh mua ở giá MA 20 hoặc chờ giá đang giảm dần về test lại MA 20, Từ giao điểm giá cắt lên MA 20, tính tới hiện tại, nếu giá trên MA 20 và đường trung bình cộng của giá (theo  (H - L) /2) tạo thành hình cong xuống hoặc đi ngang, và giá hiện tại chưa chạm MA 20 hoặc điệm trung tâm nến vẫn > MA 20, Trong 3 ngày trước đó ko có MACD cắt xuống Signal => thì báo tín hiệu MACD trên Signal, MACD trong 2 phiên trước không cắt xuống Singal. Tránh mây flat, trong mây, MACD cắt xuống Signal trong 3 phiên trước, giá mua quanh giữa thân nến LÊN MA 20+ 2%, để ý giá hum sau chart h, nếu giá rớt liên tục thì bỏ ko mua, nếu nến ko vượt dc nửa thân wa ma 20 thì mua giá ở nửa thân nến thôi",
             CTNT2 = true,
             PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
                 new LocCoPhieuCompareModel { Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.Minus, Sign = SoSanhEnum.LonHon, Result = 0  },
@@ -95,7 +95,7 @@ namespace DotNetCoreSqlDb.Common
 
                 new LocCoPhieuCompareModel { Phien = -1, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
                 new LocCoPhieuCompareModel { Phien = -2, Property1 = "MACD", Property2 = "MACDSignal", Operation = OperationEnum.CrossDown, Result = -1 },
-                new LocCoPhieuCompareModel { Property1 = "C", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.NhoHonHoacBang, Result = 40000  }
+                //new LocCoPhieuCompareModel { Property1 = "C", Operation = OperationEnum.SoSanh, Sign = SoSanhEnum.NhoHonHoacBang, Result = 40000  }
             },
         };
 

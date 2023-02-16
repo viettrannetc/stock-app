@@ -61,6 +61,27 @@ namespace DotNetCoreSqlDb.Common
             return checkingRange.Sum(h => h.V) / numberOfPreviousPhien;
         }
 
+        public static decimal MA(this History checkingDate, List<History> histories, int numberOfPreviousPhien, string propertyName)
+        {
+            if (numberOfPreviousPhien == 0) return 0;
+
+            var checkingRange = new List<History>();
+            if (numberOfPreviousPhien < 0)
+            {
+                numberOfPreviousPhien = numberOfPreviousPhien * -1;
+                checkingRange = histories.Where(h => h.Date <= checkingDate.Date).OrderByDescending(h => h.Date).Take(numberOfPreviousPhien).ToList();
+            }
+            else
+                checkingRange = histories.Where(h => h.Date >= checkingDate.Date).OrderBy(h => h.Date).Take(numberOfPreviousPhien).ToList();
+
+            if (checkingRange.Count != numberOfPreviousPhien) return 0;
+
+            var propertyInfo = typeof(History).GetProperty(propertyName);
+            var sumValue = checkingRange.Sum(x => (decimal)propertyInfo.GetValue(x, null));
+            return sumValue / numberOfPreviousPhien;
+            //return checkingRange.Sum(h => h.V) / numberOfPreviousPhien;
+        }
+
         public static decimal MA(this History checkingDate, List<History> histories, int numberOfPreviousPhien)
         {
             if (numberOfPreviousPhien == 0) return 0;
@@ -594,6 +615,16 @@ namespace DotNetCoreSqlDb.Common
             return today.C > today.O;
         }
 
+        public static bool GiamGia(this History today)
+        {
+            return today.C < today.O;
+        }
+
+        public static bool GiamGia(this HistoryHour today)
+        {
+            return today.C < today.O;
+        }
+
         public static bool DojiCoRauHoacTangGia(this History today)
         {
             return today.C >= today.O && today.H > today.C;
@@ -719,7 +750,8 @@ namespace DotNetCoreSqlDb.Common
 
 
         /// <summary>
-        /// Đơn giản là so sánh về quá khứ lấy 1 cây cùng giá đóng cửa, thấy RSI cây hiện tại cao hơn thì dương, còn ko thì âm
+        /// Đơn giản là so sánh về quá khứ trong vòng 52 phiên, lấy 1 cây cùng giá đóng cửa, 
+        /// Xét thấy RSI cây hiện tại cao hơn thì dương, còn ko thì âm
         /// </summary>
         /// <param name="phienKiemTra"></param>
         /// <param name="histories"></param>
@@ -1487,10 +1519,496 @@ namespace DotNetCoreSqlDb.Common
             return false;
         }
 
+        public static EnumPhanKi XacDinhPhanKi(this List<History> histories, History todaySession, string propertyPhanky = "RSI")
+        {
+            /*
+             * What is the point
+             * - it is created by 3 points (1, 2 and 3) in a row where the pattern could be
+             * 1 - the middle point (2) is lower than the other 2 (1 & 3)
+             * 2 - the last point (3) is higher than the middle point (2) and the middle point is equal with the 1st one (1)
+             * 3 - the last point (3) is equal with the middle point (2) and the 1st point is higher than the 2nd one (2)
+             * 
+             * RSI - PKD - it will consider the points with pattern 1 & 2
+             * 1 - take current RSI number
+             * 2 - continue counting back to the past in a period between today and the last PKA
+             * 3 - get the previous point where the RSI is lower than the current one
+             * 4 - Compare 2 points, if the RSI of the current one is higher than the one in the past and the closing price is oppsite -> this is PKD
+             * 
+             * RSI - PKA - it will consider the points with pattern 1 & 3
+             * 1 - take current RSI number
+             * 2 - continue counting back to the past in a period between today and the last 60 sessions
+             * 3 - get the previous point where the RSI is higher than the current one
+             * 4 - Compare 2 points, if the RSI of the current one is lower than the one in the past and the closing price is oppsite -> this is PKA
+             * 
+             * The same for the MACD - remember that MACD is usually slowere than RSI 1 day
+            */
+
+            var currentValueToday = (decimal)todaySession.GetPropValue(propertyPhanky);
+            var isPatternDay = todaySession.IsPatternSpikeForPhanKiDuong(histories, propertyPhanky);
+            var isPatternDinh = todaySession.IsPatternSpikeForPhanKiAm(histories, propertyPhanky);
+
+            var tmrData = histories.OrderBy(h => h.Date).Where(h => h.Date > todaySession.Date).FirstOrDefault();
+
+            //------------------------PK DƯƠNG
+            if (isPatternDay)
+            {
+                var theLastExpectedPKA = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < todaySession.Date && h.RSIPhanKi == EnumPhanKi.PKA);
+                var theExpecetedPeriodForPKD = theLastExpectedPKA == null
+                    ? histories.Where(h => h.Date < todaySession.Date).OrderByDescending(h => h.Date).ToList()
+                    : histories.Where(h => h.Date < todaySession.Date && h.Date >= theLastExpectedPKA.Date).OrderByDescending(h => h.Date).ToList();
+                var theExpectedLowerPoints = theExpecetedPeriodForPKD.Where(x => x.RSI < currentValueToday).OrderByDescending(h => h.Date).ToList();
+                if (propertyPhanky == "MACD")
+                    theExpectedLowerPoints = theExpecetedPeriodForPKD.Where(x => x.MACD < currentValueToday).OrderByDescending(h => h.Date).ToList();
+
+                foreach (var lowerPointOfPropertyInThePast in theExpectedLowerPoints)
+                {
+                    if (lowerPointOfPropertyInThePast.IsPatternSpikeForPhanKiDuong(histories, propertyPhanky)
+                        && todaySession.HasLowerPointInMiddle(lowerPointOfPropertyInThePast, histories, propertyPhanky)
+                        && !todaySession.HasLowerPointInMiddle1(lowerPointOfPropertyInThePast, histories, propertyPhanky)
+                        && lowerPointOfPropertyInThePast.NenBot > todaySession.NenBot)
+                        return EnumPhanKi.PKD;
+                }
+            }
+
+            //------------------------PK ÂM
+            if (isPatternDinh)
+            {
+                var theLastExpectedCheck = histories.OrderByDescending(h => h.Date).Where(h => h.Date < todaySession.Date).Skip(59).FirstOrDefault();
+                var theExpecetedPeriodForPKA = theLastExpectedCheck == null
+                    ? histories.Where(h => h.Date < todaySession.Date).OrderByDescending(h => h.Date).ToList()
+                    : histories.Where(h => h.Date < todaySession.Date && h.Date >= theLastExpectedCheck.Date).OrderByDescending(h => h.Date).ToList();
+                var theExpectedHigherPoints = theExpecetedPeriodForPKA.Where(x => x.RSI > currentValueToday).OrderByDescending(h => h.Date).ToList();
+
+                if (propertyPhanky == "MACD")
+                    theExpectedHigherPoints = theExpecetedPeriodForPKA.Where(x => x.MACD > currentValueToday).OrderByDescending(h => h.Date).ToList();
+
+                foreach (var higherPointOfPropertyInThePast in theExpectedHigherPoints)
+                {
+                    if (higherPointOfPropertyInThePast.IsPatternSpikeForPhanKiAm(histories, propertyPhanky)
+                        && todaySession.HasHigherPointInMiddle(higherPointOfPropertyInThePast, histories, propertyPhanky)
+                        && !todaySession.HasHigherPointInMiddle1(higherPointOfPropertyInThePast, histories, propertyPhanky)
+                        && (higherPointOfPropertyInThePast.NenBot < todaySession.NenTop || (tmrData != null && tmrData.GiamGia() && higherPointOfPropertyInThePast.NenBot < tmrData.H)))
+                        return EnumPhanKi.PKA;
+                }
+            }
+
+            return EnumPhanKi.NA;
+        }
+
+        /// <summary>
+        /// Wrong: BAF 26-12-22 (đáy 2) VS 03-10-22 (Đáy 1)
+        /// </summary>
+        public static bool HasLowerPointInMiddle(this History todaySession, History previousSession, List<History> histories, string propertyPhanky = "RSI")
+        {
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > previousSession.Date && h.Date < todaySession.Date).ToList();
+            if (middlePoints.Count < 2) return false; //ở giữa ít nhất 2 điểm luôn luôn true vì mình đã skip 3
+
+            var propertyValuePoint1 = (decimal)previousSession.GetPropValue(propertyPhanky);
+            var propertyValuePoint2 = (decimal)todaySession.GetPropValue(propertyPhanky);
+            if (propertyValuePoint1 > propertyValuePoint2) return false;
+
+            return HasCrossPointInMiddle(todaySession, previousSession, histories, propertyPhanky);
+        }
+
+        public static bool HasLowerPointInMiddle1(this History todaySession, History previousSession, List<History> histories, string propertyPhanky = "RSI")
+        {
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > previousSession.Date && h.Date < todaySession.Date).ToList();
+            if (middlePoints.Count < 2) return false; //ở giữa ít nhất 2 điểm luôn luôn true vì mình đã skip 3
+
+            var propertyValuePoint1 = (decimal)previousSession.GetPropValue(propertyPhanky);
+            var propertyValuePoint2 = (decimal)todaySession.GetPropValue(propertyPhanky);
+            if (propertyValuePoint1 > propertyValuePoint2) return false;
+
+            var indexDay1 = histories.IndexOf(todaySession);
+            var indexDay2 = histories.IndexOf(previousSession);
+            var rangeFromDay1ToiDay2 = Math.Abs(indexDay1 - indexDay2);
+            var averageNumberEachDay = (propertyValuePoint2 - propertyValuePoint1) / rangeFromDay1ToiDay2;
+
+            for (int i = 1; i < rangeFromDay1ToiDay2; i++)
+            {
+                var checkingDayPropertyValue = (decimal)middlePoints[i - 1].GetPropValue(propertyPhanky);
+                var comparedValue = propertyValuePoint1 + averageNumberEachDay * i;
+                if (comparedValue > checkingDayPropertyValue)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static bool HasCrossPointInMiddle(this History todaySession, History previousSession, List<History> histories, string propertyPhanky = "RSI")
+        {
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > previousSession.Date && h.Date < todaySession.Date).ToList();
+            if (middlePoints.Count < 2) return false; //ở giữa ít nhất 2 điểm luôn luôn true vì mình đã skip 3
+
+            var propertyValuePoint1 = (decimal)previousSession.GetPropValue(propertyPhanky);
+            var propertyValuePoint2 = (decimal)todaySession.GetPropValue(propertyPhanky);
+
+            //Tất cả middle points ko có point nào dc phép nằm trên đường thằng nối từ đáy 1 tới đáy 2
+            var propertyInfo = typeof(History).GetProperty(propertyPhanky);
+            var highestValueInMiddlePoints = middlePoints.OrderByDescending(x => propertyInfo.GetValue(x, null)).First();
+            var lowestValueInMiddlePoints = middlePoints.OrderByDescending(x => propertyInfo.GetValue(x, null)).Last();
+
+            var trendLine = new Line();
+            trendLine.x1 = 0;                            //x là trục tung - trục đối xứng
+            trendLine.y1 = propertyValuePoint1;          //
+            trendLine.x2 = middlePoints.Count() + 2;     //+ 2 vì tính từ ngày kiểm tra và ngày so sánh
+            trendLine.y2 = propertyValuePoint2;
+
+            var crossLine = new Line();
+            var cr1 = 1;
+            while (cr1 < middlePoints.Count())
+            {
+                if (previousSession.Date.AddDays(cr1) == highestValueInMiddlePoints.Date)
+                    break;
+                cr1++;
+            }
+            crossLine.x1 = cr1;
+            crossLine.y1 = (decimal)highestValueInMiddlePoints.GetPropValue(propertyPhanky); //tcr2.RSI;//tcr.RSI;
+
+            var cr2 = 1;
+            while (cr2 < middlePoints.Count())
+            {
+                if (previousSession.Date.AddDays(cr2) == lowestValueInMiddlePoints.Date)
+                    break;
+                cr2++;
+            }
+            crossLine.x2 = cr2;
+            crossLine.y2 = (decimal)lowestValueInMiddlePoints.GetPropValue(propertyPhanky); //tcr2.RSI;
+
+            var commonPoint = trendLine.FindIntersection(crossLine);                      //if the trend line (from point 1 to point 2) has any cross point with crossline (lowest/highest points in middle) => then the trendline isn't a perfect line
+            if (commonPoint != null)
+                return false;
+
+            return true;
+        }
+
+        public static bool HasHigherPointInMiddle(this History todaySession, History previousSession, List<History> histories, string propertyPhanky = "RSI")
+        {
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > previousSession.Date && h.Date < todaySession.Date).ToList();
+            if (middlePoints.Count < 2) return false; //ở giữa ít nhất 2 điểm luôn luôn true vì mình đã skip 3
+
+            var propertyValuePoint1 = (decimal)previousSession.GetPropValue(propertyPhanky);
+            var propertyValuePoint2 = (decimal)todaySession.GetPropValue(propertyPhanky);
+            if (propertyValuePoint1 < propertyValuePoint2) return false;
+
+            return HasCrossPointInMiddle(todaySession, previousSession, histories, propertyPhanky);
+        }
+
+        public static bool HasHigherPointInMiddle1(this History todaySession, History previousSession, List<History> histories, string propertyPhanky = "RSI")
+        {
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > previousSession.Date && h.Date < todaySession.Date).ToList();
+            if (middlePoints.Count < 2) return false; //ở giữa ít nhất 2 điểm luôn luôn true vì mình đã skip 3
+
+            var propertyValuePoint1 = (decimal)previousSession.GetPropValue(propertyPhanky);
+            var propertyValuePoint2 = (decimal)todaySession.GetPropValue(propertyPhanky);
+            if (propertyValuePoint1 < propertyValuePoint2) return false;
+
+            var indexDay1 = histories.IndexOf(todaySession);
+            var indexDay2 = histories.IndexOf(previousSession);
+            var rangeFromDay1ToiDay2 = Math.Abs(indexDay1 - indexDay2) + 1;
+            var averageNumberEachDay = (propertyValuePoint1 - propertyValuePoint2) / rangeFromDay1ToiDay2;
+
+            for (int i = 1; i <= rangeFromDay1ToiDay2 - 2; i++)
+            {
+                var checkingDayPropertyValue = (decimal)middlePoints[i - 1].GetPropValue(propertyPhanky);
+                var comparedValue = propertyValuePoint1 - averageNumberEachDay * i;
+                if (comparedValue < checkingDayPropertyValue)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+
+        public static bool HasLowerPointInMiddle(this HistoryHour todaySession, HistoryHour previousSession, List<HistoryHour> histories, string propertyPhanky = "RSI")
+        {
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > previousSession.Date && h.Date < todaySession.Date).ToList();
+            if (middlePoints.Count < 2) return false; //ở giữa ít nhất 2 điểm luôn luôn true vì mình đã skip 3
+
+            var propertyValuePoint1 = (decimal)previousSession.GetPropValue(propertyPhanky);
+            var propertyValuePoint2 = (decimal)todaySession.GetPropValue(propertyPhanky);
+            if (propertyValuePoint1 > propertyValuePoint2) return false;
+
+            return HasCrossPointInMiddle(todaySession, previousSession, histories, propertyPhanky);
+        }
+
+        public static bool HasLowerPointInMiddle1(this HistoryHour todaySession, HistoryHour previousSession, List<HistoryHour> histories, string propertyPhanky = "RSI")
+        {
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > previousSession.Date && h.Date < todaySession.Date).ToList();
+            if (middlePoints.Count < 2) return false; //ở giữa ít nhất 2 điểm luôn luôn true vì mình đã skip 3
+
+            var propertyValuePoint1 = (decimal)previousSession.GetPropValue(propertyPhanky);
+            var propertyValuePoint2 = (decimal)todaySession.GetPropValue(propertyPhanky);
+            if (propertyValuePoint1 > propertyValuePoint2) return false;
+
+            var indexDay1 = histories.IndexOf(todaySession);
+            var indexDay2 = histories.IndexOf(previousSession);
+            var rangeFromDay1ToiDay2 = Math.Abs(indexDay1 - indexDay2) + 1;
+            var averageNumberEachDay = (propertyValuePoint2 - propertyValuePoint1) / rangeFromDay1ToiDay2;
+
+            for (int i = 1; i <= rangeFromDay1ToiDay2 - 2; i++)
+            {
+                var checkingDayPropertyValue = (decimal)middlePoints[i - 1].GetPropValue(propertyPhanky);
+                var comparedValue = propertyValuePoint1 + averageNumberEachDay * i;
+                if (comparedValue > checkingDayPropertyValue)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public static bool HasCrossPointInMiddle(this HistoryHour todaySession, HistoryHour previousSession, List<HistoryHour> histories, string propertyPhanky = "RSI")
+        {
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > previousSession.Date && h.Date < todaySession.Date).ToList();
+            if (middlePoints.Count < 2) return false; //ở giữa ít nhất 2 điểm luôn luôn true vì mình đã skip 3
+
+            var propertyValuePoint1 = (decimal)previousSession.GetPropValue(propertyPhanky);
+            var propertyValuePoint2 = (decimal)todaySession.GetPropValue(propertyPhanky);
+
+            //Tất cả middle points ko có point nào dc phép nằm trên đường thằng nối từ đáy 1 tới đáy 2
+            var propertyInfo = typeof(HistoryHour).GetProperty(propertyPhanky);
+            var highestValueInMiddlePoints = middlePoints.OrderByDescending(x => propertyInfo.GetValue(x, null)).First();
+            var lowestValueInMiddlePoints = middlePoints.OrderByDescending(x => propertyInfo.GetValue(x, null)).Last();
+
+            var trendLine = new Line();
+            trendLine.x1 = 0;                            //x là trục tung - trục đối xứng
+            trendLine.y1 = propertyValuePoint1;          //
+            trendLine.x2 = middlePoints.Count() + 2;     //+ 2 vì tính từ ngày kiểm tra và ngày so sánh
+            trendLine.y2 = propertyValuePoint2;
+
+            var crossLine = new Line();
+            var cr1 = 1;
+            while (cr1 < middlePoints.Count())
+            {
+                if (previousSession.Date.AddDays(cr1) == highestValueInMiddlePoints.Date)
+                    break;
+                cr1++;
+            }
+            crossLine.x1 = cr1;
+            crossLine.y1 = (decimal)highestValueInMiddlePoints.GetPropValue(propertyPhanky); //tcr2.RSI;//tcr.RSI;
+
+            var cr2 = 1;
+            while (cr2 < middlePoints.Count())
+            {
+                if (previousSession.Date.AddDays(cr2) == lowestValueInMiddlePoints.Date)
+                    break;
+                cr2++;
+            }
+            crossLine.x2 = cr2;
+            crossLine.y2 = (decimal)lowestValueInMiddlePoints.GetPropValue(propertyPhanky); //tcr2.RSI;
+
+            var commonPoint = trendLine.FindIntersection(crossLine);                      //if the trend line (from point 1 to point 2) has any cross point with crossline (lowest/highest points in middle) => then the trendline isn't a perfect line
+            if (commonPoint != null)
+                return false;
+
+            return true;
+        }
+
+        public static bool HasHigherPointInMiddle(this HistoryHour todaySession, HistoryHour previousSession, List<HistoryHour> histories, string propertyPhanky = "RSI")
+        {
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > previousSession.Date && h.Date < todaySession.Date).ToList();
+            if (middlePoints.Count < 2) return false; //ở giữa ít nhất 2 điểm luôn luôn true vì mình đã skip 3
+
+            var propertyValuePoint1 = (decimal)previousSession.GetPropValue(propertyPhanky);
+            var propertyValuePoint2 = (decimal)todaySession.GetPropValue(propertyPhanky);
+            if (propertyValuePoint1 < propertyValuePoint2) return false;
+
+            return HasCrossPointInMiddle(todaySession, previousSession, histories, propertyPhanky);
+        }
+
+        public static bool HasHigherPointInMiddle1(this HistoryHour todaySession, HistoryHour previousSession, List<HistoryHour> histories, string propertyPhanky = "RSI")
+        {
+            var middlePoints = histories.OrderBy(h => h.Date).Where(h => h.Date > previousSession.Date && h.Date < todaySession.Date).ToList();
+            if (middlePoints.Count < 2) return false; //ở giữa ít nhất 2 điểm luôn luôn true vì mình đã skip 3
+
+            var propertyValuePoint1 = (decimal)previousSession.GetPropValue(propertyPhanky);
+            var propertyValuePoint2 = (decimal)todaySession.GetPropValue(propertyPhanky);
+            if (propertyValuePoint1 < propertyValuePoint2) return false;
+
+            var indexDay1 = histories.IndexOf(todaySession);
+            var indexDay2 = histories.IndexOf(previousSession);
+            var rangeFromDay1ToiDay2 = Math.Abs(indexDay1 - indexDay2) + 1;
+            var averageNumberEachDay = (propertyValuePoint1 - propertyValuePoint2) / rangeFromDay1ToiDay2;
+
+            for (int i = 1; i <= rangeFromDay1ToiDay2 - 2; i++)
+            {
+                try
+                {
+                    var checkingDayPropertyValue = (decimal)middlePoints[i - 1].GetPropValue(propertyPhanky);
+                    var comparedValue = propertyValuePoint1 - averageNumberEachDay * i;
+                    if (comparedValue < checkingDayPropertyValue)
+                    {
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+
+                    throw;
+                }
+            }
+
+            return false;
+        }
+
+
+
+
+        public static bool IsPatternSpikeForPhanKiAm(this History todaySession, List<History> histories, string propertyPhanky = "RSI")
+        {
+            var previousPoints = histories.Where(h => h.Date < todaySession.Date).OrderByDescending(h => h.Date).Take(3).ToList();
+            if (previousPoints == null || !previousPoints.Any()) return false;
+
+            var nextPoints = histories.Where(h => h.Date > todaySession.Date).OrderBy(h => h.Date).Take(3).ToList();
+            if (nextPoints == null || !previousPoints.Any()) return false;
+
+            if (todaySession.GiamDan(nextPoints, propertyPhanky) && todaySession.GiamDan(previousPoints, propertyPhanky))
+                return true;
+
+            return false;
+        }
+
+        public static bool IsPatternSpikeForPhanKiDuong(this History todaySession, List<History> histories, string propertyPhanky = "RSI")
+        {
+            if (!histories.Any()) return false;
+            var previousPoints = histories.Where(h => h.Date < todaySession.Date).OrderByDescending(h => h.Date).Take(3).ToList();
+            if (previousPoints == null || !previousPoints.Any()) return false;
+
+            var nextPoints = histories.Where(h => h.Date > todaySession.Date).OrderBy(h => h.Date).Take(3).ToList();
+            if (nextPoints == null || !previousPoints.Any()) return false;
+
+            /*
+             * What is the point
+             * - it is created by 3 points (1, 2 and 3) in a row where the pattern could be
+             * 1 - the middle point (2) is lower than the other 2 (1 & 3)
+             * 2 - the last point (3) is higher than the middle point (2) and the middle point is equal with the 1st one (1)
+             * 3 - the last point (3) is equal with the middle point (2) and the 1st point is higher than the 2nd one (2)
+             */
+
+            if (todaySession.TangDan(nextPoints, propertyPhanky) && todaySession.TangDan(previousPoints, propertyPhanky))
+                return true;
+
+            return false;
+        }
+
+        public static bool IsPatternSpikeForPhanKiAm(this HistoryHour todaySession, List<HistoryHour> histories, string propertyPhanky = "RSI")
+        {
+            var previousPoints = histories.Where(h => h.Date < todaySession.Date).OrderByDescending(h => h.Date).Take(3).ToList();
+            if (previousPoints == null || !previousPoints.Any()) return false;
+
+            var nextPoints = histories.Where(h => h.Date > todaySession.Date).OrderBy(h => h.Date).Take(3).ToList();
+            if (nextPoints == null || !previousPoints.Any()) return false;
+
+            if (todaySession.GiamDan(nextPoints, propertyPhanky) && todaySession.GiamDan(previousPoints, propertyPhanky))
+                return true;
+
+            return false;
+        }
+
+        public static bool IsPatternSpikeForPhanKiDuong(this HistoryHour todaySession, List<HistoryHour> histories, string propertyPhanky = "RSI")
+        {
+            if (!histories.Any()) return false;
+            var previousPoints = histories.Where(h => h.Date < todaySession.Date).OrderByDescending(h => h.Date).Take(3).ToList();
+            if (previousPoints == null || !previousPoints.Any()) return false;
+
+            var nextPoints = histories.Where(h => h.Date > todaySession.Date).OrderBy(h => h.Date).Take(3).ToList();
+            if (nextPoints == null || !previousPoints.Any()) return false;
+
+            /*
+             * What is the point
+             * - it is created by 3 points (1, 2 and 3) in a row where the pattern could be
+             * 1 - the middle point (2) is lower than the other 2 (1 & 3)
+             * 2 - the last point (3) is higher than the middle point (2) and the middle point is equal with the 1st one (1)
+             * 3 - the last point (3) is equal with the middle point (2) and the 1st point is higher than the 2nd one (2)
+             */
+
+            if (todaySession.TangDan(nextPoints, propertyPhanky) && todaySession.TangDan(previousPoints, propertyPhanky))
+                return true;
+
+            return false;
+        }
+
+        public static bool TangDan(this HistoryHour todaySession, List<HistoryHour> histories, string propertyPhanky = "RSI")
+        {
+            if (!histories.Any()) return false;
+            var currentValueToday = (decimal)todaySession.GetPropValue(propertyPhanky);
+            var value = false;
+
+            var checkingValue = (decimal)histories[0].GetPropValue(propertyPhanky);
+            if (checkingValue > currentValueToday) return true;
+            if (checkingValue == currentValueToday)
+            {
+                var checkingHistories = histories.Where(h => h.Date != histories[0].Date).ToList();
+                value = histories[0].TangDan(checkingHistories, propertyPhanky);
+            }
+
+            return value;
+        }
+
+        public static bool GiamDan(this HistoryHour todaySession, List<HistoryHour> histories, string propertyPhanky = "RSI")
+        {
+            if (!histories.Any()) return false;
+
+            var currentValueToday = (decimal)todaySession.GetPropValue(propertyPhanky);
+            var value = false;
+
+            var checkingValue = (decimal)histories[0].GetPropValue(propertyPhanky);
+            if (checkingValue < currentValueToday) return true;
+            if (checkingValue == currentValueToday)
+            {
+                var checkingHistories = histories.Where(h => h.Date != histories[0].Date).ToList();
+                value = histories[0].GiamDan(checkingHistories, propertyPhanky);
+            }
+
+            return value;
+        }
+
+        public static bool TangDan(this History todaySession, List<History> histories, string propertyPhanky = "RSI")
+        {
+            if (!histories.Any()) return false;
+            var currentValueToday = (decimal)todaySession.GetPropValue(propertyPhanky);
+            var value = false;
+
+            var checkingValue = (decimal)histories[0].GetPropValue(propertyPhanky);
+            if (checkingValue > currentValueToday) return true;
+            if (checkingValue == currentValueToday)
+            {
+                var checkingHistories = histories.Where(h => h.Date != histories[0].Date).ToList();
+                value = histories[0].TangDan(checkingHistories, propertyPhanky);
+            }
+
+            return value;
+        }
+
+        public static bool GiamDan(this History todaySession, List<History> histories, string propertyPhanky = "RSI")
+        {
+            if (!histories.Any()) return false;
+
+            var currentValueToday = (decimal)todaySession.GetPropValue(propertyPhanky);
+            var value = false;
+
+            var checkingValue = (decimal)histories[0].GetPropValue(propertyPhanky);
+            if (checkingValue < currentValueToday) return true;
+            if (checkingValue == currentValueToday)
+            {
+                var checkingHistories = histories.Where(h => h.Date != histories[0].Date).ToList();
+                value = histories[0].GiamDan(checkingHistories, propertyPhanky);
+            }
+
+            return value;
+        }
+
+
         public static bool? HasPhanKyDuong(this List<HistoryHour> histories, HistoryHour đáy2, HistoryHour đáy1, string propertyPhanky = "RSI",
-            int soPhienDeKiemTraPhanki = 60,
-            decimal CL2G = 1.01M, //decimal CL2G = 0.95M,
-            decimal CL2D = 0.1M)
+        int soPhienDeKiemTraPhanki = 60,
+        decimal CL2G = 1.01M, //decimal CL2G = 0.95M,
+        decimal CL2D = 0.1M)
         {
             if (đáy2.VOL(histories, -20) < 50000) return null;
             var chenhLechĐủ = đáy1.NenBot / đáy2.NenBot >= CL2G; //1.02M; 1/lọc giá trị vol < 100K
@@ -1528,24 +2046,25 @@ namespace DotNetCoreSqlDb.Common
 
             if (middlePoints.Any(x => (decimal)propertyInfo.GetValue(x, null) <= propertyValueĐáy1)) return null;
 
-            //Tất cả middle points ko có point nào dc phép nằm dưới đường thằng nối từ đáy 1 tới đáy 2
             var indexDay1 = histories.IndexOf(đáy2);
             var indexDay2 = histories.IndexOf(đáy1);
             var rangeFromDay1ToiDay2 = Math.Abs(indexDay1 - indexDay2);
             var averageNumberEachDay = (propertyValueĐáy2 - propertyValueĐáy1) / rangeFromDay1ToiDay2;
-            var coPointDeuBenDuoiLine = false;
-            for (int i = 1; i < rangeFromDay1ToiDay2; i++)
-            {
-                var checkingDayPropertyValue = (decimal)middlePoints[i - 1].GetPropValue(propertyPhanky);
-                var comparedValue = propertyValueĐáy1 + averageNumberEachDay * i;
-                if (comparedValue > checkingDayPropertyValue)
-                {
-                    coPointDeuBenDuoiLine = true;
-                    break;
-                }
-            }
 
+            ////Tất cả middle points ko có point nào dc phép nằm dưới đường thằng nối từ đáy 1 tới đáy 2
+            //var coPointDeuBenDuoiLine = false;
+            //for (int i = 1; i < rangeFromDay1ToiDay2; i++)
+            //{
+            //    var checkingDayPropertyValue = (decimal)middlePoints[i - 1].GetPropValue(propertyPhanky);
+            //    var comparedValue = propertyValueĐáy1 + averageNumberEachDay * i;
+            //    if (comparedValue > checkingDayPropertyValue)
+            //    {
+            //        coPointDeuBenDuoiLine = true;
+            //        break;
+            //    }
+            //}
             //if (coPointDeuBenDuoiLine) return null;   //TODO: tạm thời bỏ qua dk này
+
 
             /*
              * Xác định đáy nói chung
@@ -1615,6 +2134,82 @@ namespace DotNetCoreSqlDb.Common
             }
 
             return numberOfSessionHasBigVol / expectedSession > 0.4M;
+        }
+
+        public static EnumPhanKi XacDinhPhanKi(this List<HistoryHour> histories, HistoryHour todaySession, string propertyPhanky = "RSI")
+        {
+            /*
+             * What is the point
+             * - it is created by 3 points (1, 2 and 3) in a row where the pattern could be
+             * 1 - the middle point (2) is lower than the other 2 (1 & 3)
+             * 2 - the last point (3) is higher than the middle point (2) and the middle point is equal with the 1st one (1)
+             * 3 - the last point (3) is equal with the middle point (2) and the 1st point is higher than the 2nd one (2)
+             * 
+             * RSI - PKD - it will consider the points with pattern 1 & 2
+             * 1 - take current RSI number
+             * 2 - continue counting back to the past in a period between today and the last PKA
+             * 3 - get the previous point where the RSI is lower than the current one
+             * 4 - Compare 2 points, if the RSI of the current one is higher than the one in the past and the closing price is oppsite -> this is PKD
+             * 
+             * RSI - PKA - it will consider the points with pattern 1 & 3
+             * 1 - take current RSI number
+             * 2 - continue counting back to the past in a period between today and the last 60 sessions
+             * 3 - get the previous point where the RSI is higher than the current one
+             * 4 - Compare 2 points, if the RSI of the current one is lower than the one in the past and the closing price is oppsite -> this is PKA
+             * 
+             * The same for the MACD - remember that MACD is usually slowere than RSI 1 day
+            */
+
+            var currentValueToday = (decimal)todaySession.GetPropValue(propertyPhanky);
+            var isPatternDay = todaySession.IsPatternSpikeForPhanKiDuong(histories, propertyPhanky);
+            var isPatternDinh = todaySession.IsPatternSpikeForPhanKiAm(histories, propertyPhanky);
+
+            var tmrData = histories.OrderBy(h => h.Date).Where(h => h.Date > todaySession.Date).FirstOrDefault();
+
+            //------------------------PK DƯƠNG
+            if (isPatternDay)
+            {
+                var theLastExpectedPKA = histories.OrderByDescending(h => h.Date).FirstOrDefault(h => h.Date < todaySession.Date && h.RSIPhanKi == EnumPhanKi.PKA);
+                var theExpecetedPeriodForPKD = theLastExpectedPKA == null
+                    ? histories.Where(h => h.Date < todaySession.Date).OrderByDescending(h => h.Date).ToList()
+                    : histories.Where(h => h.Date < todaySession.Date && h.Date >= theLastExpectedPKA.Date).OrderByDescending(h => h.Date).ToList();
+                var theExpectedLowerPoints = theExpecetedPeriodForPKD.Where(x => x.RSI < currentValueToday).OrderByDescending(h => h.Date).ToList();
+                if (propertyPhanky == "MACD")
+                    theExpectedLowerPoints = theExpecetedPeriodForPKD.Where(x => x.MACD < currentValueToday).OrderByDescending(h => h.Date).ToList();
+
+                foreach (var lowerPointOfPropertyInThePast in theExpectedLowerPoints)
+                {
+                    if (lowerPointOfPropertyInThePast.IsPatternSpikeForPhanKiDuong(histories, propertyPhanky)
+                        && todaySession.HasLowerPointInMiddle(lowerPointOfPropertyInThePast, histories, propertyPhanky)
+                        && !todaySession.HasLowerPointInMiddle1(lowerPointOfPropertyInThePast, histories, propertyPhanky)
+                        && lowerPointOfPropertyInThePast.NenBot > todaySession.NenBot)
+                        return EnumPhanKi.PKD;
+                }
+            }
+
+            //------------------------PK ÂM
+            if (isPatternDinh)
+            {
+                var theLastExpectedCheck = histories.OrderByDescending(h => h.Date).Where(h => h.Date < todaySession.Date).Skip(59).FirstOrDefault();
+                var theExpecetedPeriodForPKA = theLastExpectedCheck == null
+                    ? histories.Where(h => h.Date < todaySession.Date).OrderByDescending(h => h.Date).ToList()
+                    : histories.Where(h => h.Date < todaySession.Date && h.Date >= theLastExpectedCheck.Date).OrderByDescending(h => h.Date).ToList();
+                var theExpectedHigherPoints = theExpecetedPeriodForPKA.Where(x => x.RSI > currentValueToday).OrderByDescending(h => h.Date).ToList();
+
+                if (propertyPhanky == "MACD")
+                    theExpectedHigherPoints = theExpecetedPeriodForPKA.Where(x => x.MACD > currentValueToday).OrderByDescending(h => h.Date).ToList();
+
+                foreach (var higherPointOfPropertyInThePast in theExpectedHigherPoints)
+                {
+                    if (higherPointOfPropertyInThePast.IsPatternSpikeForPhanKiAm(histories, propertyPhanky)
+                        && todaySession.HasHigherPointInMiddle(higherPointOfPropertyInThePast, histories, propertyPhanky)
+                        && !todaySession.HasHigherPointInMiddle1(higherPointOfPropertyInThePast, histories, propertyPhanky)
+                        && (higherPointOfPropertyInThePast.NenBot < todaySession.NenTop || (tmrData != null && tmrData.GiamGia() && higherPointOfPropertyInThePast.NenBot < tmrData.H)))
+                        return EnumPhanKi.PKA;
+                }
+            }
+
+            return EnumPhanKi.NA;
         }
     }
 }

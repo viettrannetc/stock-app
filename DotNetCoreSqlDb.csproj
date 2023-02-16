@@ -24,8 +24,10 @@
     <PackageReference Include="Extreme.Numerics" Version="8.1.5" />
     <PackageReference Include="FluentScheduler" Version="5.5.1" />
     <PackageReference Include="Flurl.Http" Version="3.2.2" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.46" />
     <PackageReference Include="LinqKit" Version="1.2.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.DynamicLinq" Version="6.2.24" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="6.0.0">
@@ -36,7 +38,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
     <PackageReference Include="RestSharp" Version="107.3.0" />
     <PackageReference Include="Skender.Stock.Indicators" Version="1.23.1" />
-    <PackageReference Include="System.Linq.Queryable" Version="4.3.0" />
+    <PackageReference Include="Z.Expressions.Eval" Version="4.0.92" />
   </ItemGroup>
 
 </Project>

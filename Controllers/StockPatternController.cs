@@ -19,6 +19,8 @@ using Skender.Stock.Indicators;
 using DotNetCoreSqlDb.Models.Learning.RealData;
 using DotNetCoreSqlDb.Models.Business.Patterns.LocCoPhieu;
 using LinqKit;
+using OfficeOpenXml;
+using System.Data;
 
 namespace DotNetCoreSqlDb.Controllers
 {
@@ -27,7 +29,7 @@ namespace DotNetCoreSqlDb.Controllers
     public partial class StockPatternController : Controller
     {
         private readonly MyDatabaseContext _context;
-                
+
         public StockPatternController(MyDatabaseContext context)
         {
             _context = context;
@@ -3803,6 +3805,203 @@ namespace DotNetCoreSqlDb.Controllers
          *  Kháng cự: bán
          *      
          */
+
+
+        //public async Task TheoDoiDongTien()
+        //{
+        //    var symbols = await _context.StockSymbol
+        //        .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ConstantData.minMA20VolDaily)
+        //        .OrderByDescending(s => s._sc_)
+        //        .ToListAsync();
+
+        //    var codes = symbols.Select(h => h._sc_).ToList();
+        //    var histories = await _context.History.Where(m => codes.Contains(m.StockSymbol)).OrderBy(h => h.Date).ToListAsync();
+        //    var dates = histories.Select(h => h.Date).Distinct().OrderBy(h => h).ToList();
+        //    var minDate = histories.Min(h => h.Date);
+        //    var maxDate = histories.Max(h => h.Date);
+        //    var startDate = minDate;
+        //    var filename = $"{Guid.NewGuid()}.xlsx";
+
+        //    var dbTable = new DataTable();
+        //    dbTable.Columns.Add("Nganh", typeof(string));
+        //    dbTable.Columns.Add("Code", typeof(string));
+        //    foreach (var date in dates)
+        //    {
+        //        dbTable.Columns.Add(date.ToShortDateString(), typeof(string));
+        //    }
+
+        //    var historyGroupedByCode = histories.GroupBy(h => h.StockSymbol).Select(h => new { Key = h.Key, Value = h.ToList() }).ToList();
+        //    for (int i = 0; i < historyGroupedByCode.Count; i++)
+        //    {
+        //        DataRow row = dbTable.NewRow();
+        //        row[0] = symbols.First(s => s._sc_ == historyGroupedByCode[i].Key)._in_;
+        //        row[1] = historyGroupedByCode[i].Key;
+        //        for (int j = 0; j < dates.Count; j++)
+        //        {
+        //            var expectedDate = dates[j];
+        //            var checkingDate = historyGroupedByCode[i].Value.FirstOrDefault(v => v.Date.Date == expectedDate.Date);
+        //            if (checkingDate != null)
+        //                row[j + 2] = checkingDate.C * checkingDate.V;
+        //            else
+        //                row[j + 2] = 0;
+
+
+        //        }
+
+        //        dbTable.Rows.Add(row);
+        //    }
+        //    dbTable.WriteToExcel($"{ConstantPath.Path}{filename}.xlsx");
+        //}
+
+        public async Task TheoDoiDongTien()
+        {
+            var symbols = await _context.StockSymbol
+                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ConstantData.minMA20VolDaily)
+                .OrderByDescending(s => s._sc_)
+                .ToListAsync();
+
+            var codes = symbols.Select(h => h._sc_).ToList();
+            var histories = await _context.History.Where(m => codes.Contains(m.StockSymbol)).OrderBy(h => h.Date).ToListAsync();
+            var dates = histories.Select(h => h.Date).Distinct().OrderBy(h => h).ToList();
+            var minDate = histories.Min(h => h.Date);
+            var maxDate = histories.Max(h => h.Date);
+            var startDate = minDate;
+            var filename = $"{Guid.NewGuid()}.xlsx";
+
+            var dbTable = new DataTable();
+            dbTable.Columns.Add("Nganh", typeof(string));
+            dbTable.Columns.Add("Code", typeof(string));
+            dbTable.Columns.Add("Ngay", typeof(DateTime));
+            dbTable.Columns.Add("GiaTriGiaoDich", typeof(decimal));
+
+            //foreach (var date in dates)
+            //{
+            //    dbTable.Columns.Add(date.ToShortDateString(), typeof(string));
+            //}
+
+            var historyGroupedByCode = histories.GroupBy(h => h.StockSymbol).Select(h => new { Key = h.Key, Value = h.ToList() }).ToList();
+            for (int i = 0; i < historyGroupedByCode.Count; i++)
+            {
+
+                for (int j = 0; j < dates.Count; j++)
+                {
+                    DataRow row = dbTable.NewRow();
+                    row[0] = symbols.First(s => s._sc_ == historyGroupedByCode[i].Key)._in_;
+                    row[1] = historyGroupedByCode[i].Key;
+                    row[2] = dates[j];
+
+                    var expectedDate = dates[j];
+                    var checkingDate = historyGroupedByCode[i].Value.FirstOrDefault(v => v.Date.Date == expectedDate.Date);
+                    if (checkingDate != null)
+                        row[3] = checkingDate.C * checkingDate.V;
+                    else
+                        row[3] = 0;
+
+
+                    dbTable.Rows.Add(row);
+                }
+
+
+            }
+            dbTable.WriteToExcel($"{ConstantPath.Path}{filename}.xlsx");
+        }
+
+
+        /// <summary>
+        /// MA tăng mà giá giảm, cái này ít thấy đúng
+        /// </summary>
+        /// <returns></returns>
+        public async Task<string> MA20TangMaGiaGiam()
+        {
+            var symbols = await _context.StockSymbol
+                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ConstantData.minMA20VolDaily)
+                .OrderByDescending(s => s._sc_)
+                .ToListAsync();
+
+            var codes = symbols.Select(h => h._sc_).ToList();
+            var histories = await _context.History.Where(m => codes.Contains(m.StockSymbol)).OrderBy(h => h.Date).ToListAsync();
+
+            var finalText = new StringBuilder();
+
+            foreach (var code in codes)
+            {
+                var history = histories.Where(h => h.StockSymbol == code).OrderByDescending(h => h.Date).ToList();
+
+                var historyToday = history[0];
+                var historyYesterday = history[1];
+                var historyBeforeYesterday = history[2];
+
+                var ma20Tang = historyToday.BandsMid > historyYesterday.BandsMid;
+                var giaGiam = historyToday.GiamGia();
+                if (ma20Tang && giaGiam)
+                    finalText.AppendLine($"{code} ngay {historyToday.Date.ToString("dd-MM")}");
+
+
+                var ma20TangHumWa = historyYesterday.BandsMid > historyBeforeYesterday.BandsMid;
+                var giaGiamHumWa = historyYesterday.GiamGia();
+                if (ma20TangHumWa && giaGiamHumWa)
+                    finalText.AppendLine($"{code} ngay {historyYesterday.Date.ToString("dd-MM")}");
+
+            }
+
+            return finalText.ToString();
+        }
+
+
+        /// <summary>
+        /// Giá giảm sâu trong 1 thời gian nào đó
+        /// expected: 1.x and x is % of reducign
+        /// </summary>
+        /// <returns></returns>
+        public async Task<string> TimGiaGiamSau(int periodSession, decimal expectedReduce)
+        {
+            var symbols = await _context.StockSymbol
+                .Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ConstantData.minMA20VolDaily)
+                .OrderByDescending(s => s._sc_)
+                .ToListAsync();
+
+            var codes = symbols.Select(h => h._sc_).ToList();
+            var histories = await _context.History.Where(m => codes.Contains(m.StockSymbol)).OrderBy(h => h.Date).ToListAsync();
+
+            var finalText = new StringBuilder();
+            var resut = new List<Tuple<string, decimal, int, decimal>>();
+            foreach (var code in codes)
+            {
+                var history = histories.Where(h => h.StockSymbol == code).OrderByDescending(h => h.Date).Take(periodSession).ToList();
+
+                if (!history.Any()) continue;
+                var lastsession = history[0];
+                                
+                var ma20vol = lastsession.MA(histories, -10, "V");
+                var c20vol = lastsession.MA(histories, -10, "C");
+                if (ma20vol * c20vol <= 10000000000) //trung bình 1 phiên tổng gd ko quá 10 tỉ thì thanh khoản quá bé
+                    continue; 
+
+                var maxData = history.OrderByDescending(h => h.NenTop).FirstOrDefault();
+                var minData = history.Where(h => h.Date > maxData.Date).OrderBy(h => h.NenBot).FirstOrDefault();
+
+                if (minData == null || maxData.ID == minData.ID) continue;
+
+                var actualReduced = minData.NenBot / maxData.NenTop;//  1023 / 888 = 1.15202 => input should be 1.2 then it's not good enough
+                if (1 - actualReduced < expectedReduce) continue;
+
+                var countedFromMinToToday = history.Where(h => h.Date > minData.Date && h.Date <= lastsession.Date).Count();
+                if (countedFromMinToToday <= 0)
+                    resut.Add(new Tuple<string, decimal, int, decimal>(code, (1 - Math.Round(actualReduced, 5)) * 100, 0, minData.V));
+                else
+                    resut.Add(new Tuple<string, decimal, int, decimal>(code, (1 - Math.Round(actualReduced, 5)) * 100, countedFromMinToToday, minData.V));
+            }
+
+            resut = resut.OrderByDescending(r => r.Item2).ThenByDescending(r => r.Item3).ToList();
+
+            foreach (var item in resut)
+            {
+                finalText.AppendLine($"{item.Item1} - Đáy từ {item.Item3} phiên trước khi đã giảm {item.Item2}% so với đỉnh trong vòng {periodSession} phiên trước đó (V: {item.Item4})");
+            }
+
+
+            return finalText.ToString();
+        }
     }
 }
 

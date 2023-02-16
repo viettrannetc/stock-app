@@ -24,7 +24,7 @@ using System.Data;
 namespace DotNetCoreSqlDb.Controllers
 {
     public partial class StockPatternController : Controller
-    {        
+    {
         public async Task<List<Tuple<string, decimal, List<string>>>> CongThuc1(string code, DateTime ngay, DateTime ngayCuoi, int ma20vol, int MANhanh, int MACham, decimal percentProfit)
         {
             var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
@@ -547,6 +547,180 @@ namespace DotNetCoreSqlDb.Controllers
                     tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, winRate, result1));
                 }
             });
+
+            tup = tup.OrderByDescending(t => t.Item2).ToList();
+
+            return tup;
+        }
+
+        /// <summary>
+        /// CT đúc kết từ trải nghiệm bản thân 2022
+        /// </summary>
+        /// <returns></returns>
+        public async Task<List<Tuple<string, decimal, List<string>>>> CongThuc5(string code, DateTime ngay, DateTime ngayCuoi)
+        {
+            var splitStringCode = string.IsNullOrWhiteSpace(code) ? new string[0] : code.Split(",");
+            var symbols = string.IsNullOrWhiteSpace(code)
+                ? await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ConstantData.minMA20VolDaily).ToListAsync()
+                : await _context.StockSymbol.Where(s => s._sc_.Length == 3 && s.BiChanGiaoDich == false && s.MA20Vol > ConstantData.minMA20VolDaily && splitStringCode.Contains(s._sc_)).ToListAsync();
+            var stockCodes = symbols.Select(s => s._sc_).ToList();
+
+            var historiesStockCode = await _context.History
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10)
+                    && ss.Date >= ngayCuoi.AddDays(-100))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var historiesStockCodeByHour = await _context.HistoryHour
+                .Where(ss => stockCodes.Contains(ss.StockSymbol)
+                    && ss.Date <= ngay.AddDays(10)
+                    && ss.Date >= ngayCuoi.AddDays(-100))
+                .OrderByDescending(ss => ss.Date)
+                .ToListAsync();
+
+            var tup = new List<Tuple<string, decimal, List<string>>>();
+
+
+            var allTradingHistory = new Dictionary<string, List<Tuple<DateTime, string>>>();
+            foreach (var symbol in symbols)
+            {
+                decimal tienVon = 100000000;
+                decimal tienDangMua = 0;
+                var trend = EnumTrend.MuaBatDay;
+                var tradingHistory = new List<Tuple<DateTime, string>>();
+
+                var result1 = new List<string>();
+                decimal dung = 0;
+                decimal sai = 0;
+
+                var histories = historiesStockCode
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+
+                var historiesByHour = historiesStockCodeByHour
+                    .Where(ss => ss.StockSymbol == symbol._sc_)
+                    .OrderBy(h => h.Date)
+                    .ToList();
+
+
+                var ngayBatDau = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngayCuoi);
+                if (ngayBatDau == null) continue;
+
+                for (int i = histories.IndexOf(ngayBatDau); i < histories.Count; i++)
+                {
+                    ngayBatDau = histories[i];
+                    if (ngayBatDau != null && ngayBatDau.HadAllIndicators())
+                    {
+                        break;
+                    }
+                }
+
+                var ngayDungLai = histories.OrderBy(h => h.Date).FirstOrDefault(h => h.Date >= ngay);
+                if (ngayDungLai == null) //đang nhập ngày trong tương lai -> chuyển về hiện tại
+                {
+                    ngayDungLai = histories.OrderByDescending(h => h.Date).First();
+                }
+                var startedI = histories.IndexOf(ngayBatDau);
+                var stoppedI = histories.IndexOf(ngayDungLai);
+
+                for (int i = startedI; i <= stoppedI; i++)
+                {
+                    var chuaMuaCP = tienDangMua == 0;
+                    var pattern1 = true;
+                    var pattern2 = true;
+                    var pattern3 = true;
+
+                    var phienHumNay = histories[i];
+                    var phienHumWa = histories[i - 1];
+                    var phienNgayMai = i < stoppedI ? histories[i + 1] : histories[i];
+
+                    //var noteToday = new StringBuilder();
+                    //if (chuaMuaCP == true)// (tienDangMua == 0 && ) //canh mua
+                    //{
+                    //    if (phienHumNay.XacNhanRSIPKDLanThu(3)) //pattern 1
+                    //    {
+                    //        if (phienHumNay.ID == phienNgayMai.ID)
+                    //            noteToday.Append("Mua giá ATO ngày mai");
+                    //        trend = EnumTrend.MuaBatDay;
+
+                    //        var soCPDuRaSau100 = Math.Round((tienVon / phienNgayMai.O) % 100, 2);
+                    //        var soCPSeMua = (tienVon / phienNgayMai.O) - soCPDuRaSau100;
+                    //        tienDangMua = soCPSeMua * phienNgayMai.O;
+                    //        tienVon = tienVon - tienDangMua;
+                    //    }
+                    //    else if (phienHumNay.XacNhanDangTichLuyTotTrenMA20CungVoiVNINDEXTrong(3)) //pattern 2
+                    //    {
+                    //        trend = EnumTrend.MuaTrongSideway;
+                    //        var soCPDuRaSau100 = Math.Round((tienVon / phienNgayMai.O) % 100, 2);
+                    //        var soCPSeMua = (tienVon / phienNgayMai.O) - soCPDuRaSau100;
+                    //        tienDangMua = soCPSeMua * phienNgayMai.O;
+                    //        tienVon = tienVon - tienDangMua;
+                    //    }
+                    //    else if (phienHumNay.XacNhanDauHieuSongHoiLanThuTrendGiam()) //pattern 2
+                    //    {
+                    //        trend = EnumTrend.MuaTrongSongHoi;
+                    //        var soCPDuRaSau100 = Math.Round((tienVon / phienNgayMai.O) % 100, 2);
+                    //        var soCPSeMua = (tienVon / phienNgayMai.O) - soCPDuRaSau100;
+                    //        tienDangMua = soCPSeMua * phienNgayMai.O;
+                    //        tienVon = tienVon - tienDangMua;
+                    //    }
+                    //    else
+                    //    {
+                    //        noteToday.Append("Không đủ DK mua");
+                    //    }
+                    //}
+                    //else //canh bán
+                    //{
+                    //    if (phienHumNay.Lost(5))
+                    //    {
+
+                    //    }
+                    //    else if (phienHumNay.XacNhanMACDPKADinhChartDLanThu(2))
+                    //    {
+
+                    //    }
+                    //    else if (phienHumNay.XacNhanMACDPKADinhChartHLanThu(3))
+                    //    {
+
+                    //    }
+                    //    else if (phienHumNay.XacNhanRSIPKADinhChartDLanThu(2))
+                    //    {
+
+                    //    }
+                    //    else if (phienHumNay.XacNhanRSIPKADinhChartHLanThu(3))
+                    //    {
+
+                    //    }
+                    //    else if (trend == EnumTrend.MuaTrongSongHoi && phienHumNay.LucMuaSuyYeu())
+                    //    {
+
+                    //    }
+                    //    else
+                    //    {
+                    //        noteToday.Append("Không đủ DK bán");
+                    //    }
+                    //}
+
+                    //tradingHistory.Add(new Tuple<DateTime, string>(phienHumNay.Date, noteToday.ToString()));
+
+
+
+
+
+
+
+                }
+
+                if (result1.Any())
+                {
+                    //tong = dung + sai;
+                    dung = dung - sai;
+                    var winRate = dung;// tong == 0 ? 0 : Math.Round(dung / tong, 2);
+                    tup.Add(new Tuple<string, decimal, List<string>>(symbol._sc_, winRate, result1));
+                }
+            }
 
             tup = tup.OrderByDescending(t => t.Item2).ToList();
 

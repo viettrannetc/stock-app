@@ -822,7 +822,7 @@ namespace DotNetCoreSqlDb.Common
 
         public static bool HadAllIndicators(this HistoryHour today)
         {
-            return today.HadMA5() && today.HadBands() && today.HadIchimoku() && today.HadMACD() && today.HadRsi();
+            return today.HadMA5() && today.HadBands() && today.HadIchimoku() && today.HadMACD() && today.HadRsi() && 1 == 2;
         }
 
         /// <summary>
@@ -869,7 +869,7 @@ namespace DotNetCoreSqlDb.Common
 
         public static bool LaCayVuotMA20(this List<HistoryHour> histories, HistoryHour humnay)
         {
-            
+
             //var ngayVuotMA20 = new HistoryHour();
 
             //if (!humwa.TangGia()) return false;

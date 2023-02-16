@@ -179,16 +179,34 @@ namespace DotNetCoreSqlDb.Common
                 to = histories.OrderBy(h => h.Date).First().Date.AddDays(-1).WithoutHours();
                 await GetStockDataByHour(item, restService, result, from, to);
             }
+
+            result = result
+                .OrderBy(h => h.StockSymbol)
+                .ThenBy(h => h.Date)
+                .ToList();
         }
 
 
         public async Task GetVHoursFireAnt(List<HistoryHour> result, List<string> allSymbols, DateTime from, string token)
         {
             var restService = new RestServiceHelper();
+            from = new DateTime(2022, 3, 20);
+            var t = 3;
 
             foreach (var item in allSymbols)
             {
-                await GetStockDataByHourFireant(item, restService, result, from, token);
+                var i = 1;
+                var counted = new List<int>();
+                var expectedAdded = new Dictionary<int, List<HistoryHour>>();
+                while (i <= t && counted.Count() < 2 || counted.Last() != counted[counted.Count - 1])
+                {
+                    var addedData = await GetStockDataByHourFireant(item, restService, from, token);
+                    counted.Add(addedData.Count());
+                    expectedAdded.Add(i, addedData);
+                    i++;
+                }
+
+                result.AddRange(expectedAdded.Last().Value);
             }
         }
 
@@ -203,6 +221,11 @@ namespace DotNetCoreSqlDb.Common
                     result.Add(code);
             }
 
+
+            var vnindex = await GetStockDataByMinutesFireant("HOSTC", restService, from, token);
+            if (!string.IsNullOrEmpty(vnindex))
+                result.Add(vnindex);
+
             return result;
         }
 
@@ -212,6 +235,7 @@ namespace DotNetCoreSqlDb.Common
             requestModel.code = code;
             var fr = from.ToString("yyyy-M-dd");
             var hour = DateTime.Now.ToString("HH:mm:ss");
+            //var hour = "13:10:05";// DateTime.Now.ToString("HH:mm:ss");
             var url = string.Format(FireAnt_GetDetailsBySymbolCode,
                             requestModel.code, "1", fr, hour);
 
@@ -235,27 +259,26 @@ namespace DotNetCoreSqlDb.Common
                 histories.Add(history);
             }
 
-            var session1V = histories[0].VOL(histories, -20);
-            var session1P = histories[0].C;
-            var session2V = histories[1].VOL(histories, -20);
-            var session2P = histories[1].C;
-            var session3V = histories[2].VOL(histories, -20);
-            var session3P = histories[2].C;
-            //var session4V = histories[3].VOL(histories, -20);
-            //var session4P = histories[3].C;
+            var session0V = histories[0].VOL(histories, -20);
+            var session0C = histories[0].C;
+            var session1V = histories[1].VOL(histories, -20);
+            var session1C = histories[1].C;
 
-            if (session1V > session2V && session2V > session3V
-                && session1P > session2P && session2P > session3P
-                && histories[0].C >= histories[0].O
-                && histories[1].C >= histories[1].O
-                && histories[2].C >= histories[2].O)
-                return $"{code} - Tang GIA va VOL liên tục: {histories[2].C.ToString("N2")} -> {histories[1].C.ToString("N2")} -> {histories[0].C.ToString("N2")} ----- {histories[2].V} -> {histories[1].V} -> {histories[0].V} ----- {histories[0].Date.ToString("HH:mm")}";
+            var giaTang = histories[0].C > histories[1].C && histories[1].C > histories[2].C;
+            var volTang = session0V > session1V;
+            var volTo = histories[0].V >= session0V || histories[1].V >= session1V;
+
+            //if (giaTang && (volTang || volTo))
+            if (giaTang)
+                return $"{code} - Tang GIA va VOL liên tục: {histories[2].C.ToString("N2")}/{histories[1].C.ToString("N2")}/{histories[0].C.ToString("N2")} ----- {histories[2].V}/{histories[1].V}/{histories[0].V} ----- {histories[0].Date.ToString("HH:mm")}";
 
             return string.Empty;
         }
 
-        private async Task GetStockDataByHourFireant(string code, RestServiceHelper restService, List<HistoryHour> result, DateTime from, string token)
+        //private async Task GetStockDataByHourFireant(string code, RestServiceHelper restService, List<HistoryHour> result, DateTime from, string token)
+        private async Task<List<HistoryHour>> GetStockDataByHourFireant(string code, RestServiceHelper restService, DateTime from, string token)
         {
+            List<HistoryHour> result = new List<HistoryHour>();
             var requestModel = new VietStockSymbolHistoryResquestModel();
             requestModel.code = code;
             var fr = from.ToString("yyyy-M-dd");
@@ -268,45 +291,18 @@ namespace DotNetCoreSqlDb.Common
                             );
 
             var allSharePointsObjects = await restService.Get<FireAntSymbolHistoryResponseModel>(url, true, token);
-            if (allSharePointsObjects == null
-                || !allSharePointsObjects.Bars.Any()
-                || allSharePointsObjects.Bars.First().Close > 40000) return;
-
-            //var numberOfT = allSharePointsObjects.Bars.Count();
-
-            //var histories = new List<HistoryHour>();
-            //for (int i = 0; i < numberOfT; i++)
-            //{
-            //    var history = new HistoryHour();
-            //    history.Date = allSharePointsObjects.Bars[i].Date;
-            //    history.O = allSharePointsObjects.Bars[i].Open;
-            //    history.C = allSharePointsObjects.Bars[i].Close;
-            //    history.H = allSharePointsObjects.Bars[i].High;
-            //    history.L = allSharePointsObjects.Bars[i].Low;
-            //    history.V = allSharePointsObjects.Bars[i].Volume;
-            //    history.StockSymbol = requestModel.code;
-
-            //    histories.Add(history);
-            //}
-            //histories = histories.OrderBy(h => h.Date).ToList();
-
-            //result.AddRange(histories);
-
+            if (allSharePointsObjects == null || !allSharePointsObjects.Bars.Any())
+                return null;
 
             var lastData = allSharePointsObjects.Bars.OrderByDescending(b => b.Date).First();
 
             var historyData = allSharePointsObjects.Bars.Where(b => b.Date < lastData.Date.Date).ToList();
-            var todayDataInMinutes = allSharePointsObjects.Bars.Except(historyData).ToList();
-
-            var todayDataInMinuteAt1stHour = todayDataInMinutes.Where(b => b.Date.Hour >= 2 && b.Date.Hour < 3).ToList();
-            var todayDataInMinuteAt2ndHour = todayDataInMinutes.Where(b => b.Date.Hour >= 3 && b.Date.Hour < 4).ToList();
-            var todayDataInMinuteAt3rdHour = todayDataInMinutes.Where(b => b.Date.Hour >= 4 && b.Date.Hour < 6).ToList();
-            var todayDataInMinuteAt4thHour = todayDataInMinutes.Where(b => b.Date.Hour >= 6 && b.Date.Hour < 7).ToList();
-            var todayDataInMinuteAt5thHour = todayDataInMinutes.Where(b => b.Date.Hour >= 7 && b.Date.Hour < 8).ToList();
 
             var histories = new List<HistoryHour>();
             for (int i = 0; i < historyData.Count(); i++)
             {
+                if (allSharePointsObjects.Bars[i].Date.Hour >= 8) continue; //Có 1 số mã CP sẽ có giao dịch phát sinh tại 8, nhưng thường là SL CP rất ít, đã kiểm tra với Fireant và cũng ko thấy họ lưu trong chart H1, nên mình cũng ko lưu
+
                 var history = new HistoryHour();
                 history.Date = allSharePointsObjects.Bars[i].Date;
                 history.O = allSharePointsObjects.Bars[i].Open;
@@ -316,9 +312,15 @@ namespace DotNetCoreSqlDb.Common
                 history.V = allSharePointsObjects.Bars[i].Volume;
                 history.StockSymbol = requestModel.code;
 
-                histories.Add(history);
+                histories.Add(history);//trong 1 ds dữ liệu, dữ liệu quá khứ sẽ được lưu sẵn theo dạng giờ, nhưng dữ liệu real time trong ngày cuối cùng sẽ được lưu dạng phút (đang trong phiên), nên phải cộng phút như bên dưới để ra dữ liệu
             }
 
+            var todayDataInMinutes = allSharePointsObjects.Bars.Except(historyData).ToList();
+            var todayDataInMinuteAt1stHour = todayDataInMinutes.Where(b => b.Date.Hour >= 2 && b.Date.Hour < 3).ToList();
+            var todayDataInMinuteAt2ndHour = todayDataInMinutes.Where(b => b.Date.Hour >= 3 && b.Date.Hour < 4).ToList();
+            var todayDataInMinuteAt3rdHour = todayDataInMinutes.Where(b => b.Date.Hour >= 4 && b.Date.Hour < 6).ToList();
+            var todayDataInMinuteAt4thHour = todayDataInMinutes.Where(b => b.Date.Hour >= 6 && b.Date.Hour < 7).ToList();
+            var todayDataInMinuteAt5thHour = todayDataInMinutes.Where(b => b.Date.Hour >= 7 && b.Date.Hour < 8).ToList(); //Có 1 số mã CP sẽ có giao dịch phát sinh tại 8, nhưng thường là SL CP rất ít, đã kiểm tra với Fireant và cũng ko thấy họ lưu trong chart H1, nên mình cũng ko lưu
             var data1 = CombineMinutesToHour(todayDataInMinuteAt1stHour, requestModel.code);
             var data2 = CombineMinutesToHour(todayDataInMinuteAt2ndHour, requestModel.code);
             var data3 = CombineMinutesToHour(todayDataInMinuteAt3rdHour, requestModel.code);
@@ -334,7 +336,7 @@ namespace DotNetCoreSqlDb.Common
             histories = histories.OrderBy(h => h.Date).ToList();
 
             result.AddRange(histories);
-
+            return result;
         }
 
         private HistoryHour CombineMinutesToHour(List<FireAntBarSymbolHistoryResponseModel> dataInMinutes, string symbol)
@@ -346,7 +348,7 @@ namespace DotNetCoreSqlDb.Common
                 history.O = dataInMinutes.OrderBy(h => h.Date).First().Open;
                 history.C = dataInMinutes.OrderBy(h => h.Date).Last().Close;
                 history.H = dataInMinutes.OrderBy(h => h.High).Last().High;
-                history.L = dataInMinutes.OrderBy(h => h.Low).Last().Low;
+                history.L = dataInMinutes.OrderBy(h => h.Low).First().Low;
                 history.V = dataInMinutes.Sum(d => d.Volume);
                 history.StockSymbol = symbol;
 

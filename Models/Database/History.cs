@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DotNetCoreSqlDb.Models.Business;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -63,6 +64,10 @@ namespace DotNetCoreSqlDb.Models
                 return Math.Min(IchimokuCloudTop, IchimokuCloudBot);
             }
         }
+
+        public EnumPhanKi RSIPhanKi { get; set; }
+        public EnumPhanKi MACDPhanKi { get; set; }
+
     }
 }
 

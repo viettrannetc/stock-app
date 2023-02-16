@@ -1,5 +1,20 @@
 ﻿namespace DotNetCoreSqlDb.Models.Business
 {
+    public enum EnumTrend
+    {
+        MuaBatDay = 0,
+        MuaTrongSongHoi = 1,
+        MuaTrongSideway = 2,
+        MuaTrendTang = 3,
+    }
+
+    public enum EnumPhanKi
+    {
+        NA = 0,
+        PKD = 1,
+        PKA = 2
+    }
+
     public enum EnumExcelColumnModel
     {
         A = 0,

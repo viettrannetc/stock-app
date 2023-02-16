@@ -139,7 +139,15 @@ namespace DotNetCoreSqlDb.Common
             },
         };
 
+        public static LocCoPhieuFilterRequest CT3TenKanVsKijun = new LocCoPhieuFilterRequest("CT3TenKanVsKijun") //Kijun vs Tenkan
+        {
+            Confirmed = true,
+            Note = "CT3TenKanVsKijun - Tenkan cat len Kijun, mua o gia ATO ngay mai",
+            PropertiesSoSanh = new List<LocCoPhieuCompareModel> {
+                new LocCoPhieuCompareModel { Property1 = "IchimokuTenKan", Property2 = "IchimokuKijun", Operation = OperationEnum.CrossUp }
 
+            },
+        };
         //public static LocCoPhieuFilterRequest CT2G = new LocCoPhieuFilterRequest("CT2G")        //RSI Phân kì
         //{
         //    RSIPhanKyTang = true

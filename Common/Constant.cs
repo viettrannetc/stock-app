@@ -5,7 +5,7 @@ namespace DotNetCoreSqlDb.Common
 {
     public static class ConstantData
     {
-        public static int minMA20VolDaily = 800000;
+        public static int minMA20VolDaily = 500000;
         public static int minMA20VolHourly = 150000;//300000
 
         public static List<string> Condition = new List<string> { "True", "true", "1" };

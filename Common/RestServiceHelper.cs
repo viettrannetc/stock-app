@@ -81,6 +81,9 @@ namespace DotNetCoreSqlDb.Common
             if (address.Contains("fireant") && !string.IsNullOrEmpty(token))
                 request.Headers.Add("cookie", token);
 
+            if (address.Contains("vietstock"))
+                request.Headers.Add("Referer", "https://stockchart.vietstock.vn");
+
             request.Method = method;
             request.ContentType = DataType;
             if (acceptJson)
@@ -116,7 +119,7 @@ namespace DotNetCoreSqlDb.Common
                     var reader = new StreamReader(r.GetResponseStream());
 
                     var content = await reader.ReadToEndAsync();
-
+                    if (content == null || content == "null") return null;
                     if (applyParseTwice == true)
                         return JsonConvert.DeserializeObject<T>(JsonConvert.DeserializeObject(content).ToString());
                     else

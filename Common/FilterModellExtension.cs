@@ -934,8 +934,8 @@ namespace DotNetCoreSqlDb.Common
 
         /// <summary>        
         /// Giá vượt MA 20 thì bắt đầu canh mua ở giá MA 20 hoặc chờ giá đang giảm dần về test lại MA 20
-        /// Từ giao điểm cắt, tính tới hiện tại, nếu giá trên MA 20 và đường trung bình cộng của giá (theo  (H - L) /2) tạo thành hình cong xuống hoặc đi ngang, và giá hiện tại chưa chạm MA 20 hoặc điệm trung tâm nến vẫn > MA 20
-        /// Trong 3 ngày ko có MACD cắt xuống Signal
+        /// Từ giao điểm giá cắt lên MA 20, tính tới hiện tại, nếu giá trên MA 20 và đường trung bình cộng của giá (theo  (H - L) /2) tạo thành hình cong xuống hoặc đi ngang, và giá hiện tại chưa chạm MA 20 hoặc điệm trung tâm nến vẫn > MA 20
+        /// Trong 3 ngày trước đó ko có MACD cắt xuống Signal
         /// => thì báo tín hiệu
         /// </summary>
         /// <param name="histories"></param>
